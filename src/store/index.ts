@@ -37,6 +37,10 @@ export interface Feature {
   // Release status
   releaseId?: string | null; // Associated approved or draft release
 
+  // Grouping fields
+  subsystem?: string;
+  taskKind?: string;
+
   // P&L & Telemetry (Telemetry adoption tracking details)
   adoptionRate: number; // % 0 to 100
   mau: number; // Monthly Active Users
@@ -192,6 +196,8 @@ export const initialFeatures: Feature[] = [
     segmentAdoption: { enterprise: 90, sme: 82, retail: 60 },
     revenueGenerated: 850000,
     developmentCost: 150000,
+    subsystem: 'СБП Процессинг',
+    taskKind: 'Фича (Feature)',
   },
   {
     id: 'fe-2',
@@ -212,6 +218,8 @@ export const initialFeatures: Feature[] = [
     segmentAdoption: { enterprise: 0, sme: 0, retail: 0 },
     revenueGenerated: 0,
     developmentCost: 240000,
+    subsystem: 'Уведомления и Вебхуки',
+    taskKind: 'Фича (Feature)',
   },
   {
     id: 'fe-3',
@@ -232,6 +240,8 @@ export const initialFeatures: Feature[] = [
     segmentAdoption: { enterprise: 0, sme: 0, retail: 0 },
     revenueGenerated: 0,
     developmentCost: 390000,
+    subsystem: 'ИТС Рекурренты',
+    taskKind: 'Фича (Feature)',
   },
   {
     id: 'fe-4',
@@ -252,6 +262,8 @@ export const initialFeatures: Feature[] = [
     segmentAdoption: { enterprise: 98, sme: 85, retail: 40 },
     revenueGenerated: 420000,
     developmentCost: 90000,
+    subsystem: 'Уведомления и Вебхуки',
+    taskKind: 'Улучшение (Improvement)',
   },
   {
     id: 'fe-5',
@@ -272,6 +284,8 @@ export const initialFeatures: Feature[] = [
     segmentAdoption: { enterprise: 0, sme: 0, retail: 0 },
     revenueGenerated: 0,
     developmentCost: 150000,
+    subsystem: 'Модуль Клиент-Банк',
+    taskKind: 'Фича (Feature)',
   },
   {
     id: 'fe-6',
@@ -292,6 +306,8 @@ export const initialFeatures: Feature[] = [
     segmentAdoption: { enterprise: 60, sme: 35, retail: 10 },
     revenueGenerated: 180000,
     developmentCost: 60000,
+    subsystem: 'Модуль Клиент-Банк',
+    taskKind: 'Улучшение (Improvement)',
   },
   {
     id: 'fe-7',
@@ -312,6 +328,8 @@ export const initialFeatures: Feature[] = [
     segmentAdoption: { enterprise: 0, sme: 0, retail: 0 },
     revenueGenerated: 0,
     developmentCost: 240000,
+    subsystem: 'СБП Процессинг',
+    taskKind: 'Фича (Feature)',
   },
   {
     id: 'fe-8',
@@ -332,6 +350,8 @@ export const initialFeatures: Feature[] = [
     segmentAdoption: { enterprise: 0, sme: 0, retail: 0 },
     revenueGenerated: 0,
     developmentCost: 630000,
+    subsystem: 'Уведомления и Вебхуки',
+    taskKind: 'Технический долг',
   },
   {
     id: 'fe-9',
@@ -352,6 +372,8 @@ export const initialFeatures: Feature[] = [
     segmentAdoption: { enterprise: 0, sme: 0, retail: 0 },
     revenueGenerated: 0,
     developmentCost: 150000,
+    subsystem: 'Уведомления и Вебхуки',
+    taskKind: 'Улучшение (Improvement)',
   }
 ];
 

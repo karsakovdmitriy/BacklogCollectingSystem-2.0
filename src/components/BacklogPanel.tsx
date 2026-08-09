@@ -6,6 +6,7 @@ import {
   Initiative,
   Feature,
   Task,
+  DictionaryItem,
 } from '@/store/index';
 import {
   ChevronDown,
@@ -15,6 +16,18 @@ import {
   ShieldAlert,
   Edit2,
   Settings,
+  LayoutGrid,
+  Network,
+  ArrowUpDown,
+  Layers,
+  FolderKanban,
+  HelpCircle,
+  Tag,
+  Clock,
+  Coins,
+  Signal,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 
 interface BacklogPanelProps {
@@ -23,25 +36,31 @@ interface BacklogPanelProps {
 }
 
 export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) {
-  // Collapsed states for Tree View
-  const [collapsedEpics, setCollapsedEpics] = useState<Record<string, boolean>>({});
-  const [collapsedInits, setCollapsedInits] = useState<Record<string, boolean>>({});
+  // Views, Grouping and Sorting States
+  const [viewMode, setViewMode] = useState<'tree' | 'dashboard'>('tree');
+  const [groupBy, setGroupBy] = useState<'epic' | 'subsystem' | 'taskKind'>('epic');
+  const [sortBy, setSortBy] = useState<'priority' | 'autoScore' | 'sp' | 'alphabetical'>('priority');
 
-  // Drawers & Modals state
+  // Collapsed states for Group Headers in Tree View
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  // Modals & form state
   const [isFeatureModalOpen, setIsFeatureModalOpen] = useState(false);
   const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
-  // Form states
+  // Override Form State
   const [selectedFeatureForOverride, setSelectedFeatureForOverride] = useState<Feature | null>(null);
   const [overrideScoreValue, setOverrideScoreValue] = useState<string>('');
   const [overrideReasonValue, setOverrideReasonValue] = useState<string>('');
 
+  // Add Task Form State
   const [selectedFeatureForTask, setSelectedFeatureForTask] = useState<Feature | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDeveloper, setNewTaskDeveloper] = useState('');
   const [newTaskSP, setNewTaskSP] = useState(3);
 
+  // Manual Feature Creation Form State
   const [newFeatTitle, setNewFeatTitle] = useState('');
   const [newFeatDesc, setNewFeatDesc] = useState('');
   const [newFeatInitId, setNewFeatInitId] = useState('');
@@ -49,17 +68,15 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
   const [newFeatSP, setNewFeatSP] = useState(5);
   const [newFeatSalesImpact, setNewFeatSalesImpact] = useState<1|2|3|4|5>(3);
   const [newFeatItsPriority, setNewFeatItsPriority] = useState<1|2|3|4|5>(3);
+  const [newFeatSubsystem, setNewFeatSubsystem] = useState('');
+  const [newFeatTaskKind, setNewFeatTaskKind] = useState('');
 
-  // Quick toggle expand/collapse
-  const toggleEpic = (id: string) => {
-    setCollapsedEpics((prev) => ({ ...prev, [id]: !prev[id] }));
+  // Helper toggle collapse
+  const toggleGroup = (groupId: string) => {
+    setCollapsedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
   };
 
-  const toggleInit = (id: string) => {
-    setCollapsedInits((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  // PM Override Submit
+  // Submit PM Priority Override
   const handleOverrideSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFeatureForOverride) return;
@@ -70,14 +87,13 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
     const scoreNum = overrideScoreValue ? parseInt(overrideScoreValue) : undefined;
     store.overrideFeatureScore(selectedFeatureForOverride.id, scoreNum, overrideReasonValue);
 
-    // reset states
     setSelectedFeatureForOverride(null);
     setOverrideScoreValue('');
     setOverrideReasonValue('');
     setIsOverrideModalOpen(false);
   };
 
-  // Add Task Submit
+  // Submit Add Task
   const handleTaskSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFeatureForTask) return;
@@ -98,7 +114,7 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
     setIsTaskModalOpen(false);
   };
 
-  // Add Feature Submit
+  // Submit Add Feature
   const handleFeatureSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFeatTitle.trim() || !newFeatInitId) return;
@@ -109,272 +125,635 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
       description: newFeatDesc,
       effortHours: Number(newFeatHours),
       effortSP: Number(newFeatSP),
-      repeatabilityCount: 1, // default
+      repeatabilityCount: 1,
       salesImpact: newFeatSalesImpact,
       itsPriority: newFeatItsPriority,
       releaseId: null,
+      subsystem: newFeatSubsystem || undefined,
+      taskKind: newFeatTaskKind || undefined,
     });
 
     setNewFeatTitle('');
     setNewFeatDesc('');
+    setNewFeatSubsystem('');
+    setNewFeatTaskKind('');
     setIsFeatureModalOpen(false);
   };
 
-  // Filter logic helper
-  const matchesSearch = (text: string) => {
-    return text.toLowerCase().includes(searchQuery.toLowerCase());
+  // ----------------------------------------------------
+  // FILTER, GROUP & SORT ARCHITECTURE
+  // ----------------------------------------------------
+
+  // 1. Base query match
+  const matchesSearch = (f: Feature) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      f.title.toLowerCase().includes(query) ||
+      f.code.toLowerCase().includes(query) ||
+      (f.description && f.description.toLowerCase().includes(query))
+    );
+  };
+
+  const baseFilteredFeatures: Feature[] = store.features.filter(matchesSearch);
+
+  // 2. Identify all possible groups based on current setting
+  interface GroupDefinition {
+    id: string;
+    name: string;
+    code?: string;
+    description?: string;
+  }
+
+  let groups: GroupDefinition[] = [];
+
+  if (groupBy === 'epic') {
+    // Grouping by Epic (directly mapped skipping Initiatives)
+    groups = store.epics.map((ep: Epic) => ({
+      id: ep.id,
+      name: ep.title,
+      code: ep.code,
+      description: ep.description,
+    }));
+    // Plus "Unclassified" column if some features don't resolve to an epic
+    groups.push({
+      id: 'unassigned-epic',
+      name: 'Без Эпика / Стратегического направления',
+      code: 'EPIC-NONE',
+    });
+  } else if (groupBy === 'subsystem') {
+    // Grouping by Subsystem
+    const uniqueSubs = Array.from(new Set(store.features.map((f: Feature) => f.subsystem).filter(Boolean))) as string[];
+    groups = uniqueSubs.map((subName) => ({
+      id: `subsystem-${subName}`,
+      name: subName,
+      code: 'SUB',
+    }));
+    // Unassigned
+    groups.push({
+      id: 'unassigned-subsystem',
+      name: 'Без подсистемы',
+      code: 'SUB-NONE',
+    });
+  } else if (groupBy === 'taskKind') {
+    // Grouping by Task Kind
+    const uniqueKinds = Array.from(new Set(store.features.map((f: Feature) => f.taskKind).filter(Boolean))) as string[];
+    groups = uniqueKinds.map((kindName) => ({
+      id: `kind-${kindName}`,
+      name: kindName,
+      code: 'KIND',
+    }));
+    // Unassigned
+    groups.push({
+      id: 'unassigned-kind',
+      name: 'Без вида задач',
+      code: 'KIND-NONE',
+    });
+  }
+
+  // 3. Helper to determine which group a Feature belongs to
+  const getFeatureGroup = (feat: Feature): string => {
+    if (groupBy === 'epic') {
+      const initiative = store.initiatives.find((i: Initiative) => i.id === feat.initiativeId);
+      if (initiative && initiative.epicId) {
+        return initiative.epicId;
+      }
+      return 'unassigned-epic';
+    } else if (groupBy === 'subsystem') {
+      return feat.subsystem ? `subsystem-${feat.subsystem}` : 'unassigned-subsystem';
+    } else {
+      return feat.taskKind ? `kind-${feat.taskKind}` : 'unassigned-kind';
+    }
+  };
+
+  // 4. Sort features according to chosen setting
+  const sortFeatures = (feats: Feature[]): Feature[] => {
+    return [...feats].sort((a, b) => {
+      const getPriority = (f: Feature) => (f.overrideScore !== undefined ? f.overrideScore : f.autoScore);
+      if (sortBy === 'priority') {
+        return getPriority(b) - getPriority(a);
+      } else if (sortBy === 'autoScore') {
+        return b.autoScore - a.autoScore;
+      } else if (sortBy === 'sp') {
+        return b.effortSP - a.effortSP;
+      } else {
+        return a.title.localeCompare(b.title);
+      }
+    });
+  };
+
+  // 5. Aggregate metrics higher in the hierarchy (calculated for a specific group of features)
+  const calculateGroupMetrics = (groupId: string) => {
+    const groupFeats = baseFilteredFeatures.filter((f) => getFeatureGroup(f) === groupId);
+
+    const totalSP = groupFeats.reduce((sum, f) => sum + f.effortSP, 0);
+    const totalHours = groupFeats.reduce((sum, f) => sum + f.effortHours, 0);
+    const totalSignals = groupFeats.reduce((sum, f) => sum + f.repeatabilityCount, 0);
+    const totalRevenue = groupFeats.reduce((sum, f) => sum + f.revenueGenerated, 0);
+    const totalDevCost = groupFeats.reduce((sum, f) => sum + f.developmentCost, 0);
+    const featureCount = groupFeats.length;
+
+    return {
+      totalSP,
+      totalHours,
+      totalSignals,
+      totalRevenue,
+      totalDevCost,
+      featureCount,
+    };
   };
 
   return (
     <div className="space-y-6">
-      {/* ACTION HEADER BAR */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-[#161b22] p-4 rounded-xl border border-[#30363d]">
-        <div className="space-y-1">
-          <h2 className="text-base font-semibold text-white">Инструменты управления бэклогом</h2>
-          <p className="text-xs text-[#8b949e]">Иерархия Epic ➔ Initiative ➔ Feature ➔ Task. Авто-приоритет рассчитывается по сигналам из ИТС/GitLab.</p>
+      {/* 1. EXTENDED CONTROL BAR: VIEW MODE, GROUPING, SORTING */}
+      <div className="bg-[#161b22] p-4 rounded-xl border border-[#30363d] space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h2 className="text-base font-semibold text-white">Управление бэклогом и приоритизацией</h2>
+            <p className="text-xs text-[#8b949e]">
+              Сквозное моделирование требований без промежуточных инициатив в иерархии. Выберите тип представления, группировку и метрики.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (store.initiatives.length > 0) {
+                  setNewFeatInitId(store.initiatives[0].id);
+                }
+                if (store.subsystems.length > 0) {
+                  setNewFeatSubsystem(store.subsystems[0].name);
+                }
+                if (store.taskKinds.length > 0) {
+                  setNewFeatTaskKind(store.taskKinds[0].name);
+                }
+                setIsFeatureModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#238636] hover:bg-[#2ea043] text-white font-medium transition-all text-xs shadow-lg"
+            >
+              <Plus size={16} />
+              Создать Фичу
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              if (store.initiatives.length > 0) {
-                setNewFeatInitId(store.initiatives[0].id);
-              }
-              setIsFeatureModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#238636] hover:bg-[#2ea043] text-white font-medium transition-all text-xs"
-          >
-            <Plus size={16} />
-            Создать Фичу
-          </button>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 gap-6">
-        {/* FULL TREE VIEW */}
-        <div className="space-y-4">
-          <div className="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden">
-            <div className="px-4 py-3 bg-[#21262d] border-b border-[#30363d] flex items-center justify-between">
-              <span className="font-semibold text-white">Дерево продуктовых требований</span>
-              <span className="text-xs text-[#8b949e]">Иерархический Enterprise-вид</span>
+        {/* Dynamic Controls Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-[#30363d]/50 text-xs">
+          {/* View Mode Toggle */}
+          <div className="space-y-1.5">
+            <label className="text-[#8b949e] font-medium block">Режим представления:</label>
+            <div className="flex items-center bg-[#0d1117] p-1 rounded-lg border border-[#30363d] w-fit">
+              <button
+                onClick={() => setViewMode('tree')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all ${
+                  viewMode === 'tree'
+                    ? 'bg-[#21262d] text-white border border-[#30363d]'
+                    : 'text-[#8b949e] hover:text-white'
+                }`}
+              >
+                <Network size={14} />
+                Дерево (Tree)
+              </button>
+              <button
+                onClick={() => setViewMode('dashboard')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all ${
+                  viewMode === 'dashboard'
+                    ? 'bg-[#21262d] text-white border border-[#30363d]'
+                    : 'text-[#8b949e] hover:text-white'
+                }`}
+              >
+                <LayoutGrid size={14} />
+                Дашборд (Board)
+              </button>
             </div>
+          </div>
 
-            <div className="p-4 space-y-3">
-              {store.epics.map((epic: Epic) => {
-                const epicInits = store.initiatives.filter((i: Initiative) => i.epicId === epic.id);
-                const isEpicCollapsed = collapsedEpics[epic.id];
+          {/* Grouping Select */}
+          <div className="space-y-1.5">
+            <label className="text-[#8b949e] font-medium block">Группировка сущностей:</label>
+            <div className="flex items-center bg-[#0d1117] p-1 rounded-lg border border-[#30363d] w-fit">
+              <button
+                onClick={() => setGroupBy('epic')}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md font-medium transition-all ${
+                  groupBy === 'epic'
+                    ? 'bg-[#21262d] text-white border border-[#30363d]'
+                    : 'text-[#8b949e] hover:text-white'
+                }`}
+              >
+                <Layers size={13} />
+                Эпик
+              </button>
+              <button
+                onClick={() => setGroupBy('subsystem')}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md font-medium transition-all ${
+                  groupBy === 'subsystem'
+                    ? 'bg-[#21262d] text-white border border-[#30363d]'
+                    : 'text-[#8b949e] hover:text-white'
+                }`}
+              >
+                <Settings size={13} />
+                Подсистема
+              </button>
+              <button
+                onClick={() => setGroupBy('taskKind')}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md font-medium transition-all ${
+                  groupBy === 'taskKind'
+                    ? 'bg-[#21262d] text-white border border-[#30363d]'
+                    : 'text-[#8b949e] hover:text-white'
+                }`}
+              >
+                <FolderKanban size={13} />
+                Вид задач
+              </button>
+            </div>
+          </div>
 
-                return (
-                  <div key={epic.id} className="border border-[#30363d] rounded-lg bg-[#0d1117]/30 overflow-hidden">
-                    {/* Epic Header */}
-                    <div className="p-3 bg-[#161b22]/90 flex items-center justify-between hover:bg-[#21262d]/40 transition-all">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => toggleEpic(epic.id)} className="text-[#8b949e] hover:text-white">
-                          {isEpicCollapsed ? <ChevronRight size={18} /> : <ChevronDown size={18} />}
-                        </button>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#388bfd]/10 text-[#58a6ff] border border-[#388bfd]/20">
-                          {epic.code}
-                        </span>
-                        <h3 className="font-semibold text-white">{epic.title}</h3>
-                      </div>
-                      <div className="text-xs text-[#8b949e]">
-                        Владелец: <span className="text-[#c9d1d9]">{epic.owner}</span>
-                      </div>
-                    </div>
-
-                    {/* Epic Children (Initiatives) */}
-                    {!isEpicCollapsed && (
-                      <div className="p-3 space-y-3 border-t border-[#30363d] bg-[#0d1117]/20">
-                        {epicInits.map((init: Initiative) => {
-                          const initFeatures = store.features.filter((f: Feature) => f.initiativeId === init.id);
-                          const isInitCollapsed = collapsedInits[init.id];
-
-                          return (
-                            <div key={init.id} className="border border-[#30363d]/70 rounded bg-[#161b22]/30 overflow-hidden ml-2">
-                              {/* Initiative Header */}
-                              <div className="p-2.5 bg-[#21262d]/20 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <button onClick={() => toggleInit(init.id)} className="text-[#8b949e] hover:text-white">
-                                    {isInitCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-                                  </button>
-                                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-purple-900/20 text-purple-400 border border-purple-800/30">
-                                    {init.code}
-                                  </span>
-                                  <h4 className="font-medium text-[#c9d1d9]">{init.title}</h4>
-                                </div>
-                                <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-yellow-950/40 text-yellow-500 border border-yellow-800/30">
-                                  {init.status}
-                                </span>
-                              </div>
-
-                              {/* Initiative Children (Features) */}
-                              {!isInitCollapsed && (
-                                <div className="p-2 space-y-2.5 border-t border-[#30363d]/40 bg-[#0d1117]/50 ml-4">
-                                  {initFeatures.length === 0 ? (
-                                    <p className="text-xs text-[#8b949e] italic p-2">Нет привязанных фич.</p>
-                                  ) : (
-                                    initFeatures.map((feat: Feature) => {
-                                      const featureTasks = store.tasks.filter((t: Task) => t.featureId === feat.id);
-                                      const currentScore = feat.overrideScore !== undefined ? feat.overrideScore : feat.autoScore;
-                                      const isOverridden = feat.overrideScore !== undefined;
-
-                                      return (
-                                        <div key={feat.id} className="p-3 rounded-md bg-[#161b22] border border-[#30363d] space-y-3">
-                                          {/* Feature Header */}
-                                          <div className="flex flex-wrap items-start justify-between gap-2">
-                                            <div className="space-y-1">
-                                              <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#238636]/20 text-[#2ea043] border border-[#238636]/30">
-                                                  {feat.code}
-                                                </span>
-                                                <h5 className="font-semibold text-white">{feat.title}</h5>
-                                                {feat.releaseId && (
-                                                  <span className={`text-[9px] px-1.5 py-0.2 rounded border font-mono ${feat.releaseId === 'rel-draft' ? 'bg-[#1f6feb]/10 text-[#58a6ff] border-[#1f6feb]/30' : 'bg-green-950 text-green-400 border-green-800/40'}`}>
-                                                    {feat.releaseId === 'rel-draft' ? 'В ЧЕРНОВИКЕ РЕЛИЗА' : 'ВЫПУЩЕН В РЕЛИЗ'}
-                                                  </span>
-                                                )}
-                                              </div>
-                                              <p className="text-xs text-[#8b949e]">{feat.description}</p>
-                                            </div>
-
-                                            {/* Priority Calculations Board */}
-                                            <div className="flex items-center gap-2.5 bg-[#0d1117] p-2 rounded-lg border border-[#30363d]">
-                                              <div className="text-center px-1.5">
-                                                <span className="text-[9px] text-[#8b949e] block font-mono">AUTO SCORE</span>
-                                                <strong className="text-xs text-white font-mono">{feat.autoScore}</strong>
-                                              </div>
-                                              <div className="text-center border-l border-[#30363d] px-1.5">
-                                                <span className="text-[9px] text-[#8b949e] block font-mono">OVERRIDE</span>
-                                                {isOverridden ? (
-                                                  <strong className="text-xs text-yellow-500 font-mono flex items-center gap-0.5">
-                                                    {feat.overrideScore}
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-400"></span>
-                                                  </strong>
-                                                ) : (
-                                                  <span className="text-[10px] text-[#8b949e] italic font-mono">—</span>
-                                                )}
-                                              </div>
-                                              <div className="text-center border-l border-[#30363d] px-1.5">
-                                                <span className="text-[9px] text-[#8b949e] block font-mono">ИТОГ</span>
-                                                <strong className="text-sm text-green-400 font-mono">{currentScore}</strong>
-                                              </div>
-
-                                              {/* Override Action */}
-                                              <button
-                                                onClick={() => {
-                                                  setSelectedFeatureForOverride(feat);
-                                                  setOverrideScoreValue(feat.overrideScore !== undefined ? String(feat.overrideScore) : '');
-                                                  setOverrideReasonValue(feat.overrideReason || '');
-                                                  setIsOverrideModalOpen(true);
-                                                }}
-                                                title="Переопределить приоритет PM-ом"
-                                                className="p-1 rounded bg-[#21262d] hover:bg-[#30363d] border border-[#30363d] text-[#8b949e] hover:text-white"
-                                              >
-                                                <Edit2 size={12} />
-                                              </button>
-                                            </div>
-                                          </div>
-
-                                          {/* Feature Audit Info Box if Overridden */}
-                                          {isOverridden && (
-                                            <div className="bg-yellow-950/20 border border-yellow-800/30 p-2 rounded text-xs text-yellow-500 flex items-start gap-1.5 font-mono">
-                                              <ShieldAlert size={14} className="shrink-0 mt-0.5" />
-                                              <div>
-                                                <strong>PM аудит ручной корректировки:</strong> {feat.overrideReason}
-                                                <button
-                                                  onClick={() => store.resetFeatureOverride(feat.id)}
-                                                  className="ml-2 underline text-white hover:text-yellow-400 text-[10px]"
-                                                >
-                                                  [Сбросить]
-                                                </button>
-                                              </div>
-                                            </div>
-                                          )}
-
-                                          {/* Metrics Breakdown Grid */}
-                                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs py-2 border-t border-b border-[#30363d]/40">
-                                            <div>
-                                              <span className="text-[#8b949e] block text-[10px]">Трудоемкость (Hours/SP):</span>
-                                              <span className="text-[#c9d1d9] font-mono font-medium">{feat.effortHours}h / {feat.effortSP} SP</span>
-                                            </div>
-                                            <div>
-                                              <span className="text-[#8b949e] block text-[10px]">Кол-во сигналов (ИТС):</span>
-                                              <span className="text-[#c9d1d9] font-mono font-medium">{feat.repeatabilityCount} шт</span>
-                                            </div>
-                                            <div>
-                                              <span className="text-[#8b949e] block text-[10px]">Влияние на продажи (sales):</span>
-                                              <span className="text-[#c9d1d9] font-mono font-medium">{feat.salesImpact} из 5</span>
-                                            </div>
-                                            <div>
-                                              <span className="text-[#8b949e] block text-[10px]">Приоритет ИТС:</span>
-                                              <span className="text-[#c9d1d9] font-mono font-medium">{feat.itsPriority} из 5</span>
-                                            </div>
-                                          </div>
-
-                                          {/* Tasks and GitLab status */}
-                                          <div className="space-y-1.5 ml-2.5">
-                                            <div className="flex items-center justify-between text-[11px] text-[#8b949e]">
-                                              <span className="font-semibold text-white flex items-center gap-1">
-                                                <Settings size={12} />
-                                                Технические задачи GitLab ({featureTasks.length})
-                                              </span>
-                                              <button
-                                                onClick={() => {
-                                                  setSelectedFeatureForTask(feat);
-                                                  setIsTaskModalOpen(true);
-                                                }}
-                                                className="text-[#58a6ff] hover:underline flex items-center gap-0.5"
-                                              >
-                                                <Plus size={11} /> Добавить подзадачу
-                                              </button>
-                                            </div>
-
-                                            <div className="space-y-1">
-                                              {featureTasks.map((task: Task) => (
-                                                <div key={task.id} className="flex items-center justify-between p-1.5 rounded bg-[#0d1117] border border-[#30363d]/50 text-xs font-mono">
-                                                  <div className="flex items-center gap-1.5">
-                                                    <span className="text-[#8b949e]">{task.code}</span>
-                                                    <span className="text-[#c9d1d9] truncate max-w-xs">{task.title}</span>
-                                                  </div>
-                                                  <div className="flex items-center gap-2">
-                                                    <span className="text-[10px] text-[#8b949e]">Разработчик: {task.developer}</span>
-                                                    <span className="bg-[#30363d] px-1 rounded text-white text-[10px]">{task.sp} SP</span>
-                                                    {task.gitlabUrl ? (
-                                                      <a
-                                                        href={task.gitlabUrl}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="text-[#58a6ff] hover:underline text-[10px] flex items-center gap-0.5"
-                                                      >
-                                                        <GitBranch size={10} /> GitLab
-                                                      </a>
-                                                    ) : (
-                                                      <span className="text-yellow-600 text-[10px]">Локально</span>
-                                                    )}
-                                                  </div>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      );
-                                    })
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+          {/* Sorting Select */}
+          <div className="space-y-1.5">
+            <label className="text-[#8b949e] font-medium block">Варианты сортировки фич:</label>
+            <div className="flex items-center bg-[#0d1117] p-1.5 rounded-lg border border-[#30363d] text-white">
+              <ArrowUpDown size={14} className="text-[#8b949e] mr-2" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="bg-transparent border-none text-white focus:outline-none focus:ring-0 text-xs w-full cursor-pointer font-medium"
+              >
+                <option value="priority">По приоритету (Итог) [Max ➔ Min]</option>
+                <option value="autoScore">По авто-оценке (Auto Score) [Max ➔ Min]</option>
+                <option value="sp">По трудоемкости (Story Points) [Max ➔ Min]</option>
+                <option value="alphabetical">По алфавиту [А ➔ Я]</option>
+              </select>
             </div>
           </div>
         </div>
       </div>
 
-      {/* MODAL: MANUAL PRIORITY OVERRIDE WITH AUDIT COMPULSORY REASON */}
+      {/* 2. MAIN PRESENTATION SWITCH */}
+
+      {viewMode === 'tree' ? (
+        /* ==================== TREE VIEW (ДЕРЕВО) ==================== */
+        <div className="space-y-4">
+          {groups.map((group) => {
+            const groupFeatures = baseFilteredFeatures.filter((f) => getFeatureGroup(f) === group.id);
+            if (groupFeatures.length === 0 && searchQuery) return null; // Skip empty groups on search
+
+            const metrics = calculateGroupMetrics(group.id);
+            const sortedGroupFeats = sortFeatures(groupFeatures);
+            const isCollapsed = collapsedGroups[group.id];
+
+            return (
+              <div key={group.id} className="border border-[#30363d] rounded-xl bg-[#0d1117]/40 overflow-hidden shadow-sm">
+                {/* Parent Group Header (Tree Mode) */}
+                <div className="p-4 bg-[#161b22] border-b border-[#30363d] flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-all">
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      onClick={() => toggleGroup(group.id)}
+                      className="text-[#8b949e] hover:text-white p-1 rounded hover:bg-[#21262d]"
+                    >
+                      {isCollapsed ? <ChevronRight size={18} /> : <ChevronDown size={18} />}
+                    </button>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        {group.code && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#388bfd]/10 text-[#58a6ff] border border-[#388bfd]/20 font-bold">
+                            {group.code}
+                          </span>
+                        )}
+                        <h3 className="font-bold text-sm text-white">{group.name}</h3>
+                      </div>
+                      {group.description && (
+                        <p className="text-xs text-[#8b949e] mt-1 leading-normal max-w-2xl">{group.description}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* AGGREGATED METRICS SHOWN HIGHER IN HIERARCHY */}
+                  <div className="flex flex-wrap items-center gap-2 font-mono">
+                    <div className="bg-[#0d1117] border border-[#30363d] rounded-lg px-2.5 py-1.5 text-[11px] text-center min-w-[70px]">
+                      <span className="text-[9px] text-[#8b949e] block font-sans">ФИЧИ</span>
+                      <strong className="text-[#58a6ff]">{metrics.featureCount} шт</strong>
+                    </div>
+                    <div className="bg-[#0d1117] border border-[#30363d] rounded-lg px-2.5 py-1.5 text-[11px] text-center min-w-[80px]">
+                      <span className="text-[9px] text-[#8b949e] block font-sans">ОБЪЕМ SP</span>
+                      <strong className="text-purple-400">{metrics.totalSP} SP</strong>
+                    </div>
+                    <div className="bg-[#0d1117] border border-[#30363d] rounded-lg px-2.5 py-1.5 text-[11px] text-center min-w-[80px]">
+                      <span className="text-[9px] text-[#8b949e] block font-sans">Трудоемкость</span>
+                      <strong className="text-orange-400">{metrics.totalHours} ч</strong>
+                    </div>
+                    <div className="bg-[#0d1117] border border-[#30363d] rounded-lg px-2.5 py-1.5 text-[11px] text-center min-w-[80px]">
+                      <span className="text-[9px] text-[#8b949e] block font-sans">СИГНАЛЫ</span>
+                      <strong className="text-green-400">{metrics.totalSignals} шт</strong>
+                    </div>
+                    <div className="bg-[#0d1117] border border-[#30363d] rounded-lg px-2.5 py-1.5 text-[11px] text-center min-w-[100px]">
+                      <span className="text-[9px] text-[#8b949e] block font-sans">ВЫРУЧКА ИТС</span>
+                      <strong className="text-green-400">₽{metrics.totalRevenue.toLocaleString()}</strong>
+                    </div>
+                    <div className="bg-[#0d1117] border border-[#30363d] rounded-lg px-2.5 py-1.5 text-[11px] text-center min-w-[100px]">
+                      <span className="text-[9px] text-[#8b949e] block font-sans">DEV СТОИМОСТЬ</span>
+                      <strong className="text-red-400">₽{metrics.totalDevCost.toLocaleString()}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Features list under Parent Group */}
+                {!isCollapsed && (
+                  <div className="p-4 space-y-3 bg-[#0d1117]/20">
+                    {sortedGroupFeats.length === 0 ? (
+                      <p className="text-xs text-[#8b949e] italic p-2">В этой группе пока нет фич бэклога.</p>
+                    ) : (
+                      sortedGroupFeats.map((feat) => {
+                        const featureTasks = store.tasks.filter((t: Task) => t.featureId === feat.id);
+                        const currentScore = feat.overrideScore !== undefined ? feat.overrideScore : feat.autoScore;
+                        const isOverridden = feat.overrideScore !== undefined;
+
+                        return (
+                          <div key={feat.id} className="p-4 rounded-xl bg-[#161b22] border border-[#30363d] hover:border-[#444c56] transition-all space-y-3">
+                            {/* Feature Row header */}
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div className="space-y-1.5 max-w-3xl">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#238636]/20 text-[#2ea043] border border-[#238636]/30 font-bold">
+                                    {feat.code}
+                                  </span>
+                                  <h4 className="font-bold text-white text-sm">{feat.title}</h4>
+
+                                  {/* Subsystem & TaskKind Badges */}
+                                  {feat.subsystem && (
+                                    <span className="text-[10px] bg-[#21262d] px-2 py-0.5 rounded text-white border border-[#30363d] flex items-center gap-1">
+                                      <Settings size={10} /> {feat.subsystem}
+                                    </span>
+                                  )}
+                                  {feat.taskKind && (
+                                    <span className="text-[10px] bg-purple-900/20 text-purple-400 border border-purple-800/30 px-2 py-0.5 rounded flex items-center gap-1">
+                                      <FolderKanban size={10} /> {feat.taskKind}
+                                    </span>
+                                  )}
+
+                                  {feat.releaseId && (
+                                    <span className={`text-[9px] px-2 py-0.5 rounded border font-mono font-bold ${
+                                      feat.releaseId === 'rel-draft'
+                                        ? 'bg-[#1f6feb]/10 text-[#58a6ff] border-[#1f6feb]/30'
+                                        : 'bg-green-950 text-green-400 border-green-800/40'
+                                    }`}>
+                                      {feat.releaseId === 'rel-draft' ? 'В ЧЕРНОВИКЕ РЕЛИЗА' : 'ВЫПУЩЕН В РЕЛИЗ'}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-[#8b949e] leading-relaxed">{feat.description}</p>
+                              </div>
+
+                              {/* Priority Override & Action Column */}
+                              <div className="flex items-center gap-2 bg-[#0d1117] p-2 rounded-lg border border-[#30363d] text-xs font-mono">
+                                <div className="text-center px-1.5">
+                                  <span className="text-[9px] text-[#8b949e] block font-sans">AUTO SCORE</span>
+                                  <strong className="text-white">{feat.autoScore}</strong>
+                                </div>
+                                <div className="text-center border-l border-[#30363d] px-1.5">
+                                  <span className="text-[9px] text-[#8b949e] block font-sans">OVERRIDE</span>
+                                  {isOverridden ? (
+                                    <strong className="text-yellow-500 flex items-center gap-0.5">
+                                      {feat.overrideScore}
+                                      <span className="w-1.5 h-1.5 rounded-full bg-yellow-400"></span>
+                                    </strong>
+                                  ) : (
+                                    <span className="text-[#8b949e] italic">—</span>
+                                  )}
+                                </div>
+                                <div className="text-center border-l border-[#30363d] px-1.5">
+                                  <span className="text-[9px] text-[#8b949e] block font-sans">ИТОГ</span>
+                                  <strong className="text-green-400 text-sm">{currentScore}</strong>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setSelectedFeatureForOverride(feat);
+                                    setOverrideScoreValue(feat.overrideScore !== undefined ? String(feat.overrideScore) : '');
+                                    setOverrideReasonValue(feat.overrideReason || '');
+                                    setIsOverrideModalOpen(true);
+                                  }}
+                                  title="Переопределить приоритет PM-ом"
+                                  className="p-1.5 rounded bg-[#21262d] hover:bg-[#30363d] border border-[#30363d] text-[#8b949e] hover:text-white"
+                                >
+                                  <Edit2 size={13} />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Overridden Reason Banner */}
+                            {isOverridden && (
+                              <div className="bg-yellow-950/20 border border-yellow-800/30 p-2.5 rounded-lg text-xs text-yellow-500 flex items-start gap-1.5 font-mono">
+                                <ShieldAlert size={14} className="shrink-0 mt-0.5" />
+                                <div className="w-full flex justify-between items-center">
+                                  <span><strong>PM аудит ручной корректировки:</strong> {feat.overrideReason}</span>
+                                  <button
+                                    onClick={() => store.resetFeatureOverride(feat.id)}
+                                    className="underline text-white hover:text-yellow-400 text-[10px]"
+                                  >
+                                    [Сбросить]
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Feature-level short data attributes */}
+                            <div className="flex flex-wrap gap-4 text-[10px] text-[#8b949e] font-mono py-1 border-t border-[#30363d]/40">
+                              <div>SP: <span className="text-[#c9d1d9]">{feat.effortSP} SP</span></div>
+                              <div>Часы: <span className="text-[#c9d1d9]">{feat.effortHours}h</span></div>
+                              <div>Сигналы (ИТС/GitLab): <span className="text-[#c9d1d9]">{feat.repeatabilityCount} шт</span></div>
+                              <div>Стоимость разработки: <span className="text-[#c9d1d9]">₽{feat.developmentCost.toLocaleString()}</span></div>
+                            </div>
+
+                            {/* Technical Tasks Section */}
+                            <div className="space-y-1.5 pt-2 border-t border-[#30363d]/40">
+                              <div className="flex items-center justify-between text-[11px] text-[#8b949e]">
+                                <span className="font-semibold text-white flex items-center gap-1 font-mono">
+                                  <Settings size={12} /> Задачи декомпозиции GitLab ({featureTasks.length})
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    setSelectedFeatureForTask(feat);
+                                    setIsTaskModalOpen(true);
+                                  }}
+                                  className="text-[#58a6ff] hover:underline flex items-center gap-0.5 font-sans"
+                                >
+                                  <Plus size={11} /> Добавить подзадачу
+                                </button>
+                              </div>
+
+                              <div className="space-y-1">
+                                {featureTasks.map((task: Task) => (
+                                  <div key={task.id} className="flex items-center justify-between p-2 rounded bg-[#0d1117] border border-[#30363d]/40 text-xs font-mono">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[#8b949e]">{task.code}</span>
+                                      <span className="text-[#c9d1d9] font-sans">{task.title}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-[10px]">
+                                      <span className="text-[#8b949e]">Разработчик: {task.developer}</span>
+                                      <span className="bg-[#21262d] px-1.5 py-0.5 rounded text-white border border-[#30363d]">{task.sp} SP</span>
+                                      {task.gitlabUrl ? (
+                                        <a
+                                          href={task.gitlabUrl}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-[#58a6ff] hover:underline flex items-center gap-0.5"
+                                        >
+                                          <GitBranch size={10} /> GitLab
+                                        </a>
+                                      ) : (
+                                        <span className="text-yellow-600">Локально</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* ==================== DASHBOARD VIEW (ДАШБОРД) ==================== */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 overflow-x-auto items-start">
+          {groups.map((group) => {
+            const groupFeatures = baseFilteredFeatures.filter((f) => getFeatureGroup(f) === group.id);
+            if (groupFeatures.length === 0 && searchQuery) return null; // Skip empty groups on search
+
+            const metrics = calculateGroupMetrics(group.id);
+            const sortedGroupFeats = sortFeatures(groupFeatures);
+
+            return (
+              <div key={group.id} className="flex flex-col bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden min-w-[320px] max-w-md shadow-lg shrink-0">
+                {/* Column/Group Header */}
+                <div className="p-4 bg-[#21262d]/50 border-b border-[#30363d] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {group.code && (
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#388bfd]/10 text-[#58a6ff] border border-[#388bfd]/20 font-bold">
+                          {group.code}
+                        </span>
+                      )}
+                      <h3 className="font-bold text-xs text-white truncate max-w-[180px]">{group.name}</h3>
+                    </div>
+                    <span className="bg-[#30363d] text-[#c9d1d9] text-[10px] px-2 py-0.5 rounded-full font-mono">
+                      {metrics.featureCount} фич
+                    </span>
+                  </div>
+
+                  {/* HIGH METRICS CARD SHOWN HIGHER IN HIERARCHY */}
+                  <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-[#8b949e] bg-[#0d1117] p-2.5 rounded-lg border border-[#30363d]">
+                    <div>SP: <span className="text-purple-400 font-bold">{metrics.totalSP} SP</span></div>
+                    <div>Часы: <span className="text-orange-400 font-bold">{metrics.totalHours}ч</span></div>
+                    <div>Сигналы: <span className="text-green-400 font-bold">{metrics.totalSignals} шт</span></div>
+                    <div>Выручка: <span className="text-green-400 font-bold">₽{metrics.totalRevenue.toLocaleString()}</span></div>
+                    <div className="col-span-2 pt-1 border-t border-[#30363d]/50">
+                      Затраты Dev: <span className="text-red-400 font-bold">₽{metrics.totalDevCost.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dashboard column body */}
+                <div className="p-3 space-y-3 overflow-y-auto max-h-[600px] bg-[#0d1117]/20">
+                  {sortedGroupFeats.length === 0 ? (
+                    <div className="py-8 text-center text-[#8b949e] text-xs italic">
+                      Нет фич бэклога в данном столбце.
+                    </div>
+                  ) : (
+                    sortedGroupFeats.map((feat) => {
+                      const featureTasks = store.tasks.filter((t: Task) => t.featureId === feat.id);
+                      const currentScore = feat.overrideScore !== undefined ? feat.overrideScore : feat.autoScore;
+                      const isOverridden = feat.overrideScore !== undefined;
+
+                      return (
+                        <div key={feat.id} className="p-3 rounded-lg bg-[#161b22] border border-[#30363d] hover:border-[#444c56] transition-all space-y-2">
+                          {/* Title block */}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[#238636]/20 text-[#2ea043] border border-[#238636]/30 font-bold">
+                                {feat.code}
+                              </span>
+                              <div className="flex items-center gap-1 bg-[#0d1117] px-1.5 py-0.5 rounded border border-[#30363d]">
+                                <span className="text-[9px] text-[#8b949e] font-sans">ИТОГ:</span>
+                                <strong className="text-[11px] text-green-400 font-mono">{currentScore}</strong>
+                              </div>
+                            </div>
+                            <h4 className="font-bold text-xs text-white leading-snug">{feat.title}</h4>
+                            <p className="text-[11px] text-[#8b949e] leading-snug line-clamp-2">{feat.description}</p>
+                          </div>
+
+                          {/* Quick sub-labels */}
+                          <div className="flex flex-wrap gap-1.5 text-[9px]">
+                            {feat.subsystem && (
+                              <span className="bg-[#21262d] px-1 rounded text-[#c9d1d9] border border-[#30363d]">
+                                {feat.subsystem}
+                              </span>
+                            )}
+                            {feat.taskKind && (
+                              <span className="bg-purple-900/10 text-purple-400 border border-purple-800/30 px-1 rounded">
+                                {feat.taskKind}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Small metrics */}
+                          <div className="grid grid-cols-2 gap-1 text-[9px] font-mono text-[#8b949e] bg-[#0d1117]/50 p-1.5 rounded border border-[#30363d]/30">
+                            <div>SP: <span className="text-white">{feat.effortSP} SP</span></div>
+                            <div>Сигналы: <span className="text-white">{feat.repeatabilityCount} шт</span></div>
+                          </div>
+
+                          {/* Override Audit Alert inside Card */}
+                          {isOverridden && (
+                            <div className="bg-yellow-950/20 border border-yellow-800/30 p-1.5 rounded text-[9px] text-yellow-500 font-mono">
+                              <strong>Ручная правка:</strong> {feat.overrideReason}
+                            </div>
+                          )}
+
+                          {/* Actions Inside card */}
+                          <div className="flex items-center justify-between pt-1 border-t border-[#30363d]/40">
+                            <span className="text-[10px] text-[#8b949e]">Задач: {featureTasks.length} шт</span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => {
+                                  setSelectedFeatureForOverride(feat);
+                                  setOverrideScoreValue(feat.overrideScore !== undefined ? String(feat.overrideScore) : '');
+                                  setOverrideReasonValue(feat.overrideReason || '');
+                                  setIsOverrideModalOpen(true);
+                                }}
+                                className="px-1.5 py-0.5 bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] hover:text-white rounded border border-[#30363d] text-[10px]"
+                              >
+                                PM вес
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedFeatureForTask(feat);
+                                  setIsTaskModalOpen(true);
+                                }}
+                                className="px-1.5 py-0.5 bg-[#238636]/20 hover:bg-[#238636]/40 text-[#2ea043] rounded border border-[#238636]/30 text-[10px]"
+                              >
+                                + Таск
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ========================================================================================= */}
+      {/* MODALS */}
+      {/* ========================================================================================= */}
+
+      {/* 1. MODAL: MANUAL PRIORITY OVERRIDE */}
       {isOverrideModalOpen && selectedFeatureForOverride && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs">
           <div className="bg-[#161b22] border border-[#30363d] rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
@@ -432,7 +811,7 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
         </div>
       )}
 
-      {/* MODAL: ADD TASK TO FEATURE */}
+      {/* 2. MODAL: ADD TASK TO FEATURE */}
       {isTaskModalOpen && selectedFeatureForTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs">
           <div className="bg-[#161b22] border border-[#30363d] rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
@@ -441,7 +820,7 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
               Фича: <strong className="text-white">[{selectedFeatureForTask.code}] {selectedFeatureForTask.title}</strong>
             </div>
 
-            <form onSubmit={handleTaskSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleTaskSubmit} className="space-y-4 text-xs font-sans">
               <div>
                 <label className="block text-[#8b949e] mb-1 font-medium">Название задачи:</label>
                 <input
@@ -498,14 +877,14 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
         </div>
       )}
 
-      {/* MODAL: MANUAL FEATURE CREATION */}
+      {/* 3. MODAL: MANUAL FEATURE CREATION (WITH SUBSYSTEM & TASK KIND SELECTION) */}
       {isFeatureModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs">
-          <div className="bg-[#161b22] border border-[#30363d] rounded-xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-[#161b22] border border-[#30363d] rounded-xl max-w-lg w-full p-6 space-y-4 my-8 shadow-2xl">
             <h3 className="text-lg font-semibold text-white">Добавить новую Фичу в Бэклог</h3>
             <form onSubmit={handleFeatureSubmit} className="space-y-4 text-xs font-sans">
               <div>
-                <label className="block text-[#8b949e] mb-1 font-medium">Родительская инициатива:</label>
+                <label className="block text-[#8b949e] mb-1 font-medium">Инициатива (для структуры):</label>
                 <select
                   value={newFeatInitId}
                   onChange={(e) => setNewFeatInitId(e.target.value)}
@@ -538,6 +917,36 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                   placeholder="Опишите технический стек и бизнес-ценность..."
                   className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff]"
                 />
+              </div>
+
+              {/* Subsystem & Task Kind configuration selectors */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[#8b949e] mb-1 font-medium">Подсистема (Subsystem):</label>
+                  <select
+                    value={newFeatSubsystem}
+                    onChange={(e) => setNewFeatSubsystem(e.target.value)}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none"
+                  >
+                    <option value="">-- Не выбрана --</option>
+                    {store.subsystems.map((s: DictionaryItem) => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1 font-medium">Вид задачи (Task Kind):</label>
+                  <select
+                    value={newFeatTaskKind}
+                    onChange={(e) => setNewFeatTaskKind(e.target.value)}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none"
+                  >
+                    <option value="">-- Не выбран --</option>
+                    {store.taskKinds.map((k: DictionaryItem) => (
+                      <option key={k.id} value={k.name}>{k.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

@@ -24,7 +24,7 @@ import {
 
 export default function Home() {
   const store = useProductState();
-  const [activeTab, setActiveTab] = useState<'backlog' | 'incoming' | 'release' | 'telemetry' | 'pnl' | 'settings'>('backlog');
+  const [activeTab, setActiveTab] = useState<'backlog' | 'incoming' | 'release' | 'telemetry' | 'pnl' | 'settings'>('incoming');
   const [showLogs, setShowLogs] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -69,23 +69,6 @@ export default function Home() {
 
           {/* Navigation Items */}
           <nav className="p-3 space-y-1">
-            <button
-              onClick={() => setActiveTab('backlog')}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-medium transition-all ${
-                activeTab === 'backlog'
-                  ? 'bg-[#1f6feb] text-white'
-                  : 'text-[#c9d1d9] hover:bg-[#21262d] hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Layers size={18} />
-                <span>Бэклог и Приоритизация</span>
-              </div>
-              <span className="text-[11px] bg-[#30363d] px-1.5 py-0.5 rounded text-[#8b949e]">
-                {store.features.filter((f: any) => !f.releaseId).length}
-              </span>
-            </button>
-
             {/* NEW TAB: INCOMING TASK ANALYSIS */}
             <button
               onClick={() => setActiveTab('incoming')}
@@ -101,6 +84,23 @@ export default function Home() {
               </div>
               <span className="text-[11px] bg-red-900/60 border border-red-800 px-1.5 py-0.5 rounded text-white font-mono animate-pulse">
                 {store.requests.filter((r: any) => r.status === 'В проработку').length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('backlog')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-medium transition-all ${
+                activeTab === 'backlog'
+                  ? 'bg-[#1f6feb] text-white'
+                  : 'text-[#c9d1d9] hover:bg-[#21262d] hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Layers size={18} />
+                <span>Бэклог и Приоритизация</span>
+              </div>
+              <span className="text-[11px] bg-[#30363d] px-1.5 py-0.5 rounded text-[#8b949e]">
+                {store.features.filter((f: any) => !f.releaseId).length}
               </span>
             </button>
 

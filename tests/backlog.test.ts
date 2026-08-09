@@ -1,9 +1,12 @@
 import { test, expect } from '@playwright/test';
 
-test('Verify Backlog view modes, grouping, sorting and modal operations', async ({ page }) => {
+test('Verify Backlog view modes, grouping, sorting and drag-and-drop elements', async ({ page }) => {
   // 1. Visit main page
   await page.goto('http://localhost:3000');
   await page.waitForTimeout(1000);
+
+  // Landing tab is "Анализ входящих задач" (Incoming Task Analysis) by default
+  await page.screenshot({ path: '/home/jules/verification/screenshots/incoming_task_analysis_landing.png', fullPage: true });
 
   // 2. Select first tab "Бэклог и Приоритизация" to verify
   await page.click('button:has-text("Бэклог и Приоритизация")');
@@ -15,7 +18,12 @@ test('Verify Backlog view modes, grouping, sorting and modal operations', async 
   // 4. Try choosing "Дашборд (Board)" view
   await page.click('button:has-text("Дашборд (Board)")');
   await page.waitForTimeout(500);
-  await page.screenshot({ path: '/home/jules/verification/screenshots/backlog_dashboard_view.png', fullPage: true });
+
+  // Verify that "Входящие сигналы (Inbox)" is visible
+  const inboxHeader = page.locator('h3:has-text("Входящие сигналы (Inbox)")');
+  await expect(inboxHeader).toBeVisible();
+
+  await page.screenshot({ path: '/home/jules/verification/screenshots/backlog_dashboard_dragndrop_view.png', fullPage: true });
 
   // 5. Try grouping by Subsystem
   await page.click('button:has-text("Подсистема")');
@@ -41,5 +49,5 @@ test('Verify Backlog view modes, grouping, sorting and modal operations', async 
   await page.click('button:has-text("Отмена")');
   await page.waitForTimeout(200);
 
-  console.log('SUCCESS: All backlog views, groups, sorting controls, and feature creation fields verified successfully!');
+  console.log('SUCCESS: All backlog views, drag-and-drop layouts, and default tab order verified successfully!');
 });

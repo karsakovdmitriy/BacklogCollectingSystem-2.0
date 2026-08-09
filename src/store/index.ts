@@ -406,7 +406,7 @@ export const initialRequests: Request[] = [
     taskKind: 'Ошибка (Bug)',
     taskType: 'Интеграционный сбой',
     epicId: 'ep-1',
-    associatedFeatureId: 'fe-2',
+    associatedFeatureId: null,
     createdAt: '2025-10-01',
   },
   {

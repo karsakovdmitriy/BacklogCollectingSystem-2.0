@@ -383,6 +383,53 @@ export function useProductState() {
     logAction('UPDATE_REQUEST_DETAILS', `Обновлены метаданные запроса ${updatedReq.code}`);
   };
 
+  // Drag-and-drop helpers to update Request's Epic
+  const updateRequestEpic = (requestId: string, epicId: string) => {
+    setRequests((prev) =>
+      prev.map((r) => {
+        if (r.id === requestId) {
+          logAction('REQUEST_EPIC_UPDATE_DND', `Запрос ${r.code} перенесен в Эпик ${epicId} через drag-and-drop`);
+          return { ...r, epicId };
+        }
+        return r;
+      })
+    );
+  };
+
+  // Drag-and-drop helpers to bind request to a feature
+  const associateRequestWithFeature = (requestId: string, featureId: string) => {
+    let targetEpicId: string | undefined = undefined;
+
+    // Find the feature to see its Epic (if any)
+    const feat = features.find((f) => f.id === featureId);
+    if (feat) {
+      const init = initiatives.find((i) => i.id === feat.initiativeId);
+      if (init) {
+        targetEpicId = init.epicId;
+      }
+    }
+
+    setRequests((prev) =>
+      prev.map((r) => {
+        if (r.id === requestId) {
+          logAction(
+            'REQUEST_FEATURE_BIND_DND',
+            `Запрос ${r.code} привязан к Фиче ${featureId} через drag-and-drop`
+          );
+          return {
+            ...r,
+            associatedFeatureId: featureId,
+            status: 'Принят' as const, // auto-approve upon direct feature association
+            epicId: targetEpicId || r.epicId, // auto-update epic to align with feature's epic
+          };
+        }
+        return r;
+      })
+    );
+
+    incrementFeatureRepeatability(featureId, requestId);
+  };
+
   // Classify Request (Enforces 7 parameters constraint!)
   const classifyRequest = (requestId: string, status: 'Отклонен' | 'В проработку' | 'Принят', associatedFeatureId?: string | null) => {
     let errorOccurred = false;
@@ -637,6 +684,8 @@ export function useProductState() {
     addRequest,
     updateRequestDetails,
     classifyRequest,
+    updateRequestEpic,
+    associateRequestWithFeature,
     updateDraftCapacity,
     toggleFeatureInRelease,
     clearDraftFeatures,

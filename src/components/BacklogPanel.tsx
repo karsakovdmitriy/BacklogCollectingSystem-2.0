@@ -6,7 +6,6 @@ import {
   Initiative,
   Feature,
   Task,
-  Request,
 } from '@/store/index';
 import {
   ChevronDown,
@@ -15,16 +14,7 @@ import {
   GitBranch,
   ShieldAlert,
   Edit2,
-  CheckCircle2,
-  XCircle,
-  HelpCircle,
-  TrendingUp,
-  FileSpreadsheet,
   Settings,
-  Flame,
-  UserCheck,
-  Zap,
-  Info
 } from 'lucide-react';
 
 interface BacklogPanelProps {
@@ -38,8 +28,6 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
   const [collapsedInits, setCollapsedInits] = useState<Record<string, boolean>>({});
 
   // Drawers & Modals state
-  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-  const [isGitlabImportOpen, setIsGitlabImportOpen] = useState(false);
   const [isFeatureModalOpen, setIsFeatureModalOpen] = useState(false);
   const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -53,10 +41,6 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDeveloper, setNewTaskDeveloper] = useState('');
   const [newTaskSP, setNewTaskSP] = useState(3);
-
-  const [newReqTitle, setNewReqTitle] = useState('');
-  const [newReqDesc, setNewReqDesc] = useState('');
-  const [newReqSource, setNewReqSource] = useState<'GitLab Project A' | 'GitLab Project B' | 'Client Interview' | 'Direct Feedback'>('Client Interview');
 
   const [newFeatTitle, setNewFeatTitle] = useState('');
   const [newFeatDesc, setNewFeatDesc] = useState('');
@@ -114,24 +98,6 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
     setIsTaskModalOpen(false);
   };
 
-  // Add Request Submit
-  const handleRequestSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newReqTitle.trim()) return;
-
-    store.addRequest({
-      title: newReqTitle,
-      source: newReqSource,
-      description: newReqDesc,
-      status: 'В проработку',
-      associatedFeatureId: null,
-    });
-
-    setNewReqTitle('');
-    setNewReqDesc('');
-    setIsRequestModalOpen(false);
-  };
-
   // Add Feature Submit
   const handleFeatureSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,29 +118,6 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
     setNewFeatTitle('');
     setNewFeatDesc('');
     setIsFeatureModalOpen(false);
-  };
-
-  // MOCK: GitLab import triggers auto creation of multiple requests
-  const handleGitlabImport = () => {
-    store.addRequest({
-      title: '[GitLab-992] Критическая ошибка сессии при оплате через СБП',
-      source: 'GitLab Project A',
-      description: 'Пользователи на Андроиде ловят NullPointerException на экране чекаута.',
-      status: 'Принят',
-      gitlabIssueId: '#992',
-      associatedFeatureId: 'fe-1', // Link to QR-SBP
-    });
-
-    store.addRequest({
-      title: '[GitLab-1004] Жалоба на отсутствие фильтра дат в отчете ИТС',
-      source: 'GitLab Project B',
-      description: 'В проектном GitLab заведен тикет. Бухгалтерия крупного клиента просит фильтр по датам.',
-      status: 'В проработку',
-      gitlabIssueId: '#1004',
-    });
-
-    alert('Импортировано 2 новых GitLab-инцидента с проектов. Система автоматически связала критический баг по СБП с фичей FEAT-111, увеличив её вес!');
-    setIsGitlabImportOpen(false);
   };
 
   // Filter logic helper
@@ -203,28 +146,12 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
             <Plus size={16} />
             Создать Фичу
           </button>
-
-          <button
-            onClick={() => setIsRequestModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#21262d] hover:bg-[#30363d] text-white border border-[#30363d] font-medium transition-all text-xs"
-          >
-            <Plus size={16} />
-            Добавить Запрос (Request)
-          </button>
-
-          <button
-            onClick={() => setIsGitlabImportOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#1f6feb] hover:bg-[#388bfd] text-white font-medium transition-all text-xs"
-          >
-            <GitBranch size={16} />
-            Импорт из GitLab
-          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* LEFT COLUMN: INTERACTIVE TREE VIEW (EPIC ➔ INITIATIVE ➔ FEATURE ➔ TASK) */}
-        <div className="lg:col-span-2 space-y-4">
+      <div className="grid grid-cols-1 gap-6">
+        {/* FULL TREE VIEW */}
+        <div className="space-y-4">
           <div className="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden">
             <div className="px-4 py-3 bg-[#21262d] border-b border-[#30363d] flex items-center justify-between">
               <span className="font-semibold text-white">Дерево продуктовых требований</span>
@@ -235,9 +162,6 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
               {store.epics.map((epic: Epic) => {
                 const epicInits = store.initiatives.filter((i: Initiative) => i.epicId === epic.id);
                 const isEpicCollapsed = collapsedEpics[epic.id];
-
-                // Check search match
-                const epicMatches = matchesSearch(epic.title) || matchesSearch(epic.code);
 
                 return (
                   <div key={epic.id} className="border border-[#30363d] rounded-lg bg-[#0d1117]/30 overflow-hidden">
@@ -290,8 +214,6 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                                   ) : (
                                     initFeatures.map((feat: Feature) => {
                                       const featureTasks = store.tasks.filter((t: Task) => t.featureId === feat.id);
-                                      const featureRequests = store.requests.filter((r: Request) => r.associatedFeatureId === feat.id);
-
                                       const currentScore = feat.overrideScore !== undefined ? feat.overrideScore : feat.autoScore;
                                       const isOverridden = feat.overrideScore !== undefined;
 
@@ -450,181 +372,7 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
             </div>
           </div>
         </div>
-
-        {/* RIGHT COLUMN: REQUESTS INBOX (INCOMING SIGNALS FROM SITES / CUSTOMERS) */}
-        <div className="space-y-4">
-          <div className="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden flex flex-col h-full">
-            <div className="px-4 py-3 bg-[#21262d] border-b border-[#30363d] flex items-center justify-between">
-              <span className="font-semibold text-white">Входящие запросы и сигналы (Requests)</span>
-              <span className="text-[10px] bg-red-950/60 border border-red-900 text-red-400 px-2 py-0.5 rounded-full font-mono animate-pulse">
-                СВЕЖИЕ
-              </span>
-            </div>
-
-            <div className="p-4 space-y-3 max-h-[800px] overflow-y-auto">
-              {store.requests.map((req: Request) => (
-                <div key={req.id} className="p-3 bg-[#0d1117] border border-[#30363d] rounded-lg space-y-2.5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono text-[#8b949e]">{req.code}</span>
-                        <span className="text-[10px] font-semibold text-white bg-[#21262d] px-1.5 py-0.2 rounded border border-[#30363d]">
-                          {req.source}
-                        </span>
-                      </div>
-                      <h5 className="font-medium text-white text-xs mt-1 leading-snug">{req.title}</h5>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-[#8b949e] leading-snug">{req.description}</p>
-
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#21262d]">
-                    <div className="flex items-center gap-1 text-[11px]">
-                      <span className="text-[#8b949e]">Статус:</span>
-                      <span className={`px-1.5 py-0.2 rounded font-mono text-[10px] ${
-                        req.status === 'Принят' ? 'bg-green-950 text-green-400 border border-green-900/30' :
-                        req.status === 'В проработку' ? 'bg-yellow-950 text-yellow-500 border border-yellow-900/30' :
-                        'bg-red-950 text-red-400 border border-red-900/30'
-                      }`}>
-                        {req.status}
-                      </span>
-                    </div>
-
-                    {/* Classification actions */}
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => store.classifyRequest(req.id, 'Принят', req.associatedFeatureId || 'fe-1')}
-                        title="Принять запрос (Увеличит вес связанной фичи)"
-                        className="p-1 rounded bg-green-950 hover:bg-green-900 border border-green-900 text-green-400"
-                      >
-                        <CheckCircle2 size={12} />
-                      </button>
-                      <button
-                        onClick={() => store.classifyRequest(req.id, 'В проработку', req.associatedFeatureId)}
-                        title="Вернуть в проработку / Спецификацию"
-                        className="p-1 rounded bg-yellow-950 hover:bg-yellow-900 border border-yellow-900 text-yellow-400"
-                      >
-                        <HelpCircle size={12} />
-                      </button>
-                      <button
-                        onClick={() => store.classifyRequest(req.id, 'Отклонен', null)}
-                        title="Отклонить запрос"
-                        className="p-1 rounded bg-red-950 hover:bg-red-900 border border-red-900 text-red-400"
-                      >
-                        <XCircle size={12} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Binding Details */}
-                  {req.status === 'Принят' && (
-                    <div className="bg-[#21262d]/50 p-1.5 rounded border border-[#30363d]/40 text-[10px] text-[#8b949e] flex items-center justify-between">
-                      <span>Связан с: <strong className="text-[#58a6ff]">{req.associatedFeatureId || 'FEAT-111'}</strong></span>
-                      {req.gitlabIssueId && <span className="font-mono text-green-400">{req.gitlabIssueId}</span>}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
-
-      {/* MODAL: MANUAL REQUEST CREATION */}
-      {isRequestModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs">
-          <div className="bg-[#161b22] border border-[#30363d] rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="text-lg font-semibold text-white">Добавить ручной запрос ИТС / Клиента</h3>
-            <form onSubmit={handleRequestSubmit} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-[#8b949e] mb-1 font-medium">Название запроса:</label>
-                <input
-                  type="text"
-                  required
-                  value={newReqTitle}
-                  onChange={(e) => setNewReqTitle(e.target.value)}
-                  placeholder="Например: Не работает выгрузка актов сверки"
-                  className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[#8b949e] mb-1 font-medium">Источник:</label>
-                <select
-                  value={newReqSource}
-                  onChange={(e: any) => setNewReqSource(e.target.value)}
-                  className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff]"
-                >
-                  <option value="Client Interview">Интервью с клиентом (B2B)</option>
-                  <option value="Direct Feedback">Прямой фидбек саппорта</option>
-                  <option value="GitLab Project A">Проектный GitLab - Команда А</option>
-                  <option value="GitLab Project B">Проектный GitLab - Команда B</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[#8b949e] mb-1 font-medium">Описание проблемы (Боль пользователя):</label>
-                <textarea
-                  rows={3}
-                  value={newReqDesc}
-                  onChange={(e) => setNewReqDesc(e.target.value)}
-                  placeholder="Опишите контекст и влияние на пользователя..."
-                  className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff]"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsRequestModalOpen(false)}
-                  className="px-4 py-2 rounded bg-[#21262d] text-white border border-[#30363d] hover:bg-[#30363d]"
-                >
-                  Отмена
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded bg-[#238636] text-white hover:bg-[#2ea043]"
-                >
-                  Создать
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: GITLAB BULK IMPORT */}
-      {isGitlabImportOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs">
-          <div className="bg-[#161b22] border border-[#30363d] rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="text-lg font-semibold text-white">Интеграция с проектными GitLab репозиториями</h3>
-            <p className="text-xs text-[#8b949e] leading-relaxed">
-              Система автоматически импортирует открытые Issues из проектных команд, размечает по ключевым словам и рассчитывает повторяемость сигналов.
-            </p>
-            <div className="bg-[#0d1117] border border-[#30363d] rounded p-3 space-y-1 text-xs font-mono text-[#8b949e]">
-              <div>URL: <span className="text-green-400">https://gitlab.corp/api/v4/projects</span></div>
-              <div>Группы: <span className="text-white">ERP-Core, SLA-Support</span></div>
-              <div>Обнаружено открытых Issues: <span className="text-[#58a6ff] font-bold">2 новых</span></div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setIsGitlabImportOpen(false)}
-                className="px-4 py-2 rounded bg-[#21262d] text-white border border-[#30363d] hover:bg-[#30363d] text-xs"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleGitlabImport}
-                className="px-4 py-2 rounded bg-[#1f6feb] text-white hover:bg-[#388bfd] text-xs font-semibold"
-              >
-                Синхронизировать сейчас
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* MODAL: MANUAL PRIORITY OVERRIDE WITH AUDIT COMPULSORY REASON */}
       {isOverrideModalOpen && selectedFeatureForOverride && (

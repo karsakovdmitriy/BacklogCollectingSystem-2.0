@@ -7,6 +7,7 @@ import {
   Request,
   Release,
   AuditLog,
+  DictionaryItem,
   initialEpics,
   initialInitiatives,
   initialFeatures,
@@ -14,6 +15,11 @@ import {
   initialRequests,
   initialReleases,
   initialAuditLogs,
+  initialClients,
+  initialProjects,
+  initialSubsystems,
+  initialTaskKinds,
+  initialTaskTypes
 } from './index';
 
 export function useProductState() {
@@ -73,6 +79,47 @@ export function useProductState() {
     return initialAuditLogs;
   });
 
+  // State for Dictionaries
+  const [clients, setClients] = useState<DictionaryItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dict_clients');
+      return saved ? JSON.parse(saved) : initialClients;
+    }
+    return initialClients;
+  });
+
+  const [projects, setProjects] = useState<DictionaryItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dict_projects');
+      return saved ? JSON.parse(saved) : initialProjects;
+    }
+    return initialProjects;
+  });
+
+  const [subsystems, setSubsystems] = useState<DictionaryItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dict_subsystems');
+      return saved ? JSON.parse(saved) : initialSubsystems;
+    }
+    return initialSubsystems;
+  });
+
+  const [taskKinds, setTaskKinds] = useState<DictionaryItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dict_task_kinds');
+      return saved ? JSON.parse(saved) : initialTaskKinds;
+    }
+    return initialTaskKinds;
+  });
+
+  const [taskTypes, setTaskTypes] = useState<DictionaryItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dict_task_types');
+      return saved ? JSON.parse(saved) : initialTaskTypes;
+    }
+    return initialTaskTypes;
+  });
+
   // Persist State
   useEffect(() => {
     localStorage.setItem('ep_data', JSON.stringify(epics));
@@ -102,6 +149,26 @@ export function useProductState() {
     localStorage.setItem('audit_data', JSON.stringify(auditLogs));
   }, [auditLogs]);
 
+  useEffect(() => {
+    localStorage.setItem('dict_clients', JSON.stringify(clients));
+  }, [clients]);
+
+  useEffect(() => {
+    localStorage.setItem('dict_projects', JSON.stringify(projects));
+  }, [projects]);
+
+  useEffect(() => {
+    localStorage.setItem('dict_subsystems', JSON.stringify(subsystems));
+  }, [subsystems]);
+
+  useEffect(() => {
+    localStorage.setItem('dict_task_kinds', JSON.stringify(taskKinds));
+  }, [taskKinds]);
+
+  useEffect(() => {
+    localStorage.setItem('dict_task_types', JSON.stringify(taskTypes));
+  }, [taskTypes]);
+
   // Recalculate autoScore for a Feature
   const recalculateAutoScore = (feat: Feature): number => {
     return (feat.repeatabilityCount * 3) + (feat.salesImpact * 10) + (feat.itsPriority * 10);
@@ -119,12 +186,68 @@ export function useProductState() {
     setAuditLogs((prev) => [newLog, ...prev]);
   };
 
-  // Add / Edit Epic
+  // Add / Delete Epic
   const addEpic = (epic: Omit<Epic, 'id' | 'code'>) => {
     const code = `EPIC-${String(epics.length + 1).padStart(3, '0')}`;
     const newEpic: Epic = { ...epic, id: `ep-${Date.now()}`, code };
     setEpics((prev) => [...prev, newEpic]);
     logAction('CREATE_EPIC', `Создан эпик ${code}: ${epic.title}`);
+  };
+
+  const deleteEpic = (id: string) => {
+    setEpics((prev) => prev.filter((e) => e.id !== id));
+    logAction('DELETE_EPIC', `Удален эпик ${id}`);
+  };
+
+  // Dictionary management helpers
+  const addClient = (name: string) => {
+    const newItem = { id: `cl-${Date.now()}`, name };
+    setClients((prev) => [...prev, newItem]);
+    logAction('ADD_DICTIONARY', `Справочник: Добавлен клиент ${name}`);
+  };
+  const deleteClient = (id: string) => {
+    setClients((prev) => prev.filter(i => i.id !== id));
+    logAction('DELETE_DICTIONARY', `Справочник: Удален клиент ${id}`);
+  };
+
+  const addProject = (name: string) => {
+    const newItem = { id: `pr-${Date.now()}`, name };
+    setProjects((prev) => [...prev, newItem]);
+    logAction('ADD_DICTIONARY', `Справочник: Добавлен проект ${name}`);
+  };
+  const deleteProject = (id: string) => {
+    setProjects((prev) => prev.filter(i => i.id !== id));
+    logAction('DELETE_DICTIONARY', `Справочник: Удален проект ${id}`);
+  };
+
+  const addSubsystem = (name: string) => {
+    const newItem = { id: `sub-${Date.now()}`, name };
+    setSubsystems((prev) => [...prev, newItem]);
+    logAction('ADD_DICTIONARY', `Справочник: Добавлена подсистема ${name}`);
+  };
+  const deleteSubsystem = (id: string) => {
+    setSubsystems((prev) => prev.filter(i => i.id !== id));
+    logAction('DELETE_DICTIONARY', `Справочник: Удалена подсистема ${id}`);
+  };
+
+  const addTaskKind = (name: string) => {
+    const newItem = { id: `kind-${Date.now()}`, name };
+    setTaskKinds((prev) => [...prev, newItem]);
+    logAction('ADD_DICTIONARY', `Справочник: Добавлен вид задачи ${name}`);
+  };
+  const deleteTaskKind = (id: string) => {
+    setTaskKinds((prev) => prev.filter(i => i.id !== id));
+    logAction('DELETE_DICTIONARY', `Справочник: Удален вид задачи ${id}`);
+  };
+
+  const addTaskType = (name: string) => {
+    const newItem = { id: `type-${Date.now()}`, name };
+    setTaskTypes((prev) => [...prev, newItem]);
+    logAction('ADD_DICTIONARY', `Справочник: Добавлен тип задачи ${name}`);
+  };
+  const deleteTaskType = (id: string) => {
+    setTaskTypes((prev) => prev.filter(i => i.id !== id));
+    logAction('DELETE_DICTIONARY', `Справочник: Удален тип задачи ${id}`);
   };
 
   // Add / Edit Initiative
@@ -211,16 +334,36 @@ export function useProductState() {
     const code = `TASK-${1000 + tasks.length + 1}`;
     const newTask: Task = { ...task, id: `t-${Date.now()}`, code };
     setTasks((prev) => [...prev, newTask]);
-
-    // Auto increment repeatability of feature if request triggered it
     logAction('CREATE_TASK', `Добавлена задача ${code}: ${task.title} к фиче ${task.featureId}`);
   };
 
-  // Add Request & handle Classification
+  // Helper validation logic checking for 7 core attributes
+  const isRequestFullyConfigured = (req: Partial<Request>): boolean => {
+    return !!(
+      req.gitlabIssueId &&
+      req.client &&
+      req.project &&
+      req.subsystem &&
+      req.taskKind &&
+      req.taskType &&
+      req.epicId
+    );
+  };
+
+  // Add Request
   const addRequest = (req: Omit<Request, 'id' | 'code' | 'createdAt'>) => {
     const code = `REQ-${100 + requests.length + 1}`;
+
+    // Default initial request might be incomplete. If it has incomplete fields, status is set to 'В проработку'.
+    // If we try to add it with Accepted/Rejected but fields are missing, force it to 'В проработку'.
+    let validatedStatus = req.status;
+    if (validatedStatus !== 'В проработку' && !isRequestFullyConfigured(req)) {
+      validatedStatus = 'В проработку';
+    }
+
     const newReq: Request = {
       ...req,
+      status: validatedStatus,
       id: `req-${Date.now()}`,
       code,
       createdAt: new Date().toISOString().substring(0, 10),
@@ -228,16 +371,30 @@ export function useProductState() {
     setRequests((prev) => [...prev, newReq]);
     logAction('CREATE_REQUEST', `Получен запрос ${code}: ${req.title} (${req.source})`);
 
-    // If the request was classified and is accepted / bound to an existing feature, increase repeatability count!
-    if (req.status === 'Принят' && req.associatedFeatureId) {
+    // If fully configured, accepted, and bound, update repeatability
+    if (validatedStatus === 'Принят' && req.associatedFeatureId) {
       incrementFeatureRepeatability(req.associatedFeatureId, code);
     }
   };
 
+  // Update request inline details
+  const updateRequestDetails = (updatedReq: Request) => {
+    setRequests((prev) => prev.map((r) => (r.id === updatedReq.id ? updatedReq : r)));
+    logAction('UPDATE_REQUEST_DETAILS', `Обновлены метаданные запроса ${updatedReq.code}`);
+  };
+
+  // Classify Request (Enforces 7 parameters constraint!)
   const classifyRequest = (requestId: string, status: 'Отклонен' | 'В проработку' | 'Принят', associatedFeatureId?: string | null) => {
+    let errorOccurred = false;
     setRequests((prev) =>
       prev.map((r) => {
         if (r.id === requestId) {
+          if (!isRequestFullyConfigured(r)) {
+            alert(`Ошибка! Невозможно изменить статус запроса ${r.code} на "${status}". Сначала заполните все 7 обязательных параметров (Id Gitlab, Клиент, Проект, Подсистема, Вид задачи, Тип задачи, Епик).`);
+            errorOccurred = true;
+            return r;
+          }
+
           const oldStatus = r.status;
           logAction('CLASSIFY_REQUEST', `Запрос ${r.code} классифицирован: ${oldStatus} -> ${status}`);
 
@@ -249,6 +406,7 @@ export function useProductState() {
         return r;
       })
     );
+    return !errorOccurred;
   };
 
   const incrementFeatureRepeatability = (featureId: string, triggerCode: string) => {
@@ -295,11 +453,7 @@ export function useProductState() {
 
   // Auto-allocate Features to draft release (Capacity constrained Knapsack algorithm based on Score)
   const autoAllocateDraftFeatures = (capacityLimit: number) => {
-    // Collect all features not in any APPROVED release
     const candidates = features.filter(f => f.releaseId !== 'rel-1');
-
-    // Sort features by priority score DESC (use override if available, else autoScore)
-    // To handle Value-to-Cost density, we sort by (Score / effortSP) DESC
     const sorted = [...candidates].sort((a, b) => {
       const scoreA = a.overrideScore !== undefined ? a.overrideScore : a.autoScore;
       const scoreB = b.overrideScore !== undefined ? b.overrideScore : b.autoScore;
@@ -319,10 +473,9 @@ export function useProductState() {
       }
     }
 
-    // Update state: Set releaseId to 'rel-draft' for allocated, clear for others (if they were draft)
     setFeatures((prev) =>
       prev.map((f) => {
-        if (f.releaseId === 'rel-1') return f; // Leave approved alone
+        if (f.releaseId === 'rel-1') return f;
         if (allocatedIds.includes(f.id)) {
           return { ...f, releaseId: 'rel-draft' };
         } else {
@@ -352,7 +505,6 @@ export function useProductState() {
     const newApprovedId = `rel-${Date.now()}`;
     const newApprovedCode = `RELEASE-${new Date().getFullYear()}-REV-${Date.now().toString().slice(-4)}`;
 
-    // Generate simulated GitLab export logs
     const exportLogs = [
       `INFO: Инициализация автоматического экспорта для утвержденного релиза ${newApprovedCode}`,
       `INFO: Направление экспорта: GitLab Group "Enterprise Products / Core"`,
@@ -370,7 +522,6 @@ export function useProductState() {
       `SUCCESS: Все задачи успешно экспортированы. Статус релиза: APPROVED. Поставлены вебхуки телеметрии.`
     ];
 
-    // Create approved release record
     const newApprovedRelease: Release = {
       id: newApprovedId,
       code: newApprovedCode,
@@ -381,7 +532,6 @@ export function useProductState() {
       exportLogs,
     };
 
-    // Update releases state
     setReleases((prev) => [
       newApprovedRelease,
       ...prev.filter(r => r.id !== 'rel-draft'),
@@ -394,14 +544,13 @@ export function useProductState() {
       }
     ]);
 
-    // Update features: Lock features to this release and mock adoption start
     setFeatures((prev) =>
       prev.map((f) => {
         if (f.releaseId === 'rel-draft') {
           return {
             ...f,
             releaseId: newApprovedId,
-            adoptionRate: Math.floor(Math.random() * 40 + 20), // start mock telemetry
+            adoptionRate: Math.floor(Math.random() * 40 + 20),
             mau: Math.floor(Math.random() * 800 + 100),
             retentionRate: Math.floor(Math.random() * 30 + 50),
             segmentAdoption: {
@@ -432,6 +581,12 @@ export function useProductState() {
     localStorage.removeItem('req_data');
     localStorage.removeItem('rel_data');
     localStorage.removeItem('audit_data');
+    localStorage.removeItem('dict_clients');
+    localStorage.removeItem('dict_projects');
+    localStorage.removeItem('dict_subsystems');
+    localStorage.removeItem('dict_task_kinds');
+    localStorage.removeItem('dict_task_types');
+
     setEpics(initialEpics);
     setInitiatives(initialInitiatives);
     setFeatures(initialFeatures);
@@ -439,6 +594,12 @@ export function useProductState() {
     setRequests(initialRequests);
     setReleases(initialReleases);
     setAuditLogs(initialAuditLogs);
+    setClients(initialClients);
+    setProjects(initialProjects);
+    setSubsystems(initialSubsystems);
+    setTaskKinds(initialTaskKinds);
+    setTaskTypes(initialTaskTypes);
+
     logAction('RESET_ALL', 'Сброс всех настроек системы и восстановление демонстрационных данных по умолчанию.');
   };
 
@@ -450,7 +611,23 @@ export function useProductState() {
     requests,
     releases,
     auditLogs,
+    clients,
+    projects,
+    subsystems,
+    taskKinds,
+    taskTypes,
     addEpic,
+    deleteEpic,
+    addClient,
+    deleteClient,
+    addProject,
+    deleteProject,
+    addSubsystem,
+    deleteSubsystem,
+    addTaskKind,
+    deleteTaskKind,
+    addTaskType,
+    deleteTaskType,
     addInitiative,
     addFeature,
     updateFeature,
@@ -458,6 +635,7 @@ export function useProductState() {
     resetFeatureOverride,
     addTask,
     addRequest,
+    updateRequestDetails,
     classifyRequest,
     updateDraftCapacity,
     toggleFeatureInRelease,

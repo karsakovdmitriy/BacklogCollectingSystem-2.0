@@ -3,9 +3,11 @@
 import React, { useState } from 'react';
 import { useProductState } from '@/store/useProductState';
 import BacklogPanel from '@/components/BacklogPanel';
+import IncomingAnalysis from '@/components/IncomingAnalysis';
 import ReleasePlanner from '@/components/ReleasePlanner';
 import Telemetry from '@/components/Telemetry';
 import PnLDashboard from '@/components/PnLDashboard';
+import SettingsPanel from '@/components/SettingsPanel';
 
 import {
   Layers,
@@ -13,30 +15,29 @@ import {
   Gauge,
   TrendingUp,
   Database,
-  RefreshCw,
   Cpu,
-  ShieldCheck,
   Search,
   User,
-  GitBranch
+  Inbox,
+  Settings
 } from 'lucide-react';
 
 export default function Home() {
   const store = useProductState();
-  const [activeTab, setActiveTab] = useState<'backlog' | 'release' | 'telemetry' | 'pnl'>('backlog');
+  const [activeTab, setActiveTab] = useState<'backlog' | 'incoming' | 'release' | 'telemetry' | 'pnl' | 'settings'>('backlog');
   const [showLogs, setShowLogs] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Calculations for quick Sidebar Indicators
   const totalFeatures = store.features.length;
-  const draftFeaturesCount = store.features.filter((f) => f.releaseId === 'rel-draft').length;
-  const approvedFeaturesCount = store.features.filter((f) => f.releaseId && f.releaseId !== 'rel-draft').length;
+  const draftFeaturesCount = store.features.filter((f: any) => f.releaseId === 'rel-draft').length;
+  const approvedFeaturesCount = store.features.filter((f: any) => f.releaseId && f.releaseId !== 'rel-draft').length;
 
-  const activeRelease = store.releases.find((r) => r.id === 'rel-draft');
+  const activeRelease = store.releases.find((r: any) => r.id === 'rel-draft');
   const activeReleaseCapacity = activeRelease ? activeRelease.capacitySP : 20;
 
-  const draftFeatures = store.features.filter((f) => f.releaseId === 'rel-draft');
-  const currentDraftLoad = draftFeatures.reduce((sum, f) => sum + f.effortSP, 0);
+  const draftFeatures = store.features.filter((f: any) => f.releaseId === 'rel-draft');
+  const currentDraftLoad = draftFeatures.reduce((sum: number, f: any) => sum + f.effortSP, 0);
 
   return (
     <div className="flex h-screen overflow-hidden text-sm font-sans bg-[#0d1117]">
@@ -49,7 +50,7 @@ export default function Home() {
               <Cpu size={22} className="animate-pulse" />
             </div>
             <div>
-              <h1 className="font-semibold text-white tracking-wide leading-tight">PM-COCKPIT v1.1</h1>
+              <h1 className="font-semibold text-white tracking-wide leading-tight">PM-COCKPIT v1.2</h1>
               <p className="text-xs text-[#8b949e]">Сквозная Аналитика & Релизы</p>
             </div>
           </div>
@@ -81,7 +82,25 @@ export default function Home() {
                 <span>Бэклог и Приоритизация</span>
               </div>
               <span className="text-[11px] bg-[#30363d] px-1.5 py-0.5 rounded text-[#8b949e]">
-                {store.features.filter(f => !f.releaseId).length}
+                {store.features.filter((f: any) => !f.releaseId).length}
+              </span>
+            </button>
+
+            {/* NEW TAB: INCOMING TASK ANALYSIS */}
+            <button
+              onClick={() => setActiveTab('incoming')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-medium transition-all ${
+                activeTab === 'incoming'
+                  ? 'bg-[#1f6feb] text-white'
+                  : 'text-[#c9d1d9] hover:bg-[#21262d] hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Inbox size={18} />
+                <span>Анализ входящих задач</span>
+              </div>
+              <span className="text-[11px] bg-red-900/60 border border-red-800 px-1.5 py-0.5 rounded text-white font-mono animate-pulse">
+                {store.requests.filter((r: any) => r.status === 'В проработку').length}
               </span>
             </button>
 
@@ -137,6 +156,21 @@ export default function Home() {
                 ROI
               </span>
             </button>
+
+            {/* NEW TAB: SETTINGS */}
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-medium transition-all ${
+                activeTab === 'settings'
+                  ? 'bg-[#1f6feb] text-white'
+                  : 'text-[#c9d1d9] hover:bg-[#21262d] hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Settings size={18} />
+                <span>Настройки</span>
+              </div>
+            </button>
           </nav>
 
           {/* Quick Stats & System Config */}
@@ -178,7 +212,7 @@ export default function Home() {
 
           {showLogs && (
             <div className="h-44 overflow-y-auto bg-[#0d1117] border border-[#30363d] rounded p-2 space-y-2 text-[11px] font-mono scrollbar-thin">
-              {store.auditLogs.map((log) => (
+              {store.auditLogs.map((log: any) => (
                 <div key={log.id} className="border-b border-[#21262d] pb-1.5 last:border-0 last:pb-0">
                   <div className="flex justify-between text-[#8b949e] text-[10px] mb-0.5">
                     <span>{log.timestamp}</span>
@@ -215,18 +249,20 @@ export default function Home() {
             <span className="text-[#30363d]">/</span>
             <span className="text-white font-medium">
               {activeTab === 'backlog' && 'Сквозной Бэклог и Управление Приоритизацией'}
+              {activeTab === 'incoming' && 'Анализ входящих задач (Product Signals & Inbox)'}
               {activeTab === 'release' && 'Конструктор и Утверждение Релиза (Release Planner)'}
               {activeTab === 'telemetry' && 'Каталог Фич и Телеметрия (Feature Adoption)'}
               {activeTab === 'pnl' && 'Executive P&L и ROI Дашборд'}
+              {activeTab === 'settings' && 'Системные Настройки Справочников'}
             </span>
           </div>
 
           <div className="flex items-center gap-4">
             <div className="relative">
-              <Search className="absolute left-2.5 top-2 text-[#8b949e]" size={15} />
+              <Search className="absolute left-2.5 top-2.5 text-[#8b949e]" size={15} />
               <input
                 type="text"
-                placeholder="Поиск фичи, эпика или задачи..."
+                placeholder="Поиск по системе..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 pr-4 py-1.5 w-64 rounded bg-[#0d1117] border border-[#30363d] focus:outline-none focus:border-[#58a6ff] text-xs text-white"
@@ -248,6 +284,9 @@ export default function Home() {
           {activeTab === 'backlog' && (
             <BacklogPanel store={store} searchQuery={searchQuery} />
           )}
+          {activeTab === 'incoming' && (
+            <IncomingAnalysis store={store} />
+          )}
           {activeTab === 'release' && (
             <ReleasePlanner store={store} searchQuery={searchQuery} />
           )}
@@ -256,6 +295,9 @@ export default function Home() {
           )}
           {activeTab === 'pnl' && (
             <PnLDashboard store={store} />
+          )}
+          {activeTab === 'settings' && (
+            <SettingsPanel store={store} />
           )}
         </div>
       </main>

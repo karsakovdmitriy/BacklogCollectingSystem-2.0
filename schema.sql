@@ -31,6 +31,17 @@ CREATE TABLE requests (
     status request_status DEFAULT 'В проработку' NOT NULL,
     sales_impact DECIMAL(12, 2) DEFAULT 0.00 NOT NULL, -- Влияние на продажи / ИТС (в рублях)
     support_priority INT DEFAULT 1 NOT NULL, -- Приоритет поддержки (1-5)
+
+    -- 7 Обязательных параметров корпоративной разметки и сквозной фильтрации
+    gitlab_issue_id VARCHAR(100), -- Id Gitlab
+    client VARCHAR(255),          -- Клиент
+    project VARCHAR(255),         -- проект
+    subsystem VARCHAR(255),       -- подсистема
+    task_kind VARCHAR(255),       -- вид задачи
+    task_type VARCHAR(255),       -- тип задачи
+    epic_id VARCHAR(50) REFERENCES epics(id) ON DELETE SET NULL, -- Ссылка на Эпик
+
+    associated_feature_id VARCHAR(50), -- Связанная фича для авто-приоритета
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 

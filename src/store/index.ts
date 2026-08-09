@@ -61,14 +61,21 @@ export interface Task {
   sp: number;
 }
 
+// Updated Request with required enterprise parameters
 export interface Request {
   id: string;
   code: string;
   title: string;
-  source: 'GitLab Project A' | 'GitLab Project B' | 'Client Interview' | 'Direct Feedback';
+  source: string;
   description: string;
   status: 'Отклонен' | 'В проработку' | 'Принят'; // Rejected / In discovery / Accepted
-  gitlabIssueId?: string;
+  gitlabIssueId?: string; // Обязательный параметр (Id Gitlab)
+  client?: string;        // Обязательный параметр (Клиент)
+  project?: string;       // Обязательный параметр (проект)
+  subsystem?: string;     // Обязательный параметр (подсистема)
+  taskKind?: string;      // Обязательный параметр (вид задачи)
+  taskType?: string;      // Обязательный параметр (тип задачи)
+  epicId?: string;        // Обязательный параметр (Епик)
   associatedFeatureId?: string | null;
   createdAt: string;
 }
@@ -89,6 +96,12 @@ export interface AuditLog {
   userId: string;
   action: string;
   details: string;
+}
+
+// Dictionary Items
+export interface DictionaryItem {
+  id: string;
+  name: string;
 }
 
 // Initial Mock Data
@@ -361,10 +374,16 @@ export const initialRequests: Request[] = [
     id: 'req-1',
     code: 'REQ-101',
     title: 'Ошибка выгрузки реестра платежей в КЛИЕНТ-БАНК',
-    source: 'GitLab Project A',
+    source: 'GitLab',
     description: 'При обработке реестра с 200+ транзакциями падает по таймауту. Требуется асинхронный Webhook.',
     status: 'В проработку',
     gitlabIssueId: '#948',
+    client: 'ПАО "Сбербанк"',
+    project: 'Платежный шлюз B2B',
+    subsystem: 'Модуль Клиент-Банк',
+    taskKind: 'Ошибка (Bug)',
+    taskType: 'Интеграционный сбой',
+    epicId: 'ep-1',
     associatedFeatureId: 'fe-2',
     createdAt: '2025-10-01',
   },
@@ -372,9 +391,16 @@ export const initialRequests: Request[] = [
     id: 'req-2',
     code: 'REQ-102',
     title: 'Запрос на СБП от крупных дистрибьюторов (ПАО "Транзит")',
-    source: 'Client Interview',
+    source: 'Интервью',
     description: 'Хотят платить по QR из личного кабинета, чтобы комиссия была меньше лимита эквайринга.',
     status: 'Принят',
+    gitlabIssueId: '#993',
+    client: 'ПАО "Транзит"',
+    project: 'Кабинет Дистрибьютора',
+    subsystem: 'СБП Процессинг',
+    taskKind: 'Фича (Feature)',
+    taskType: 'Новый метод оплаты',
+    epicId: 'ep-1',
     associatedFeatureId: 'fe-1',
     createdAt: '2025-10-02',
   },
@@ -382,50 +408,18 @@ export const initialRequests: Request[] = [
     id: 'req-3',
     code: 'REQ-103',
     title: 'Жалобы на ручное продление ИТС-договоров',
-    source: 'Direct Feedback',
+    source: 'Обратная связь',
     description: 'Клиенты забывают платить вовремя, поддержка тратит 30 часов в месяц на напоминания. Нужен автоплатеж.',
     status: 'Принят',
+    gitlabIssueId: '#1120',
+    client: 'ИП Иванов И.И.',
+    project: 'Автоматический биллинг',
+    subsystem: 'ИТС Рекурренты',
+    taskKind: 'Улучшение (Improvement)',
+    taskType: 'Оптимизация БП',
+    epicId: 'ep-1',
     associatedFeatureId: 'fe-3',
     createdAt: '2025-10-03',
-  },
-  {
-    id: 'req-4',
-    code: 'REQ-104',
-    title: 'Интеграция ИТС с GitLab разработки для фиксации багов',
-    source: 'GitLab Project B',
-    description: 'Операторы поддержки вручную копируют баги клиентов в девелоперский GitLab. Теряются скриншоты и логи.',
-    status: 'Принят',
-    gitlabIssueId: '#1122',
-    associatedFeatureId: 'fe-4',
-    createdAt: '2025-10-04',
-  },
-  {
-    id: 'req-5',
-    code: 'REQ-105',
-    title: 'Автоматические СМС о скором отключении тарифа',
-    source: 'Direct Feedback',
-    description: 'Некоторые клиенты не читают email, просят дублировать напоминания в Telegram или SMS.',
-    status: 'Принят',
-    associatedFeatureId: 'fe-9',
-    createdAt: '2025-10-05',
-  },
-  {
-    id: 'req-6',
-    code: 'REQ-106',
-    title: 'Запрос на темную тему для Личного Кабинета',
-    source: 'Client Interview',
-    description: 'Разработчики на стороне заказчика часто работают ночью. Просят сделать Dark Mode.',
-    status: 'В проработку',
-    createdAt: '2025-10-06',
-  },
-  {
-    id: 'req-7',
-    code: 'REQ-107',
-    title: 'Реализация оплаты через крипто-кошельки USDT',
-    source: 'Direct Feedback',
-    description: 'Поступил запрос от зарубежных партнеров на оплату технической поддержки в стейблкоинах.',
-    status: 'Отклонен',
-    createdAt: '2025-10-07',
   }
 ];
 
@@ -469,4 +463,40 @@ export const initialAuditLogs: AuditLog[] = [
     action: 'PRIORITY_OVERRIDE',
     details: 'Изменен приоритет FEAT-111 (QR-платежи): Скорректирован вручную с 112 на 150. Причина: Прямое поручение СТО в связи со стратегическим контрактом ПАО "Транзит".'
   }
+];
+
+// Initial Dictionaries
+export const initialClients: DictionaryItem[] = [
+  { id: 'cl-1', name: 'ПАО "Сбербанк"' },
+  { id: 'cl-2', name: 'ПАО "Транзит"' },
+  { id: 'cl-3', name: 'ИП Иванов И.И.' },
+  { id: 'cl-4', name: 'ООО "Вектор"' }
+];
+
+export const initialProjects: DictionaryItem[] = [
+  { id: 'pr-1', name: 'Платежный шлюз B2B' },
+  { id: 'pr-2', name: 'Кабинет Дистрибьютора' },
+  { id: 'pr-3', name: 'Автоматический биллинг' },
+  { id: 'pr-4', name: 'Интеграционный шлюз ИТС' }
+];
+
+export const initialSubsystems: DictionaryItem[] = [
+  { id: 'sub-1', name: 'Модуль Клиент-Банк' },
+  { id: 'sub-2', name: 'СБП Процессинг' },
+  { id: 'sub-3', name: 'ИТС Рекурренты' },
+  { id: 'sub-4', name: 'Уведомления и Вебхуки' }
+];
+
+export const initialTaskKinds: DictionaryItem[] = [
+  { id: 'kind-1', name: 'Ошибка (Bug)' },
+  { id: 'kind-2', name: 'Фича (Feature)' },
+  { id: 'kind-3', name: 'Улучшение (Improvement)' },
+  { id: 'kind-4', name: 'Технический долг' }
+];
+
+export const initialTaskTypes: DictionaryItem[] = [
+  { id: 'type-1', name: 'Интеграционный сбой' },
+  { id: 'type-2', name: 'Новый метод оплаты' },
+  { id: 'type-3', name: 'Оптимизация БП' },
+  { id: 'type-4', name: 'Доработка UI' }
 ];

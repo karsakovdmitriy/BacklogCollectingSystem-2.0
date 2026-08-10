@@ -37,10 +37,10 @@ export default function Home() {
   const approvedFeaturesCount = store.features.filter((f: any) => f.releaseId && f.releaseId !== 'rel-draft').length;
 
   const activeRelease = store.releases.find((r: any) => r.id === 'rel-draft');
-  const activeReleaseCapacity = activeRelease ? activeRelease.capacitySP : 20;
+  const activeReleaseCapacity = activeRelease ? activeRelease.capacityHours : 160;
 
   const draftFeatures = store.features.filter((f: any) => f.releaseId === 'rel-draft');
-  const currentDraftLoad = draftFeatures.reduce((sum: number, f: any) => sum + f.effortSP, 0);
+  const currentDraftLoad = draftFeatures.reduce((sum: number, f: any) => sum + f.effortHours, 0);
 
   return (
     <div className="flex h-screen overflow-hidden text-sm font-sans bg-[#0d1117]">
@@ -144,7 +144,7 @@ export default function Home() {
               {!isSidebarCollapsed && (
                 <div className="flex items-center gap-1 text-[11px]">
                   <span className={`px-1.5 py-0.5 rounded font-mono ${currentDraftLoad > activeReleaseCapacity ? 'bg-red-900/40 text-red-400 border border-red-800' : 'bg-green-900/40 text-green-400 border border-green-800'}`}>
-                    {currentDraftLoad}/{activeReleaseCapacity} SP
+                    {currentDraftLoad}/{activeReleaseCapacity} ч.
                   </span>
                 </div>
               )}

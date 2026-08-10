@@ -21,8 +21,7 @@ export interface Feature {
   code: string;
   title: string;
   description: string;
-  effortHours: number; // Cost Estimation (Expert/manual)
-  effortSP: number;    // Cost Estimation Story Points
+  effortHours: number; // Cost Estimation (Expert/manual) in hours
 
   // For automatic score weighting:
   repeatabilityCount: number; // Number of matching requests / signals
@@ -52,7 +51,7 @@ export interface Feature {
     retail: number; // %
   };
   revenueGenerated: number; // USD/RUB
-  developmentCost: number; // Calculated or expert estimated SP * constant or raw
+  developmentCost: number; // Calculated or expert estimated hours * constant or raw
 }
 
 export interface Task {
@@ -63,7 +62,6 @@ export interface Task {
   status: 'To Do' | 'In Progress' | 'Review' | 'Done';
   developer: string;
   gitlabUrl?: string;
-  sp: number;
 }
 
 // Updated Request with required enterprise parameters
@@ -89,7 +87,7 @@ export interface Release {
   id: string;
   code: string;
   title: string;
-  capacitySP: number; // Capacity limits
+  capacityHours: number; // Capacity limits in hours
   status: 'Draft' | 'Approved';
   approvedAt?: string;
   exportLogs?: string[]; // GitLab export logs after approval
@@ -185,7 +183,6 @@ export const initialFeatures: Feature[] = [
     title: 'QR-платежи через СБП в счете-фактуре',
     description: 'Генерация динамического QR-кода на основе платежных реквизитов.',
     effortHours: 40,
-    effortSP: 5,
     repeatabilityCount: 14,
     salesImpact: 4,
     itsPriority: 3,
@@ -208,7 +205,6 @@ export const initialFeatures: Feature[] = [
     title: 'Мгновенные Webhook-нотификации о статусе реестра оплат',
     description: 'Оповещения 1С и ERP-систем о зачислении средств по СБП.',
     effortHours: 64,
-    effortSP: 8,
     repeatabilityCount: 9,
     salesImpact: 3,
     itsPriority: 4,
@@ -231,7 +227,6 @@ export const initialFeatures: Feature[] = [
     title: 'Рекуррентные списания через Tinkoff Pay B2B',
     description: 'Автоматический ежемесячный платеж по ИТС по сохраненной карте.',
     effortHours: 80,
-    effortSP: 13,
     repeatabilityCount: 22,
     salesImpact: 5,
     itsPriority: 2,
@@ -254,7 +249,6 @@ export const initialFeatures: Feature[] = [
     title: 'GitLab Sync Webhook для баг-трекинга ИТС',
     description: 'Интеграция заявок ИТС с GitLab Issues проектных команд.',
     effortHours: 32,
-    effortSP: 3,
     repeatabilityCount: 6,
     salesImpact: 2,
     itsPriority: 5,
@@ -277,7 +271,6 @@ export const initialFeatures: Feature[] = [
     title: 'Парсинг SLA и авто-эскалация инцидентов',
     description: 'Считывание параметров договора поддержки и запуск таймеров дедлайна.',
     effortHours: 50,
-    effortSP: 5,
     repeatabilityCount: 18,
     salesImpact: 4,
     itsPriority: 5,
@@ -300,7 +293,6 @@ export const initialFeatures: Feature[] = [
     title: 'Экспорт финансовых графиков в PDF/XLS',
     description: 'Выгрузка P&L таблиц для совещаний директоров.',
     effortHours: 24,
-    effortSP: 2,
     repeatabilityCount: 3,
     salesImpact: 1,
     itsPriority: 1,
@@ -323,7 +315,6 @@ export const initialFeatures: Feature[] = [
     title: 'Финансовые тепловые карты затрат (ROI Heatmaps)',
     description: 'Интерактивная карта соотношения стоимости разработки и закрытых продаж.',
     effortHours: 72,
-    effortSP: 8,
     repeatabilityCount: 11,
     salesImpact: 4,
     itsPriority: 3,
@@ -346,7 +337,6 @@ export const initialFeatures: Feature[] = [
     title: 'Анализ микро-взаимодействий в UI (Clickstream)',
     description: 'Поклик-логгинг для понимания Adoption Rate на уровне отдельных фиче-тогглов.',
     effortHours: 120,
-    effortSP: 21,
     repeatabilityCount: 5,
     salesImpact: 3,
     itsPriority: 2,
@@ -369,7 +359,6 @@ export const initialFeatures: Feature[] = [
     title: 'Нотификации об истечении ИТС в Telegram/SMS',
     description: 'Уведомление клиента за 5 дней до отключения поддержки.',
     effortHours: 40,
-    effortSP: 5,
     repeatabilityCount: 17,
     salesImpact: 3,
     itsPriority: 4,
@@ -388,17 +377,17 @@ export const initialFeatures: Feature[] = [
 ];
 
 export const initialTasks: Task[] = [
-  { id: 't-1', featureId: 'fe-1', code: 'TASK-1111', title: 'Реализовать API генерации платежного QR-кода', status: 'Done', developer: 'Сергей Белов', sp: 2, gitlabUrl: 'https://gitlab.corp.ru/core/payments/-/issues/1111' },
-  { id: 't-2', featureId: 'fe-1', code: 'TASK-1112', title: 'Верстка блока QR-кода в шаблоне счета-фактуры', status: 'Done', developer: 'Олег Новиков', sp: 1, gitlabUrl: 'https://gitlab.corp.ru/core/payments/-/issues/1112' },
-  { id: 't-3', featureId: 'fe-1', code: 'TASK-1113', title: 'Интеграционное тестирование с банком-эквайером', status: 'Done', developer: 'Ирина Серова', sp: 2, gitlabUrl: 'https://gitlab.corp.ru/core/payments/-/issues/1113' },
-  { id: 't-4', featureId: 'fe-2', code: 'TASK-1121', title: 'Разработка Webhook Sender сервиса на Node.js', status: 'To Do', developer: 'Сергей Белов', sp: 3 },
-  { id: 't-5', featureId: 'fe-2', code: 'TASK-1122', title: 'Создание UI-настроек эндпоинтов в ЛК партнера', status: 'In Progress', developer: 'Олег Новиков', sp: 5 },
-  { id: 't-6', featureId: 'fe-3', code: 'TASK-1211', title: 'Интеграция Tinkoff Pay SDK', status: 'To Do', developer: 'Антон Волков', sp: 8 },
-  { id: 't-7', featureId: 'fe-3', code: 'TASK-1212', title: 'База данных: Хранение маскированных токенов карт', status: 'To Do', developer: 'Мария Кравцова', sp: 5 },
-  { id: 't-8', featureId: 'fe-4', code: 'TASK-2111', title: 'Регистрация Webhook событий в GitLab API', status: 'Done', developer: 'Павел Орлов', sp: 1 },
-  { id: 't-9', featureId: 'fe-4', code: 'TASK-2112', title: 'Адаптер маппинга JSON GitLab -> СУБД ИТС', status: 'Done', developer: 'Павел Орлов', sp: 2 },
-  { id: 't-10', featureId: 'fe-5', code: 'TASK-2121', title: 'Парсинг SLA: регулярные выражения и дедлайны', status: 'In Progress', developer: 'Анна Дроздова', sp: 3 },
-  { id: 't-11', featureId: 'fe-5', code: 'TASK-2122', title: 'Cron задача для ежеминутной сверки SLA таймеров', status: 'To Do', developer: 'Николай Попов', sp: 2 }
+  { id: 't-1', featureId: 'fe-1', code: 'TASK-1111', title: 'Реализовать API генерации платежного QR-кода', status: 'Done', developer: 'Сергей Белов', gitlabUrl: 'https://gitlab.corp.ru/core/payments/-/issues/1111' },
+  { id: 't-2', featureId: 'fe-1', code: 'TASK-1112', title: 'Верстка блока QR-кода в шаблоне счета-фактуры', status: 'Done', developer: 'Олег Новиков', gitlabUrl: 'https://gitlab.corp.ru/core/payments/-/issues/1112' },
+  { id: 't-3', featureId: 'fe-1', code: 'TASK-1113', title: 'Интеграционное тестирование с банком-эквайером', status: 'Done', developer: 'Ирина Серова', gitlabUrl: 'https://gitlab.corp.ru/core/payments/-/issues/1113' },
+  { id: 't-4', featureId: 'fe-2', code: 'TASK-1121', title: 'Разработка Webhook Sender сервиса на Node.js', status: 'To Do', developer: 'Сергей Белов' },
+  { id: 't-5', featureId: 'fe-2', code: 'TASK-1122', title: 'Создание UI-настроек эндпоинтов в ЛК партнера', status: 'In Progress', developer: 'Олег Новиков' },
+  { id: 't-6', featureId: 'fe-3', code: 'TASK-1211', title: 'Интеграция Tinkoff Pay SDK', status: 'To Do', developer: 'Антон Волков' },
+  { id: 't-7', featureId: 'fe-3', code: 'TASK-1212', title: 'База данных: Хранение маскированных токенов карт', status: 'To Do', developer: 'Мария Кравцова' },
+  { id: 't-8', featureId: 'fe-4', code: 'TASK-2111', title: 'Регистрация Webhook событий в GitLab API', status: 'Done', developer: 'Павел Орлов' },
+  { id: 't-9', featureId: 'fe-4', code: 'TASK-2112', title: 'Адаптер маппинга JSON GitLab -> СУБД ИТС', status: 'Done', developer: 'Павел Орлов' },
+  { id: 't-10', featureId: 'fe-5', code: 'TASK-2121', title: 'Парсинг SLA: регулярные выражения и дедлайны', status: 'In Progress', developer: 'Анна Дроздова' },
+  { id: 't-11', featureId: 'fe-5', code: 'TASK-2122', title: 'Cron задача для ежеминутной сверки SLA таймеров', status: 'To Do', developer: 'Николай Попов' }
 ];
 
 export const initialRequests: Request[] = [
@@ -469,7 +458,7 @@ export const initialReleases: Release[] = [
     id: 'rel-1',
     code: 'RELEASE-2025-Q3',
     title: 'Квартальный релиз Q3: СБП и Интеграция Поддержки',
-    capacitySP: 25,
+    capacityHours: 200,
     status: 'Approved',
     approvedAt: '2025-09-15 14:30',
     exportLogs: [
@@ -484,7 +473,7 @@ export const initialReleases: Release[] = [
     id: 'rel-draft',
     code: 'RELEASE-2025-Q4',
     title: 'План релиза Q4: Безопасность и Автоматизация ИТС',
-    capacitySP: 20, // Slider target default
+    capacityHours: 160, // Slider target default
     status: 'Draft'
   }
 ];

@@ -294,25 +294,25 @@ export function useProductState() {
     );
   };
 
-  const fillFeatureEffort = (featureId: string, sp: number, hours: number) => {
+  const fillFeatureEffort = (featureId: string, hours: number) => {
     setFeatures((prev) =>
       prev.map((f) => {
         if (f.id === featureId) {
-          logAction('FILL_ESTIMATION', `Фича ${f.code} оценена: ${sp} SP, ${hours}ч.`);
-          return { ...f, effortSP: sp, effortHours: hours, status: 'Оценено', developmentCost: sp * 30000 };
+          logAction('FILL_ESTIMATION', `Фича ${f.code} оценена: ${hours}ч.`);
+          return { ...f, effortHours: hours, status: 'Оценено', developmentCost: hours * 2000 };
         }
         return f;
       })
     );
   };
 
-  const batchFillFeatureEfforts = (updates: { id: string; sp: number; hours: number }[]) => {
+  const batchFillFeatureEfforts = (updates: { id: string; hours: number }[]) => {
     setFeatures((prev) =>
       prev.map((f) => {
         const update = updates.find((u) => u.id === f.id);
         if (update) {
-          logAction('BATCH_ESTIMATION', `Фича ${f.code} оценена пакетом: ${update.sp} SP, ${update.hours}ч.`);
-          return { ...f, effortSP: update.sp, effortHours: update.hours, status: 'Оценено', developmentCost: update.sp * 30000 };
+          logAction('BATCH_ESTIMATION', `Фича ${f.code} оценена пакетом: ${update.hours}ч.`);
+          return { ...f, effortHours: update.hours, status: 'Оценено', developmentCost: update.hours * 2000 };
         }
         return f;
       })
@@ -330,7 +330,7 @@ export function useProductState() {
       retentionRate: 0,
       segmentAdoption: { enterprise: 0, sme: 0, retail: 0 },
       revenueGenerated: 0,
-      developmentCost: feat.effortSP * 30000, // mock dev cost formula: 30 000 RUB per story point
+      developmentCost: feat.effortHours * 2000, // mock dev cost formula: 2000 RUB per hour
     };
     const autoScore = (feat.repeatabilityCount * 3) + (feat.salesImpact * 10) + (feat.itsPriority * 10);
     const newFeat: Feature = {
@@ -347,7 +347,7 @@ export function useProductState() {
   // Update Feature
   const updateFeature = (updatedFeat: Feature) => {
     const autoScore = recalculateAutoScore(updatedFeat);
-    const cost = updatedFeat.effortSP * 30000;
+    const cost = updatedFeat.effortHours * 2000;
     const finalFeat = { ...updatedFeat, autoScore, developmentCost: cost };
     setFeatures((prev) => prev.map((f) => (f.id === updatedFeat.id ? finalFeat : f)));
   };
@@ -505,7 +505,6 @@ export function useProductState() {
       title: req.title,
       description: req.description || 'Создано автоматически из сигнала ' + req.code,
       effortHours: 40,
-      effortSP: 5,
       repeatabilityCount: 1,
       salesImpact: 3,
       itsPriority: 3,
@@ -574,7 +573,7 @@ export function useProductState() {
   // Release Planner actions
   const updateDraftCapacity = (capacity: number) => {
     setReleases((prev) =>
-      prev.map((r) => (r.id === 'rel-draft' ? { ...r, capacitySP: capacity } : r))
+      prev.map((r) => (r.id === 'rel-draft' ? { ...r, capacityHours: capacity } : r))
     );
   };
 
@@ -606,18 +605,18 @@ export function useProductState() {
       const scoreA = a.overrideScore !== undefined ? a.overrideScore : a.autoScore;
       const scoreB = b.overrideScore !== undefined ? b.overrideScore : b.autoScore;
 
-      const densityA = scoreA / (a.effortSP || 1);
-      const densityB = scoreB / (b.effortSP || 1);
+      const densityA = scoreA / (a.effortHours || 1);
+      const densityB = scoreB / (b.effortHours || 1);
       return densityB - densityA;
     });
 
-    let currentSumSP = 0;
+    let currentSumHours = 0;
     const allocatedIds: string[] = [];
 
     for (const f of sorted) {
-      if (currentSumSP + f.effortSP <= capacityLimit) {
+      if (currentSumHours + f.effortHours <= capacityLimit) {
         allocatedIds.push(f.id);
-        currentSumSP += f.effortSP;
+        currentSumHours += f.effortHours;
       }
     }
 
@@ -634,7 +633,7 @@ export function useProductState() {
 
     logAction(
       'AUTO_ALLOCATE_RELEASE',
-      `Автоподбор фич под лимит Capacity в ${capacityLimit} SP завершен. Выбрано фич: ${allocatedIds.length}, суммарный вес: ${currentSumSP} SP.`
+      `Автоподбор фич под лимит Capacity в ${capacityLimit} ч. завершен. Выбрано фич: ${allocatedIds.length}, суммарная нагрузка: ${currentSumHours} ч.`
     );
   };
 
@@ -674,7 +673,7 @@ export function useProductState() {
       id: newApprovedId,
       code: newApprovedCode,
       title: draftRelease.title,
-      capacitySP: draftRelease.capacitySP,
+      capacityHours: draftRelease.capacityHours,
       status: 'Approved',
       approvedAt: timestamp,
       exportLogs,
@@ -687,7 +686,7 @@ export function useProductState() {
         id: 'rel-draft',
         code: `RELEASE-PLAN-${new Date().getFullYear() + 1}`,
         title: `План релиза: Следующая Итерация`,
-        capacitySP: 20,
+        capacityHours: 160,
         status: 'Draft'
       }
     ]);

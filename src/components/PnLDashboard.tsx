@@ -265,7 +265,7 @@ export default function PnLDashboard({ store }: PnLDashboardProps) {
                       </div>
                     </td>
                     <td className="p-4 text-white">
-                      {f.developmentCost.toLocaleString('ru-RU')} ₽ <span className="text-[#8b949e] text-[10px]">({f.effortSP} SP)</span>
+                      {f.developmentCost.toLocaleString('ru-RU')} ₽ <span className="text-[#8b949e] text-[10px]">({f.effortHours} ч.)</span>
                     </td>
                     <td className="p-4 text-green-400">
                       {f.revenueGenerated.toLocaleString('ru-RU')} ₽

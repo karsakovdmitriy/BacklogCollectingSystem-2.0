@@ -51,7 +51,6 @@ CREATE TABLE features (
     initiative_id VARCHAR(50) REFERENCES initiatives(id) ON DELETE CASCADE NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    story_points INT DEFAULT 0 NOT NULL,
     estimated_hours INT DEFAULT 0 NOT NULL,
     auto_score DECIMAL(10, 2) DEFAULT 0.00 NOT NULL,
     override_score DECIMAL(10, 2), -- Переопределенный приоритет PM-ом (может быть NULL)
@@ -72,7 +71,6 @@ CREATE TABLE tasks (
     id VARCHAR(50) PRIMARY KEY,
     feature_id VARCHAR(50) REFERENCES features(id) ON DELETE CASCADE NOT NULL,
     name VARCHAR(255) NOT NULL,
-    story_points INT DEFAULT 0 NOT NULL,
     estimated_hours INT DEFAULT 0 NOT NULL,
     gitlab_issue_url VARCHAR(512), -- Ссылка на оригинальный таск в GitLab
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
@@ -82,7 +80,7 @@ CREATE TABLE tasks (
 CREATE TABLE releases (
     id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    capacity_limit_sp INT DEFAULT 20 NOT NULL,
+    capacity_limit_hours INT DEFAULT 160 NOT NULL,
     status release_status DEFAULT 'DRAFT' NOT NULL,
     approved_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL

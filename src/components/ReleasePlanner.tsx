@@ -33,16 +33,16 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
   const [isBulkEstimateOpen, setIsBulkEstimateOpen] = useState(false);
 
   // Bulk estimation form state
-  const [bulkInputs, setBulkInputs] = useState<Record<string, { sp: string; hours: string }>>({});
+  const [bulkInputs, setBulkInputs] = useState<Record<string, { hours: string }>>({});
 
   // Single card inline estimation form state
-  const [inlineInputs, setInlineInputs] = useState<Record<string, { sp: string; hours: string }>>({});
+  const [inlineInputs, setInlineInputs] = useState<Record<string, { hours: string }>>({});
 
   // Retrieve active releases
   const approvedReleases = store.releases.filter((r: Release) => r.status === 'Approved');
   const draftRelease = store.releases.find((r: Release) => r.id === 'rel-draft');
 
-  const capacityLimit = draftRelease ? draftRelease.capacitySP : 20;
+  const capacityLimit = draftRelease ? draftRelease.capacityHours : 160;
 
   // Retrieve features split by funnel status
   const backlogFeatures = store.features.filter(
@@ -86,10 +86,9 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
   const sortedEstimated = sortFeaturesByScore(estimatedFeatures);
 
   // Current Capacity details of the draft release
-  const totalDraftSP = draftFeatures.reduce((sum: number, f: Feature) => sum + f.effortSP, 0);
   const totalDraftHours = draftFeatures.reduce((sum: number, f: Feature) => sum + f.effortHours, 0);
-  const capacityUsagePercent = Math.min((totalDraftSP / capacityLimit) * 100, 100);
-  const isOverCapacity = totalDraftSP > capacityLimit;
+  const capacityUsagePercent = Math.min((totalDraftHours / capacityLimit) * 100, 100);
+  const isOverCapacity = totalDraftHours > capacityLimit;
 
   // Trigger auto allocation (greedy knapsack algorithm based on highest priority score / SP)
   const handleAutoAllocate = () => {
@@ -103,10 +102,9 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
   };
 
   const saveSingleEstimation = (featureId: string) => {
-    const inputs = inlineInputs[featureId] || { sp: '5', hours: '40' };
-    const spVal = parseInt(inputs.sp) || 5;
+    const inputs = inlineInputs[featureId] || { hours: '40' };
     const hoursVal = parseInt(inputs.hours) || 40;
-    store.fillFeatureEffort(featureId, spVal, hoursVal);
+    store.fillFeatureEffort(featureId, hoursVal);
   };
 
   const moveToRelease = (featureId: string) => {
@@ -121,10 +119,9 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
   const handleBulkEstimateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const updates = estimatingFeatures.map((f: Feature) => {
-      const inputs = bulkInputs[f.id] || { sp: '5', hours: '40' };
+      const inputs = bulkInputs[f.id] || { hours: '40' };
       return {
         id: f.id,
-        sp: parseInt(inputs.sp) || 5,
         hours: parseInt(inputs.hours) || 40
       };
     });
@@ -199,7 +196,7 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
           <div className="space-y-1">
             <h2 className="text-base font-semibold text-white">Ресурсы и Лимиты Команды (Capacity Planner)</h2>
             <p className="text-xs text-[#8b949e]">
-              Управляйте емкостью команды в Story Points и активируйте авто-подбор фич под лимит.
+              Управляйте емкостью команды в часах и активируйте авто-подбор фич под лимит.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -228,14 +225,14 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
           {/* Slider input */}
           <div className="md:col-span-1 space-y-1">
             <div className="flex justify-between text-xs">
-              <span className="text-[#8b949e] font-medium">Лимит емкости (Capacity):</span>
-              <span className="text-white font-mono font-bold">{capacityLimit} SP</span>
+              <span className="text-[#8b949e] font-medium">Лимит емкости (в часах):</span>
+              <span className="text-white font-mono font-bold">{capacityLimit} ч.</span>
             </div>
             <input
               type="range"
-              min={5}
-              max={50}
-              step={1}
+              min={40}
+              max={400}
+              step={8}
               value={capacityLimit}
               onChange={(e) => store.updateDraftCapacity(Number(e.target.value))}
               className="w-full accent-[#1f6feb] h-1.5 bg-[#0d1117] rounded-lg appearance-none cursor-pointer border border-[#30363d]"
@@ -247,7 +244,7 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
             <div className="flex justify-between text-xs">
               <span className="text-[#8b949e]">Загрузка спринта:</span>
               <span className={`font-mono font-semibold ${isOverCapacity ? 'text-red-400' : 'text-green-400'}`}>
-                {totalDraftSP} / {capacityLimit} SP ({Math.round((totalDraftSP / capacityLimit) * 100)}%)
+                {totalDraftHours} / {capacityLimit} ч. ({Math.round((totalDraftHours / capacityLimit) * 100)}%)
               </span>
             </div>
             <div className="w-full h-3 bg-[#0d1117] rounded-full overflow-hidden border border-[#30363d] flex">
@@ -277,7 +274,7 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
         {isOverCapacity && (
           <div className="flex items-center gap-2 p-2.5 rounded-lg bg-red-950/20 border border-red-900/40 text-xs text-red-400">
             <AlertTriangle size={15} />
-            <span>Внимание! Превышен лимит Capacity команды. Измените состав релиза или увеличьте лимит SP.</span>
+            <span>Внимание! Превышен лимит Capacity команды. Измените состав релиза или увеличьте лимит в часах.</span>
           </div>
         )}
       </div>
@@ -336,7 +333,7 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
 
                     <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-[#30363d]/50 font-mono">
                       <span className="text-[#8b949e]">Приоритет: <strong className="text-green-400">{currentScore}</strong></span>
-                      <span className="bg-[#21262d] text-[#8b949e] px-1.5 py-0.2 rounded">Не оценена</span>
+                      <span className="bg-[#21262d] text-[#8b949e] px-1.5 py-0.2 rounded">Не оценена (в часах)</span>
                     </div>
                   </div>
                 );
@@ -356,9 +353,9 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
             <button
               onClick={() => {
                 // Initialize bulk inputs
-                const init: Record<string, { sp: string; hours: string }> = {};
+                const init: Record<string, { hours: string }> = {};
                 estimatingFeatures.forEach((f: Feature) => {
-                  init[f.id] = { sp: String(f.effortSP || 5), hours: String(f.effortHours || 40) };
+                  init[f.id] = { hours: String(f.effortHours || 40) };
                 });
                 setBulkInputs(init);
                 setIsBulkEstimateOpen(true);
@@ -400,21 +397,7 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
 
                     {/* Quick Manual Estimator Form */}
                     <div className="bg-[#0d1117] p-2 rounded border border-[#30363d] space-y-2">
-                      <div className="grid grid-cols-2 gap-2 text-[10px]">
-                        <div>
-                          <label className="text-[#8b949e] block mb-0.5 font-mono">Story Points:</label>
-                          <input
-                            type="number"
-                            value={inline.sp}
-                            onChange={(e) =>
-                              setInlineInputs({
-                                ...inlineInputs,
-                                [f.id]: { ...inline, sp: e.target.value }
-                              })
-                            }
-                            className="w-full bg-[#161b22] border border-[#30363d] rounded text-white px-1 py-0.5 text-center font-mono font-bold"
-                          />
-                        </div>
+                      <div className="grid grid-cols-1 gap-2 text-[10px]">
                         <div>
                           <label className="text-[#8b949e] block mb-0.5 font-mono">Часы:</label>
                           <input
@@ -490,7 +473,7 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
                             <span className="text-[9px] font-mono text-[#58a6ff]">{f.code}</span>
                             <span className="text-white font-medium text-xs truncate max-w-[120px]">{f.title}</span>
                           </div>
-                          <span className="text-[10px] text-[#8b949e] font-mono">{f.effortSP} SP / {f.effortHours}ч.</span>
+                          <span className="text-[10px] text-[#8b949e] font-mono">{f.effortHours}ч.</span>
                         </div>
                         <button
                           onClick={() => moveToRelease(f.id)}
@@ -510,7 +493,7 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
             <div className="h-1/2 flex flex-col bg-[#1f6feb]/5">
               <div className="px-3 py-1.5 bg-[#1f6feb]/10 text-[10px] font-semibold text-[#58a6ff] border-b border-[#1f6feb]/20 flex justify-between">
                 <span>ВКЛЮЧЕНО В РЕЛИЗ ({draftFeatures.length})</span>
-                <span>Итого: {totalDraftSP} SP</span>
+                <span>Итого: {totalDraftHours} ч.</span>
               </div>
               <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin">
                 {draftFeatures.length === 0 ? (
@@ -536,7 +519,7 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
                         </button>
                         <div className="text-right flex-1 truncate">
                           <span className="text-white font-medium text-xs block truncate">{f.title}</span>
-                          <span className="text-[9px] text-[#8b949e] font-mono">{f.effortSP} SP ({f.effortHours}h)</span>
+                          <span className="text-[9px] text-[#8b949e] font-mono">{f.effortHours}ч.</span>
                         </div>
                       </div>
                     );
@@ -590,7 +573,7 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
                   <h4 className="font-medium text-white text-sm">{release.title}</h4>
                 </div>
                 <div className="text-xs text-[#8b949e]">
-                  Дата утверждения: <span className="text-[#c9d1d9] font-mono">{release.approvedAt}</span> | Лимит SP: <span className="text-white font-mono font-bold">{release.capacitySP} SP</span>
+                  Дата утверждения: <span className="text-[#c9d1d9] font-mono">{release.approvedAt}</span> | Лимит емкости: <span className="text-white font-mono font-bold">{release.capacityHours} ч.</span>
                 </div>
               </div>
 
@@ -618,7 +601,7 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
             <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
               <div className="space-y-0.5">
                 <h3 className="text-lg font-semibold text-white">Пакетная оценка трудоемкости</h3>
-                <p className="text-xs text-[#8b949e]">Заполните Story Points и экспертные часы для всех выбранных фич.</p>
+                <p className="text-xs text-[#8b949e]">Заполните экспертные часы для всех выбранных фич.</p>
               </div>
               <button
                 type="button"
@@ -638,22 +621,7 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
                       <span className="text-xs font-bold text-[#58a6ff] font-mono">{f.code}</span>
                       <span className="text-xs text-white font-medium truncate max-w-[400px]">{f.title}</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-xs">
-                      <div>
-                        <label className="text-[#8b949e] block mb-1 font-mono">Story Points:</label>
-                        <input
-                          type="number"
-                          value={fInput.sp}
-                          onChange={(e) =>
-                            setBulkInputs({
-                              ...bulkInputs,
-                              [f.id]: { ...fInput, sp: e.target.value }
-                            })
-                          }
-                          className="w-full bg-[#161b22] border border-[#30363d] rounded text-white px-2 py-1 font-mono"
-                          required
-                        />
-                      </div>
+                    <div className="grid grid-cols-1 gap-4 text-xs">
                       <div>
                         <label className="text-[#8b949e] block mb-1 font-mono">Часы трудоемкости:</label>
                         <input

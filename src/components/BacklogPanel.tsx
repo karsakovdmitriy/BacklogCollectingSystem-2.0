@@ -58,14 +58,12 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
   const [selectedFeatureForTask, setSelectedFeatureForTask] = useState<Feature | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDeveloper, setNewTaskDeveloper] = useState('');
-  const [newTaskSP, setNewTaskSP] = useState(3);
 
   // Manual Feature Creation Form State
   const [newFeatTitle, setNewFeatTitle] = useState('');
   const [newFeatDesc, setNewFeatDesc] = useState('');
   const [newFeatInitId, setNewFeatInitId] = useState('');
   const [newFeatHours, setNewFeatHours] = useState(40);
-  const [newFeatSP, setNewFeatSP] = useState(5);
   const [newFeatSalesImpact, setNewFeatSalesImpact] = useState<1|2|3|4|5>(3);
   const [newFeatItsPriority, setNewFeatItsPriority] = useState<1|2|3|4|5>(3);
   const [newFeatSubsystem, setNewFeatSubsystem] = useState('');
@@ -104,12 +102,12 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
       title: newTaskTitle,
       status: 'To Do',
       developer: newTaskDeveloper || 'Не назначен',
-      sp: newTaskSP,
+
     });
 
     setNewTaskTitle('');
     setNewTaskDeveloper('');
-    setNewTaskSP(3);
+
     setSelectedFeatureForTask(null);
     setIsTaskModalOpen(false);
   };
@@ -124,7 +122,7 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
       title: newFeatTitle,
       description: newFeatDesc,
       effortHours: Number(newFeatHours),
-      effortSP: Number(newFeatSP),
+
       repeatabilityCount: 1,
       salesImpact: newFeatSalesImpact,
       itsPriority: newFeatItsPriority,
@@ -235,7 +233,7 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
       } else if (sortBy === 'autoScore') {
         return b.autoScore - a.autoScore;
       } else if (sortBy === 'sp') {
-        return b.effortSP - a.effortSP;
+        return b.effortHours - a.effortHours;
       } else {
         return a.title.localeCompare(b.title);
       }
@@ -246,7 +244,6 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
   const calculateGroupMetrics = (groupId: string) => {
     const groupFeats = baseFilteredFeatures.filter((f) => getFeatureGroup(f) === groupId);
 
-    const totalSP = groupFeats.reduce((sum, f) => sum + f.effortSP, 0);
     const totalHours = groupFeats.reduce((sum, f) => sum + f.effortHours, 0);
     const totalSignals = groupFeats.reduce((sum, f) => sum + f.repeatabilityCount, 0);
     const totalRevenue = groupFeats.reduce((sum, f) => sum + f.revenueGenerated, 0);
@@ -254,7 +251,6 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
     const featureCount = groupFeats.length;
 
     return {
-      totalSP,
       totalHours,
       totalSignals,
       totalRevenue,
@@ -350,7 +346,7 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
               >
                 <option value="priority">По приоритету (Итог) [Max ➔ Min]</option>
                 <option value="autoScore">По авто-оценке (Auto Score) [Max ➔ Min]</option>
-                <option value="sp">По трудоемкости (Story Points) [Max ➔ Min]</option>
+                <option value="sp">По трудоемкости (в часах) [Max ➔ Min]</option>
                 <option value="alphabetical">По алфавиту [А ➔ Я]</option>
               </select>
             </div>
@@ -469,8 +465,7 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
 
                   {/* HIGH METRICS CARD SHOWN HIGHER IN HIERARCHY */}
                   <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-[#8b949e] bg-[#0d1117] p-2.5 rounded-lg border border-[#30363d]">
-                    <div>SP: <span className="text-purple-400 font-bold">{metrics.totalSP} SP</span></div>
-                    <div>Часы: <span className="text-orange-400 font-bold">{metrics.totalHours}ч</span></div>
+                    <div className="col-span-2">Часы: <span className="text-orange-400 font-bold">{metrics.totalHours}ч</span></div>
                     <div>Сигналы: <span className="text-green-400 font-bold">{metrics.totalSignals} шт</span></div>
                     <div>Выручка: <span className="text-green-400 font-bold">₽{metrics.totalRevenue.toLocaleString()}</span></div>
                     <div className="col-span-2 pt-1 border-t border-[#30363d]/50">
@@ -560,7 +555,7 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
 
                         {/* Small metrics */}
                         <div className="grid grid-cols-2 gap-1 text-[9px] font-mono text-[#8b949e] bg-[#0d1117]/50 p-1.5 rounded border border-[#30363d]/30">
-                          <div>SP: <span className="text-white">{feat.effortSP} SP</span></div>
+                          <div>Часы: <span className="text-white">{feat.effortHours}ч</span></div>
                           <div>Сигналы: <span className="text-white">{feat.repeatabilityCount} шт</span></div>
                         </div>
 
@@ -716,7 +711,7 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1">
                 <div>
                   <label className="block text-[#8b949e] mb-1 font-medium">Разработчик:</label>
                   <input
@@ -725,17 +720,6 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                     onChange={(e) => setNewTaskDeveloper(e.target.value)}
                     placeholder="Напр: Сергей Белов"
                     className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#8b949e] mb-1 font-medium">Story Points:</label>
-                  <input
-                    type="number"
-                    value={newTaskSP}
-                    onChange={(e) => setNewTaskSP(Number(e.target.value))}
-                    min={1}
-                    max={21}
-                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff] font-mono"
                   />
                 </div>
               </div>
@@ -832,7 +816,7 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1">
                 <div>
                   <label className="block text-[#8b949e] mb-1 font-medium">Оценка в часах (Hours):</label>
                   <input
@@ -842,15 +826,7 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                     className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff] font-mono"
                   />
                 </div>
-                <div>
-                  <label className="block text-[#8b949e] mb-1 font-medium">Оценка в Story Points (SP):</label>
-                  <input
-                    type="number"
-                    value={newFeatSP}
-                    onChange={(e) => setNewFeatSP(Number(e.target.value))}
-                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff] font-mono"
-                  />
-                </div>
+
               </div>
 
               <div className="grid grid-cols-2 gap-4 bg-[#0d1117] p-3 rounded border border-[#30363d]">

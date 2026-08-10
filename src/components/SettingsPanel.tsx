@@ -19,7 +19,7 @@ interface SettingsPanelProps {
 }
 
 export default function SettingsPanel({ store }: SettingsPanelProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'epics' | 'clients' | 'projects' | 'subsystems' | 'kinds' | 'types'>('epics');
+  const [activeSubTab, setActiveSubTab] = useState<'epics' | 'clients' | 'projects' | 'subsystems' | 'kinds' | 'types' | 'sources'>('epics');
 
   // Input states for item additions
   const [epicTitle, setEpicTitle] = useState('');
@@ -31,6 +31,7 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
   const [subsystemName, setSubsystemName] = useState('');
   const [kindName, setKindName] = useState('');
   const [typeName, setTypeName] = useState('');
+  const [sourceName, setSourceName] = useState('');
 
   // Submit epic
   const handleAddEpic = (e: React.FormEvent) => {
@@ -80,6 +81,13 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
     if (!typeName.trim()) return;
     store.addTaskType(typeName);
     setTypeName('');
+  };
+
+  const handleAddSource = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sourceName.trim()) return;
+    store.addSource(sourceName);
+    setSourceName('');
   };
 
   return (
@@ -167,6 +175,18 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
           >
             <Settings size={14} />
             <span>Типы задач</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('sources')}
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+              activeSubTab === 'sources'
+                ? 'bg-[#21262d] text-white border border-[#30363d]'
+                : 'text-[#8b949e] hover:text-white hover:bg-[#161b22]'
+            }`}
+          >
+            <FolderOpen size={14} />
+            <span>Источники поступления</span>
           </button>
         </aside>
 
@@ -383,6 +403,36 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                   <div key={t.id} className="p-2 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between">
                     <span className="text-white">{t.name}</span>
                     <button onClick={() => store.deleteTaskType(t.id)} className="text-[#8b949e] hover:text-red-400">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 7. SOURCES */}
+          {activeSubTab === 'sources' && (
+            <div className="space-y-6">
+              <h3 className="text-sm font-semibold text-white">Справочник источников поступления (Sources)</h3>
+              <form onSubmit={handleAddSource} className="flex gap-2 text-xs">
+                <input
+                  type="text"
+                  required
+                  value={sourceName}
+                  onChange={(e) => setSourceName(e.target.value)}
+                  placeholder="Добавить новый источник (напр: Интервью, Проектный GitLab, Обращение)..."
+                  className="flex-1 bg-[#0d1117] border border-[#30363d] rounded px-3 py-1.5 text-white focus:outline-none"
+                />
+                <button type="submit" className="flex items-center gap-1 px-3 py-1.5 bg-[#238636] hover:bg-[#2ea043] text-white rounded">
+                  <Plus size={14} /> Добавить
+                </button>
+              </form>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                {store.sources.map((s: DictionaryItem) => (
+                  <div key={s.id} className="p-2 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between">
+                    <span className="text-white">{s.name}</span>
+                    <button onClick={() => store.deleteSource(s.id)} className="text-[#8b949e] hover:text-red-400">
                       <Trash2 size={13} />
                     </button>
                   </div>

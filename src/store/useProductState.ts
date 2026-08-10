@@ -19,7 +19,8 @@ import {
   initialProjects,
   initialSubsystems,
   initialTaskKinds,
-  initialTaskTypes
+  initialTaskTypes,
+  initialSources
 } from './index';
 
 export function useProductState() {
@@ -120,6 +121,14 @@ export function useProductState() {
     return initialTaskTypes;
   });
 
+  const [sources, setSources] = useState<DictionaryItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dict_sources');
+      return saved ? JSON.parse(saved) : initialSources;
+    }
+    return initialSources;
+  });
+
   // Persist State
   useEffect(() => {
     localStorage.setItem('ep_data', JSON.stringify(epics));
@@ -168,6 +177,10 @@ export function useProductState() {
   useEffect(() => {
     localStorage.setItem('dict_task_types', JSON.stringify(taskTypes));
   }, [taskTypes]);
+
+  useEffect(() => {
+    localStorage.setItem('dict_sources', JSON.stringify(sources));
+  }, [sources]);
 
   // Recalculate autoScore for a Feature
   const recalculateAutoScore = (feat: Feature): number => {
@@ -248,6 +261,16 @@ export function useProductState() {
   const deleteTaskType = (id: string) => {
     setTaskTypes((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален тип задачи ${id}`);
+  };
+
+  const addSource = (name: string) => {
+    const newItem = { id: `src-${Date.now()}`, name };
+    setSources((prev) => [...prev, newItem]);
+    logAction('ADD_DICTIONARY', `Справочник: Добавлен источник ${name}`);
+  };
+  const deleteSource = (id: string) => {
+    setSources((prev) => prev.filter(i => i.id !== id));
+    logAction('DELETE_DICTIONARY', `Справочник: Удален источник ${id}`);
   };
 
   // Add / Edit Initiative
@@ -337,7 +360,7 @@ export function useProductState() {
     logAction('CREATE_TASK', `Добавлена задача ${code}: ${task.title} к фиче ${task.featureId}`);
   };
 
-  // Helper validation logic checking for 7 core attributes
+  // Helper validation logic checking for 6 core attributes (excluding epicId and associatedFeatureId)
   const isRequestFullyConfigured = (req: Partial<Request>): boolean => {
     return !!(
       req.gitlabIssueId &&
@@ -345,8 +368,7 @@ export function useProductState() {
       req.project &&
       req.subsystem &&
       req.taskKind &&
-      req.taskType &&
-      req.epicId
+      req.taskType
     );
   };
 
@@ -354,11 +376,11 @@ export function useProductState() {
   const addRequest = (req: Omit<Request, 'id' | 'code' | 'createdAt'>) => {
     const code = `REQ-${100 + requests.length + 1}`;
 
-    // Default initial request might be incomplete. If it has incomplete fields, status is set to 'В проработку'.
-    // If we try to add it with Accepted/Rejected but fields are missing, force it to 'В проработку'.
+    // Default initial request might be incomplete. If it has incomplete fields, status is set to 'Неразобранные'.
+    // If we try to add it with Accepted/Rejected but fields are missing, force it to 'Неразобранные'.
     let validatedStatus = req.status;
-    if (validatedStatus !== 'В проработку' && !isRequestFullyConfigured(req)) {
-      validatedStatus = 'В проработку';
+    if ((validatedStatus === 'Принят' || validatedStatus === 'Отклонен') && !isRequestFullyConfigured(req)) {
+      validatedStatus = 'Неразобранные';
     }
 
     const newReq: Request = {
@@ -430,20 +452,21 @@ export function useProductState() {
     incrementFeatureRepeatability(featureId, requestId);
   };
 
-  // Classify Request (Enforces 7 parameters constraint!)
-  const classifyRequest = (requestId: string, status: 'Отклонен' | 'В проработку' | 'Принят', associatedFeatureId?: string | null) => {
+  // Classify Request (Enforces 6 parameters constraint for Accepted/Rejected/In Discovery, allows Unsorted freely)
+  const classifyRequest = (requestId: string, status: 'Отклонен' | 'В проработку' | 'Принят' | 'Неразобранные', associatedFeatureId?: string | null) => {
     let errorOccurred = false;
     setRequests((prev) =>
       prev.map((r) => {
         if (r.id === requestId) {
-          if (!isRequestFullyConfigured(r)) {
-            alert(`Ошибка! Невозможно изменить статус запроса ${r.code} на "${status}". Сначала заполните все 7 обязательных параметров (Id Gitlab, Клиент, Проект, Подсистема, Вид задачи, Тип задачи, Епик).`);
+          // Validation is compulsory for Accepted ('Принят'), Rejected ('Отклонен') and In Discovery ('В проработку')
+          if ((status === 'Принят' || status === 'Отклонен' || status === 'В проработку') && !isRequestFullyConfigured(r)) {
+            alert(`Ошибка! Невозможно изменить статус запроса ${r.code} на "${status}". Сначала заполните все 6 обязательных параметров (Id Gitlab, Клиент, Проект, Подсистема, Вид задачи, Тип задачи).`);
             errorOccurred = true;
             return r;
           }
 
           const oldStatus = r.status;
-          logAction('CLASSIFY_REQUEST', `Запрос ${r.code} классифицирован: ${oldStatus} -> ${status}`);
+          logAction('CLASSIFY_REQUEST', `Запрос ${r.code} классифицирован: ${oldStatus || 'Неразобранные'} -> ${status}`);
 
           if (status === 'Принят' && associatedFeatureId) {
             incrementFeatureRepeatability(associatedFeatureId, r.code);
@@ -663,6 +686,7 @@ export function useProductState() {
     subsystems,
     taskKinds,
     taskTypes,
+    sources,
     addEpic,
     deleteEpic,
     addClient,
@@ -675,6 +699,8 @@ export function useProductState() {
     deleteTaskKind,
     addTaskType,
     deleteTaskType,
+    addSource,
+    deleteSource,
     addInitiative,
     addFeature,
     updateFeature,

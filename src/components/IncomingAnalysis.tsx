@@ -27,22 +27,20 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
 
   // Form Fields for Manual Request Creation / Editing
   const [title, setTitle] = useState('');
-  const [source, setSource] = useState('Интервью');
+  const [source, setSource] = useState('');
   const [description, setDescription] = useState('');
-  const [associatedFeatureId, setAssociatedFeatureId] = useState('');
 
-  // 7 core required parameters for enterprise classification validation
+  // 6 core required parameters for enterprise classification validation
   const [gitlabIssueId, setGitlabIssueId] = useState('');
   const [client, setClient] = useState('');
   const [project, setProject] = useState('');
   const [subsystem, setSubsystem] = useState('');
   const [taskKind, setTaskKind] = useState('');
   const [taskType, setTaskType] = useState('');
-  const [epicId, setEpicId] = useState('');
 
   const resetForm = () => {
     setTitle('');
-    setSource('Интервью');
+    setSource(store.sources?.[0]?.name || 'Интервью');
     setDescription('');
     setGitlabIssueId('');
     setClient('');
@@ -50,8 +48,6 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
     setSubsystem('');
     setTaskKind('');
     setTaskType('');
-    setEpicId('');
-    setAssociatedFeatureId('');
     setIsEditingReqId(null);
   };
 
@@ -63,16 +59,14 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
   const handleEditOpen = (req: Request) => {
     setIsEditingReqId(req.id);
     setTitle(req.title);
-    setSource(req.source);
-    setDescription(req.description);
+    setSource(req.source || store.sources?.[0]?.name || 'Интервью');
+    setDescription(req.description || '');
     setGitlabIssueId(req.gitlabIssueId || '');
     setClient(req.client || '');
     setProject(req.project || '');
     setSubsystem(req.subsystem || '');
     setTaskKind(req.taskKind || '');
     setTaskType(req.taskType || '');
-    setEpicId(req.epicId || '');
-    setAssociatedFeatureId(req.associatedFeatureId || '');
     setIsAddModalOpen(true);
   };
 
@@ -82,17 +76,16 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
 
     const requestPayload = {
       title,
-      source,
+      source: source || store.sources?.[0]?.name || 'Интервью',
       description,
-      status: 'В проработку' as const,
+      status: 'Неразобранные' as const,
       gitlabIssueId: gitlabIssueId || undefined,
       client: client || undefined,
       project: project || undefined,
       subsystem: subsystem || undefined,
       taskKind: taskKind || undefined,
       taskType: taskType || undefined,
-      epicId: epicId || undefined,
-      associatedFeatureId: associatedFeatureId || null,
+      associatedFeatureId: null,
     };
 
     if (isEditingReqId) {
@@ -100,6 +93,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
       store.updateRequestDetails({
         ...existing,
         ...requestPayload,
+        status: existing?.status || 'Неразобранные'
       });
     } else {
       store.addRequest(requestPayload);
@@ -115,38 +109,36 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
       title: '[GitLab-950] Повышенная нагрузка при запросах СБП',
       source: 'GitLab',
       description: 'Пользователи жалуются на зависание приложения при оплате СБП в утренние часы.',
-      status: 'В проработку',
+      status: 'Неразобранные',
       gitlabIssueId: '#950',
       client: 'ПАО "Сбербанк"',
       project: 'Платежный шлюз B2B',
       subsystem: 'СБП Процессинг',
       taskKind: 'Ошибка (Bug)',
       taskType: 'Интеграционный сбой',
-      epicId: 'ep-1',
-      associatedFeatureId: 'fe-1',
+      associatedFeatureId: null,
     });
 
     store.addRequest({
       title: '[GitLab-961] Доработка СМС информирования',
       source: 'GitLab',
       description: 'Необходимо добавить шлюз СМС-ЦЕНТР в качестве резервного для ИТС уведомлений.',
-      status: 'В проработку',
+      status: 'Неразобранные',
       gitlabIssueId: '#961',
       client: 'ООО "Вектор"',
       project: 'Интеграционный шлюз ИТС',
       subsystem: 'Уведомления и Вебхуки',
       taskKind: 'Улучшение (Improvement)',
       taskType: 'Оптимизация БП',
-      epicId: 'ep-2',
-      associatedFeatureId: 'fe-9',
+      associatedFeatureId: null,
     });
 
     store.addRequest({
       title: '[GitLab-403] Ошибка 403 при выгрузке XLS',
       source: 'GitLab',
       description: 'Новые менеджеры не могут скачать XLS отчеты, права доступа не учитывают субадминов.',
-      status: 'В проработку',
-      gitlabIssueId: '#403', // Only 1 required parameter, other 6 are blank
+      status: 'Неразобранные',
+      gitlabIssueId: '#403', // Only 1 required parameter, other 5 are blank
     });
 
     alert('Импортировано 3 новых сигнала из GitLab. 2 сигнала полностью размечены и готовы к классификации. 1 сигнал (#403) требует уточнения метаданных.');
@@ -176,7 +168,6 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
     if (!req.subsystem) missing.push('Подсистема');
     if (!req.taskKind) missing.push('Вид задачи');
     if (!req.taskType) missing.push('Тип задачи');
-    if (!req.epicId) missing.push('Епик');
     return missing;
   };
 
@@ -187,7 +178,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
         <div className="space-y-1">
           <h2 className="text-base font-semibold text-white">Анализ входящих задач и сигналов</h2>
           <p className="text-xs text-[#8b949e]">
-            Панель первичного сбора требований. Влияние на классификацию: статус (Принят, Отклонен) можно назначить только при заполнении всех 7 обязательных атрибутов.
+            Панель первичного сбора требований. Влияние на классификацию: статус (Принят, Отклонен) можно назначить только при заполнении всех 6 обязательных атрибутов (без привязки к Эпику и Фиче).
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -226,7 +217,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
 
             {/* Status Filter Tabs */}
             <div className="flex items-center gap-1.5 bg-[#0d1117] p-1 rounded-lg border border-[#30363d]">
-              {['Все', 'В проработку', 'Принят', 'Отклонен'].map((status) => (
+              {['Все', 'Неразобранные', 'В проработку', 'Принят', 'Отклонен'].map((status) => (
                 <button
                   key={status}
                   onClick={() => setFilterStatus(status)}
@@ -249,9 +240,8 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                 <tr className="border-b border-[#30363d] text-[#8b949e] text-xs">
                   <th className="py-2 px-3 font-medium">Код / Источник</th>
                   <th className="py-2 px-3 font-medium">Название и описание</th>
-                  <th className="py-2 px-3 font-medium">Обязательные параметры (7 шт.)</th>
+                  <th className="py-2 px-3 font-medium">Обязательные параметры (6 шт.)</th>
                   <th className="py-2 px-3 font-medium">Валидация</th>
-                  <th className="py-2 px-3 font-medium">Связь</th>
                   <th className="py-2 px-3 font-medium">Статус</th>
                   <th className="py-2 px-3 font-medium text-right">Действия</th>
                 </tr>
@@ -259,7 +249,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
               <tbody className="divide-y divide-[#30363d]/40">
                 {filteredRequests.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-[#8b949e] italic">
+                    <td colSpan={6} className="py-8 text-center text-[#8b949e] italic">
                       Нет подходящих сигналов в данном сегменте.
                     </td>
                   </tr>
@@ -287,15 +277,14 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                         </td>
 
                         {/* Core Required Parameters Details */}
-                        <td className="py-3 px-3 align-top">
-                          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-[#8b949e] font-mono">
+                        <td className="py-3 px-3 align-top min-w-[250px]">
+                          <div className="space-y-1 text-[10px] text-[#8b949e] font-mono">
                             <div><span className="text-[#58a6ff]">GitLab ID:</span> {req.gitlabIssueId || <span className="text-red-500 italic">не указан</span>}</div>
                             <div><span className="text-[#58a6ff]">Клиент:</span> {req.client || <span className="text-red-500 italic">не указан</span>}</div>
                             <div><span className="text-[#58a6ff]">Проект:</span> {req.project || <span className="text-red-500 italic">не указан</span>}</div>
                             <div><span className="text-[#58a6ff]">Подсистема:</span> {req.subsystem || <span className="text-red-500 italic">не указан</span>}</div>
                             <div><span className="text-[#58a6ff]">Вид задачи:</span> {req.taskKind || <span className="text-red-500 italic">не указан</span>}</div>
                             <div><span className="text-[#58a6ff]">Тип задачи:</span> {req.taskType || <span className="text-red-500 italic">не указан</span>}</div>
-                            <div className="col-span-2"><span className="text-[#58a6ff]">Епик:</span> {req.epicId ? (store.epics.find((e: Epic) => e.id === req.epicId)?.title || req.epicId) : <span className="text-red-500 italic">не указан</span>}</div>
                           </div>
                         </td>
 
@@ -317,20 +306,12 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                           )}
                         </td>
 
-                        {/* Associated Feature */}
-                        <td className="py-3 px-3 align-top font-mono whitespace-nowrap text-[#58a6ff]">
-                          {req.associatedFeatureId ? (
-                            <span>{req.associatedFeatureId}</span>
-                          ) : (
-                            <span className="text-[#8b949e] italic">—</span>
-                          )}
-                        </td>
-
                         {/* Current Status Badge */}
                         <td className="py-3 px-3 align-top whitespace-nowrap">
                           <span className={`px-2 py-0.5 rounded font-mono text-[11px] ${
                             req.status === 'Принят' ? 'bg-green-900/40 text-green-400 border border-green-800' :
                             req.status === 'В проработку' ? 'bg-yellow-900/40 text-yellow-500 border border-yellow-800' :
+                            req.status === 'Неразобранные' ? 'bg-gray-800 text-gray-400 border border-gray-700' :
                             'bg-red-900/40 text-red-400 border border-red-800'
                           }`}>
                             {req.status}
@@ -338,18 +319,32 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                         </td>
 
                         {/* Classification Actions & Editing */}
-                        <td className="py-3 px-3 align-top text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+                        <td className="py-3 px-3 align-top text-right font-sans">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
                             <button
                               onClick={() => handleEditOpen(req)}
                               className="px-2 py-1 bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] border border-[#30363d] rounded text-[11px]"
                             >
                               Изменить
                             </button>
+                            {req.status !== 'В проработку' && (
+                              <button
+                                onClick={() => store.classifyRequest(req.id, 'В проработку', null)}
+                                disabled={!isFullyConfigured}
+                                title={isFullyConfigured ? 'Перевести в проработку' : 'Запрещено: Заполните все 6 полей для перевода в статус'}
+                                className={`px-2 py-1 border rounded text-[11px] transition-all ${
+                                  isFullyConfigured
+                                    ? 'bg-yellow-950 hover:bg-yellow-900 border-yellow-800 text-yellow-400'
+                                    : 'bg-[#21262d]/50 border-transparent text-[#8b949e] opacity-40 cursor-not-allowed'
+                                }`}
+                              >
+                                В проработку
+                              </button>
+                            )}
                             <button
-                              onClick={() => store.classifyRequest(req.id, 'Принят', req.associatedFeatureId || 'fe-1')}
+                              onClick={() => store.classifyRequest(req.id, 'Принят', null)}
                               disabled={!isFullyConfigured}
-                              title={isFullyConfigured ? 'Принять запрос' : 'Запрещено: Заполните все 7 полей для перевода в статус'}
+                              title={isFullyConfigured ? 'Принять запрос' : 'Запрещено: Заполните все 6 полей для перевода в статус'}
                               className={`p-1.5 rounded border transition-all ${
                                 isFullyConfigured
                                   ? 'bg-green-950 hover:bg-green-900 border-green-900 text-green-400'
@@ -361,7 +356,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                             <button
                               onClick={() => store.classifyRequest(req.id, 'Отклонен', null)}
                               disabled={!isFullyConfigured}
-                              title={isFullyConfigured ? 'Отклонить запрос' : 'Запрещено: Заполните все 7 полей для перевода в статус'}
+                              title={isFullyConfigured ? 'Отклонить запрос' : 'Запрещено: Заполните все 6 полей для перевода в статус'}
                               className={`p-1.5 rounded border transition-all ${
                                 isFullyConfigured
                                   ? 'bg-red-950 hover:bg-red-900 border-red-900 text-red-400'
@@ -417,38 +412,26 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                   />
                 </div>
 
-                {/* Source & Feature Link */}
-                <div>
+                {/* Source Selection */}
+                <div className="md:col-span-2">
                   <label className="block text-[#8b949e] mb-1 font-medium">Источник поступления:</label>
-                  <input
-                    type="text"
-                    required
+                  <select
                     value={source}
                     onChange={(e) => setSource(e.target.value)}
                     className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[#8b949e] mb-1 font-medium">Связать с фичей (для авто-приоритета):</label>
-                  <select
-                    value={associatedFeatureId}
-                    onChange={(e) => setAssociatedFeatureId(e.target.value)}
-                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff]"
                   >
-                    <option value="">Не связывать</option>
-                    {store.features.map((f: any) => (
-                      <option key={f.id} value={f.id}>[{f.code}] {f.title}</option>
+                    {store.sources.map((s: DictionaryItem) => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              {/* 7 OBLIGATORY ENTERPRISE DICTIONARY FIELDS SECTION */}
+              {/* 6 OBLIGATORY ENTERPRISE DICTIONARY FIELDS SECTION */}
               <div className="p-4 bg-[#0d1117] border border-[#30363d] rounded-lg space-y-3">
                 <div className="flex items-center gap-1.5 text-yellow-500 font-semibold mb-1">
                   <Info size={14} />
-                  <span>Продуктовая классификация (Обязательные 7 параметров)</span>
+                  <span>Продуктовая классификация (Обязательные 6 параметров)</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -535,21 +518,6 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                       <option value="">-- Выберите тип задачи --</option>
                       {store.taskTypes.map((t: DictionaryItem) => (
                         <option key={t.id} value={t.name}>{t.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* 7. Epic */}
-                  <div className="md:col-span-2">
-                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">7. ЕПИК / СТРАТЕГИЧЕСКОЕ НАПРАВЛЕНИЕ:</label>
-                    <select
-                      value={epicId}
-                      onChange={(e) => setEpicId(e.target.value)}
-                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white font-sans"
-                    >
-                      <option value="">-- Выберите Эпик --</option>
-                      {store.epics.map((e: Epic) => (
-                        <option key={e.id} value={e.id}>[{e.code}] {e.title}</option>
                       ))}
                     </select>
                   </div>

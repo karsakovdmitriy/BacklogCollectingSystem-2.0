@@ -72,14 +72,14 @@ export interface Request {
   title: string;
   source: string;
   description: string;
-  status: 'Отклонен' | 'В проработку' | 'Принят'; // Rejected / In discovery / Accepted
+  status: 'Отклонен' | 'В проработку' | 'Принят' | 'Неразобранные'; // Status
   gitlabIssueId?: string; // Обязательный параметр (Id Gitlab)
   client?: string;        // Обязательный параметр (Клиент)
   project?: string;       // Обязательный параметр (проект)
   subsystem?: string;     // Обязательный параметр (подсистема)
   taskKind?: string;      // Обязательный параметр (вид задачи)
   taskType?: string;      // Обязательный параметр (тип задачи)
-  epicId?: string;        // Обязательный параметр (Епик)
+  epicId?: string;        // Опциональный параметр (Епик)
   associatedFeatureId?: string | null;
   createdAt: string;
 }
@@ -442,6 +442,15 @@ export const initialRequests: Request[] = [
     epicId: 'ep-1',
     associatedFeatureId: 'fe-3',
     createdAt: '2025-10-03',
+  },
+  {
+    id: 'req-4',
+    code: 'REQ-104',
+    title: 'Добавление СБП-выгрузок в XML формат',
+    source: 'CRM система',
+    description: 'Запрос от дилеров для автоматической сверки реестров оплат через XML.',
+    status: 'Неразобранные',
+    createdAt: '2025-10-04',
   }
 ];
 
@@ -521,4 +530,11 @@ export const initialTaskTypes: DictionaryItem[] = [
   { id: 'type-2', name: 'Новый метод оплаты' },
   { id: 'type-3', name: 'Оптимизация БП' },
   { id: 'type-4', name: 'Доработка UI' }
+];
+
+export const initialSources: DictionaryItem[] = [
+  { id: 'src-1', name: 'GitLab' },
+  { id: 'src-2', name: 'Интервью' },
+  { id: 'src-3', name: 'Обратная связь' },
+  { id: 'src-4', name: 'CRM система' }
 ];

@@ -9,6 +9,16 @@ import {
   AuditLog,
   DictionaryItem,
   GitLabSettings,
+  Client,
+  ActivityKind,
+  Project,
+  Product,
+  Module,
+  ProjectGroup,
+  TaskKind,
+  TaskType,
+  ProjectStage,
+  User,
   initialEpics,
   initialInitiatives,
   initialFeatures,
@@ -16,11 +26,16 @@ import {
   initialRequests,
   initialReleases,
   initialAuditLogs,
+  initialActivityKinds,
   initialClients,
+  initialProducts,
+  initialModules,
+  initialProjectGroups,
   initialProjects,
-  initialSubsystems,
   initialTaskKinds,
   initialTaskTypes,
+  initialProjectStages,
+  initialUsers,
   initialSources,
   initialGitLabSettings
 } from './index';
@@ -82,45 +97,155 @@ export function useProductState() {
     return initialAuditLogs;
   });
 
-  // State for Dictionaries
-  const [clients, setClients] = useState<DictionaryItem[]>(() => {
+  // --- PERSIST STATES WITH COMPATIBILITY PARSERS FOR ORIGINAL STORAGE KEYS ---
+
+  const [activityKinds, setActivityKinds] = useState<ActivityKind[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dict_activity_kinds');
+      return saved ? JSON.parse(saved) : initialActivityKinds;
+    }
+    return initialActivityKinds;
+  });
+
+  const [clients, setClients] = useState<Client[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('dict_clients');
-      return saved ? JSON.parse(saved) : initialClients;
+      if (saved) {
+        try {
+          const list = JSON.parse(saved);
+          return list.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            activityKindId: c.activityKindId || 'act-1'
+          }));
+        } catch {
+          return initialClients;
+        }
+      }
     }
     return initialClients;
   });
 
-  const [projects, setProjects] = useState<DictionaryItem[]>(() => {
+  const [products, setProducts] = useState<Product[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dict_products');
+      return saved ? JSON.parse(saved) : initialProducts;
+    }
+    return initialProducts;
+  });
+
+  const [modules, setModules] = useState<Module[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dict_modules');
+      if (saved) {
+        try {
+          const list = JSON.parse(saved);
+          return list.map((m: any) => ({
+            id: m.id,
+            name: m.name,
+            gitlabLabel: m.gitlabLabel || 'module::custom'
+          }));
+        } catch {}
+      }
+      // Fallback check for subsystems
+      const savedSubs = localStorage.getItem('dict_subsystems');
+      if (savedSubs) {
+        try {
+          const list = JSON.parse(savedSubs);
+          return list.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            gitlabLabel: 'module::custom'
+          }));
+        } catch {}
+      }
+    }
+    return initialModules;
+  });
+
+  const [projectGroups, setProjectGroups] = useState<ProjectGroup[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dict_project_groups');
+      return saved ? JSON.parse(saved) : initialProjectGroups;
+    }
+    return initialProjectGroups;
+  });
+
+  const [projects, setProjects] = useState<Project[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('dict_projects');
-      return saved ? JSON.parse(saved) : initialProjects;
+      if (saved) {
+        try {
+          const list = JSON.parse(saved);
+          return list.map((p: any) => ({
+            id: p.id,
+            name: p.name || '',
+            projectGroupId: p.projectGroupId || 'grp-1',
+            clientId: p.clientId || 'cl-1',
+            productId: p.productId || 'prod-2',
+            moduleId: p.moduleId || 'mod-1',
+            gitlabUrl: p.gitlabUrl || 'https://gitlab.corp.ru'
+          }));
+        } catch {
+          return initialProjects;
+        }
+      }
     }
     return initialProjects;
   });
 
-  const [subsystems, setSubsystems] = useState<DictionaryItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('dict_subsystems');
-      return saved ? JSON.parse(saved) : initialSubsystems;
-    }
-    return initialSubsystems;
-  });
-
-  const [taskKinds, setTaskKinds] = useState<DictionaryItem[]>(() => {
+  const [taskKinds, setTaskKinds] = useState<TaskKind[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('dict_task_kinds');
-      return saved ? JSON.parse(saved) : initialTaskKinds;
+      if (saved) {
+        try {
+          const list = JSON.parse(saved);
+          return list.map((k: any) => ({
+            id: k.id,
+            name: k.name,
+            gitlabLabel: k.gitlabLabel || 'custom-label'
+          }));
+        } catch {
+          return initialTaskKinds;
+        }
+      }
     }
     return initialTaskKinds;
   });
 
-  const [taskTypes, setTaskTypes] = useState<DictionaryItem[]>(() => {
+  const [taskTypes, setTaskTypes] = useState<TaskType[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('dict_task_types');
-      return saved ? JSON.parse(saved) : initialTaskTypes;
+      if (saved) {
+        try {
+          const list = JSON.parse(saved);
+          return list.map((t: any) => ({
+            id: t.id,
+            name: t.name,
+            gitlabLabel: t.gitlabLabel || 'custom-type-label'
+          }));
+        } catch {
+          return initialTaskTypes;
+        }
+      }
     }
     return initialTaskTypes;
+  });
+
+  const [projectStages, setProjectStages] = useState<ProjectStage[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dict_project_stages');
+      return saved ? JSON.parse(saved) : initialProjectStages;
+    }
+    return initialProjectStages;
+  });
+
+  const [users, setUsers] = useState<User[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dict_users');
+      return saved ? JSON.parse(saved) : initialUsers;
+    }
+    return initialUsers;
   });
 
   const [sources, setSources] = useState<DictionaryItem[]>(() => {
@@ -168,17 +293,32 @@ export function useProductState() {
     localStorage.setItem('audit_data', JSON.stringify(auditLogs));
   }, [auditLogs]);
 
+  // --- SAVE LOCAL STORAGE WITH COMPATIBLE KEYS ---
+  useEffect(() => {
+    localStorage.setItem('dict_activity_kinds', JSON.stringify(activityKinds));
+  }, [activityKinds]);
+
   useEffect(() => {
     localStorage.setItem('dict_clients', JSON.stringify(clients));
   }, [clients]);
 
   useEffect(() => {
-    localStorage.setItem('dict_projects', JSON.stringify(projects));
-  }, [projects]);
+    localStorage.setItem('dict_products', JSON.stringify(products));
+  }, [products]);
 
   useEffect(() => {
-    localStorage.setItem('dict_subsystems', JSON.stringify(subsystems));
-  }, [subsystems]);
+    localStorage.setItem('dict_modules', JSON.stringify(modules));
+    // Synced subsystem backup for fully resilient backward compatibility
+    localStorage.setItem('dict_subsystems', JSON.stringify(modules));
+  }, [modules]);
+
+  useEffect(() => {
+    localStorage.setItem('dict_project_groups', JSON.stringify(projectGroups));
+  }, [projectGroups]);
+
+  useEffect(() => {
+    localStorage.setItem('dict_projects', JSON.stringify(projects));
+  }, [projects]);
 
   useEffect(() => {
     localStorage.setItem('dict_task_kinds', JSON.stringify(taskKinds));
@@ -187,6 +327,14 @@ export function useProductState() {
   useEffect(() => {
     localStorage.setItem('dict_task_types', JSON.stringify(taskTypes));
   }, [taskTypes]);
+
+  useEffect(() => {
+    localStorage.setItem('dict_project_stages', JSON.stringify(projectStages));
+  }, [projectStages]);
+
+  useEffect(() => {
+    localStorage.setItem('dict_users', JSON.stringify(users));
+  }, [users]);
 
   useEffect(() => {
     localStorage.setItem('dict_sources', JSON.stringify(sources));
@@ -226,9 +374,12 @@ export function useProductState() {
     logAction('DELETE_EPIC', `Удален эпик ${id}`);
   };
 
-  // Dictionary management helpers
-  const addClient = (name: string) => {
-    const newItem = { id: `cl-${Date.now()}`, name };
+  // --- CRUD HELPERS FOR THE NEW 12 ENTITIES ---
+
+  // 1. Clients (Клиенты)
+  const addClient = (name: string, activityKindId?: string) => {
+    const defaultActKind = activityKinds[0]?.id || 'act-1';
+    const newItem: Client = { id: `cl-${Date.now()}`, name, activityKindId: activityKindId || defaultActKind };
     setClients((prev) => [...prev, newItem]);
     logAction('ADD_DICTIONARY', `Справочник: Добавлен клиент ${name}`);
   };
@@ -237,44 +388,134 @@ export function useProductState() {
     logAction('DELETE_DICTIONARY', `Справочник: Удален клиент ${id}`);
   };
 
-  const addProject = (name: string) => {
-    const newItem = { id: `pr-${Date.now()}`, name };
-    setProjects((prev) => [...prev, newItem]);
-    logAction('ADD_DICTIONARY', `Справочник: Добавлен проект ${name}`);
+  // 2. Activity Kinds (Виды деятельности)
+  const addActivityKind = (name: string) => {
+    const newItem: ActivityKind = { id: `act-${Date.now()}`, name };
+    setActivityKinds((prev) => [...prev, newItem]);
+    logAction('ADD_DICTIONARY', `Справочник: Добавлен вид деятельности ${name}`);
   };
-  const deleteProject = (id: string) => {
+  const deleteActivityKind = (id: string) => {
+    setActivityKinds((prev) => prev.filter(i => i.id !== id));
+    logAction('DELETE_DICTIONARY', `Справочник: Удален вид деятельности ${id}`);
+  };
+
+  // 3. Projects (Проекты)
+  const addProjectNew = (projectData: Omit<Project, 'id'>) => {
+    const newItem: Project = { id: `pr-${Date.now()}`, ...projectData };
+    setProjects((prev) => [...prev, newItem]);
+    logAction('ADD_DICTIONARY', `Справочник: Добавлен проект ${projectData.name || '(Клиент + Модуль)'}`);
+  };
+  const deleteProjectNew = (id: string) => {
     setProjects((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален проект ${id}`);
   };
 
-  const addSubsystem = (name: string) => {
-    const newItem = { id: `sub-${Date.now()}`, name };
-    setSubsystems((prev) => [...prev, newItem]);
-    logAction('ADD_DICTIONARY', `Справочник: Добавлена подсистема ${name}`);
+  const addProject = (name: string) => {
+    const newItem: Project = {
+      id: `pr-${Date.now()}`,
+      name,
+      projectGroupId: projectGroups[0]?.id || 'grp-1',
+      clientId: clients[0]?.id || 'cl-1',
+      productId: products[0]?.id || 'prod-2',
+      moduleId: modules[0]?.id || 'mod-1',
+      gitlabUrl: 'https://gitlab.corp.ru'
+    };
+    setProjects((prev) => [...prev, newItem]);
+    logAction('ADD_DICTIONARY', `Справочник: Добавлен проект ${name}`);
   };
-  const deleteSubsystem = (id: string) => {
-    setSubsystems((prev) => prev.filter(i => i.id !== id));
-    logAction('DELETE_DICTIONARY', `Справочник: Удалена подсистема ${id}`);
+  const deleteProject = (id: string) => {
+    deleteProjectNew(id);
   };
 
-  const addTaskKind = (name: string) => {
-    const newItem = { id: `kind-${Date.now()}`, name };
+  // 4. Products (Продукты)
+  const addProduct = (name: string) => {
+    const newItem: Product = { id: `prod-${Date.now()}`, name };
+    setProducts((prev) => [...prev, newItem]);
+    logAction('ADD_DICTIONARY', `Справочник: Добавлен продукт ${name}`);
+  };
+  const deleteProduct = (id: string) => {
+    setProducts((prev) => prev.filter(i => i.id !== id));
+    logAction('DELETE_DICTIONARY', `Справочник: Удален продукт ${id}`);
+  };
+
+  // 5. Modules (Модули)
+  const addModule = (name: string, gitlabLabel?: string) => {
+    const newItem: Module = { id: `mod-${Date.now()}`, name, gitlabLabel: gitlabLabel || 'module::custom' };
+    setModules((prev) => [...prev, newItem]);
+    logAction('ADD_DICTIONARY', `Справочник: Добавлен модуль ${name}`);
+  };
+  const deleteModule = (id: string) => {
+    setModules((prev) => prev.filter(i => i.id !== id));
+    logAction('DELETE_DICTIONARY', `Справочник: Удален модуль ${id}`);
+  };
+
+  // 6. Project Groups (Группы проектов)
+  const addProjectGroup = (name: string, gitlabUrl: string) => {
+    const newItem: ProjectGroup = { id: `grp-${Date.now()}`, name, gitlabUrl };
+    setProjectGroups((prev) => [...prev, newItem]);
+    logAction('ADD_DICTIONARY', `Справочник: Добавлена группа проектов ${name}`);
+  };
+  const deleteProjectGroup = (id: string) => {
+    setProjectGroups((prev) => prev.filter(i => i.id !== id));
+    logAction('DELETE_DICTIONARY', `Справочник: Удалена группа проектов ${id}`);
+  };
+
+  // 7. Task Kinds (Виды задач)
+  const addTaskKindNew = (name: string, gitlabLabel?: string) => {
+    const newItem: TaskKind = { id: `kind-${Date.now()}`, name, gitlabLabel: gitlabLabel || 'custom-label' };
     setTaskKinds((prev) => [...prev, newItem]);
     logAction('ADD_DICTIONARY', `Справочник: Добавлен вид задачи ${name}`);
   };
-  const deleteTaskKind = (id: string) => {
+  const deleteTaskKindNew = (id: string) => {
     setTaskKinds((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален вид задачи ${id}`);
   };
 
-  const addTaskType = (name: string) => {
-    const newItem = { id: `type-${Date.now()}`, name };
+  const addTaskKind = (name: string, gitlabLabel?: string) => {
+    addTaskKindNew(name, gitlabLabel || 'custom-label');
+  };
+  const deleteTaskKind = (id: string) => {
+    deleteTaskKindNew(id);
+  };
+
+  // 8. Task Types (Типы задач)
+  const addTaskTypeNew = (name: string, gitlabLabel?: string) => {
+    const newItem: TaskType = { id: `type-${Date.now()}`, name, gitlabLabel: gitlabLabel || 'custom-type-label' };
     setTaskTypes((prev) => [...prev, newItem]);
     logAction('ADD_DICTIONARY', `Справочник: Добавлен тип задачи ${name}`);
   };
-  const deleteTaskType = (id: string) => {
+  const deleteTaskTypeNew = (id: string) => {
     setTaskTypes((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален тип задачи ${id}`);
+  };
+
+  const addTaskType = (name: string, gitlabLabel?: string) => {
+    addTaskTypeNew(name, gitlabLabel || 'custom-type-label');
+  };
+  const deleteTaskType = (id: string) => {
+    deleteTaskTypeNew(id);
+  };
+
+  // 9. Project Stages (Этапы проектов)
+  const addProjectStage = (name: string, gitlabLabel: string) => {
+    const newItem: ProjectStage = { id: `stg-${Date.now()}`, name, gitlabLabel };
+    setProjectStages((prev) => [...prev, newItem]);
+    logAction('ADD_DICTIONARY', `Справочник: Добавлен этап проекта ${name}`);
+  };
+  const deleteProjectStage = (id: string) => {
+    setProjectStages((prev) => prev.filter(i => i.id !== id));
+    logAction('DELETE_DICTIONARY', `Справочник: Удален этап проекта ${id}`);
+  };
+
+  // 11. Users (Пользователи)
+  const addUser = (userData: Omit<User, 'id'>) => {
+    const newItem: User = { id: `usr-${Date.now()}`, ...userData };
+    setUsers((prev) => [...prev, newItem]);
+    logAction('ADD_DICTIONARY', `Справочник: Добавлен пользователь ${userData.fullName}`);
+  };
+  const deleteUser = (id: string) => {
+    setUsers((prev) => prev.filter(i => i.id !== id));
+    logAction('DELETE_DICTIONARY', `Справочник: Удален пользователь ${id}`);
   };
 
   const addSource = (name: string) => {
@@ -413,15 +654,28 @@ export function useProductState() {
     logAction('CREATE_TASK', `Добавлена задача ${code}: ${task.title} к фиче ${task.featureId}`);
   };
 
-  // Helper validation logic checking for 6 core attributes (excluding epicId and associatedFeatureId)
+  // Helper helper to render constructed Project Name
+  const getProjectName = (proj: Project): string => {
+    if (proj.name && proj.name.trim() !== '') {
+      return proj.name;
+    }
+    const c = clients.find((item) => item.id === proj.clientId);
+    const m = modules.find((item) => item.id === proj.moduleId);
+    return `${c ? c.name : 'Unknown Client'} + ${m ? m.name : 'Unknown Module'}`;
+  };
+
+  // Helper validation logic checking for new mandatory attributes (except status 'Неразобранные')
   const isRequestFullyConfigured = (req: Partial<Request>): boolean => {
     return !!(
       req.gitlabIssueId &&
-      req.client &&
-      req.project &&
-      req.subsystem &&
-      req.taskKind &&
-      req.taskType
+      req.projectId &&
+      req.productId &&
+      req.moduleId &&
+      req.taskKindId &&
+      req.taskTypeId &&
+      req.projectStageId &&
+      req.authorId &&
+      req.executorId
     );
   };
 
@@ -429,15 +683,48 @@ export function useProductState() {
   const addRequest = (req: Omit<Request, 'id' | 'code' | 'createdAt'>) => {
     const code = `REQ-${100 + requests.length + 1}`;
 
-    // Default initial request might be incomplete. If it has incomplete fields, status is set to 'Неразобранные'.
-    // If we try to add it with Accepted/Rejected but fields are missing, force it to 'Неразобранные'.
-    let validatedStatus = req.status;
-    if ((validatedStatus === 'Принят' || validatedStatus === 'Отклонен') && !isRequestFullyConfigured(req)) {
+    // Fill legacy fields for backward compatibility / logic mapping:
+    let legacyClient = '';
+    let legacyProject = '';
+    let legacySubsystem = '';
+    let legacyKind = '';
+    let legacyType = '';
+
+    if (req.projectId) {
+      const proj = projects.find((p) => p.id === req.projectId);
+      if (proj) {
+        legacyProject = getProjectName(proj);
+        const cl = clients.find((c) => c.id === proj.clientId);
+        if (cl) legacyClient = cl.name;
+        const md = modules.find((m) => m.id === proj.moduleId);
+        if (md) legacySubsystem = md.name;
+      }
+    }
+    if (req.taskKindId) {
+      const k = taskKinds.find((item) => item.id === req.taskKindId);
+      if (k) legacyKind = k.name;
+    }
+    if (req.taskTypeId) {
+      const t = taskTypes.find((item) => item.id === req.taskTypeId);
+      if (t) legacyType = t.name;
+    }
+
+    const payload = {
+      ...req,
+      client: legacyClient || undefined,
+      project: legacyProject || undefined,
+      subsystem: legacySubsystem || undefined,
+      taskKind: legacyKind || undefined,
+      taskType: legacyType || undefined,
+    };
+
+    let validatedStatus = payload.status;
+    if ((validatedStatus === 'Принят' || validatedStatus === 'Отклонен' || validatedStatus === 'В проработку') && !isRequestFullyConfigured(payload)) {
       validatedStatus = 'Неразобранные';
     }
 
     const newReq: Request = {
-      ...req,
+      ...payload,
       status: validatedStatus,
       id: `req-${Date.now()}`,
       code,
@@ -454,7 +741,42 @@ export function useProductState() {
 
   // Update request inline details
   const updateRequestDetails = (updatedReq: Request) => {
-    setRequests((prev) => prev.map((r) => (r.id === updatedReq.id ? updatedReq : r)));
+    // Re-fill legacy fields for logic mapping:
+    let legacyClient = '';
+    let legacyProject = '';
+    let legacySubsystem = '';
+    let legacyKind = '';
+    let legacyType = '';
+
+    if (updatedReq.projectId) {
+      const proj = projects.find((p) => p.id === updatedReq.projectId);
+      if (proj) {
+        legacyProject = getProjectName(proj);
+        const cl = clients.find((c) => c.id === proj.clientId);
+        if (cl) legacyClient = cl.name;
+        const md = modules.find((m) => m.id === proj.moduleId);
+        if (md) legacySubsystem = md.name;
+      }
+    }
+    if (updatedReq.taskKindId) {
+      const k = taskKinds.find((item) => item.id === updatedReq.taskKindId);
+      if (k) legacyKind = k.name;
+    }
+    if (updatedReq.taskTypeId) {
+      const t = taskTypes.find((item) => item.id === updatedReq.taskTypeId);
+      if (t) legacyType = t.name;
+    }
+
+    const payload = {
+      ...updatedReq,
+      client: legacyClient || undefined,
+      project: legacyProject || undefined,
+      subsystem: legacySubsystem || undefined,
+      taskKind: legacyKind || undefined,
+      taskType: legacyType || undefined,
+    };
+
+    setRequests((prev) => prev.map((r) => (r.id === updatedReq.id ? payload : r)));
     logAction('UPDATE_REQUEST_DETAILS', `Обновлены метаданные запроса ${updatedReq.code}`);
   };
 
@@ -543,7 +865,7 @@ export function useProductState() {
     );
   };
 
-  // Classify Request (Enforces 6 parameters constraint for Accepted/Rejected/In Discovery, allows Unsorted freely)
+  // Classify Request (Enforces 9 parameters constraint for Accepted/Rejected/In Discovery, allows Unsorted freely)
   const classifyRequest = (requestId: string, status: 'Отклонен' | 'В проработку' | 'Принят' | 'Неразобранные', associatedFeatureId?: string | null) => {
     let errorOccurred = false;
     setRequests((prev) =>
@@ -551,7 +873,7 @@ export function useProductState() {
         if (r.id === requestId) {
           // Validation is compulsory for Accepted ('Принят'), Rejected ('Отклонен') and In Discovery ('В проработку')
           if ((status === 'Принят' || status === 'Отклонен' || status === 'В проработку') && !isRequestFullyConfigured(r)) {
-            alert(`Ошибка! Невозможно изменить статус запроса ${r.code} на "${status}". Сначала заполните все 6 обязательных параметров (Id Gitlab, Клиент, Проект, Подсистема, Вид задачи, Тип задачи).`);
+            alert(`Ошибка! Невозможно изменить статус запроса ${r.code} на "${status}". Сначала заполните все обязательные параметры.`);
             errorOccurred = true;
             return r;
           }
@@ -742,7 +1064,7 @@ export function useProductState() {
   const importGitLabIssues = () => {
     // Resolve project name
     const proj = projects.find((p) => p.id === gitLabSettings.mappedProjectId);
-    const projectName = proj ? proj.name : 'Неразобранный проект';
+    const projectName = proj ? getProjectName(proj) : 'Неразобранный проект';
 
     // Simulated Issues pulled from configured projectPath
     const simulatedIssues = [
@@ -809,11 +1131,24 @@ export function useProductState() {
         gitlabIssueId: issue.gitlabId,
         client: clients[0]?.name || 'ПАО "Сбербанк"', // Default client for auto-import
         project: projectName,
-        subsystem: subsystems[0]?.name || 'СБП Процессинг', // Default subsystem for auto-import
+        subsystem: modules[0]?.name || 'СБП Процессинг', // Default subsystem/module for auto-import
         taskKind: resolvedKindName || undefined,
         taskType: resolvedTypeName || undefined,
         epicId: resolvedEpicId,
         associatedFeatureId: null,
+
+        // Strict references for auto-import
+        authorId: users[0]?.id || 'usr-1',
+        executorId: users[0]?.id || 'usr-1',
+        projectId: proj ? proj.id : (projects[0]?.id || 'pr-1'),
+        productId: proj ? proj.productId : (products[0]?.id || 'prod-1'),
+        moduleId: proj ? proj.moduleId : (modules[0]?.id || 'mod-1'),
+        taskKindId: matchedKindId || undefined,
+        taskTypeId: matchedTypeId || undefined,
+        projectStageId: projectStages[0]?.id || 'stg-1',
+        estimate: 10,
+        spent: 0,
+
         createdAt: new Date().toISOString().substring(0, 10),
       };
 
@@ -849,11 +1184,17 @@ export function useProductState() {
     localStorage.removeItem('req_data');
     localStorage.removeItem('rel_data');
     localStorage.removeItem('audit_data');
+    localStorage.removeItem('dict_activity_kinds');
     localStorage.removeItem('dict_clients');
+    localStorage.removeItem('dict_products');
+    localStorage.removeItem('dict_modules');
+    localStorage.removeItem('dict_project_groups');
     localStorage.removeItem('dict_projects');
-    localStorage.removeItem('dict_subsystems');
     localStorage.removeItem('dict_task_kinds');
     localStorage.removeItem('dict_task_types');
+    localStorage.removeItem('dict_project_stages');
+    localStorage.removeItem('dict_users');
+    localStorage.removeItem('dict_sources');
     localStorage.removeItem('gitlab_settings');
 
     setEpics(initialEpics);
@@ -863,15 +1204,23 @@ export function useProductState() {
     setRequests(initialRequests);
     setReleases(initialReleases);
     setAuditLogs(initialAuditLogs);
+    setActivityKinds(initialActivityKinds);
     setClients(initialClients);
+    setProducts(initialProducts);
+    setModules(initialModules);
+    setProjectGroups(initialProjectGroups);
     setProjects(initialProjects);
-    setSubsystems(initialSubsystems);
     setTaskKinds(initialTaskKinds);
     setTaskTypes(initialTaskTypes);
+    setProjectStages(initialProjectStages);
+    setUsers(initialUsers);
     setGitLabSettings(initialGitLabSettings);
 
     logAction('RESET_ALL', 'Сброс всех настроек системы и восстановление демонстрационных данных по умолчанию.');
   };
+
+  // Expose both subsystems and modules referencing the same array for full backwards compatibility
+  const subsystems = modules;
 
   return {
     epics,
@@ -881,24 +1230,41 @@ export function useProductState() {
     requests,
     releases,
     auditLogs,
+    activityKinds,
     clients,
+    products,
+    modules,
+    projectGroups,
     projects,
-    subsystems,
     taskKinds,
     taskTypes,
+    projectStages,
+    users,
     sources,
+    subsystems, // compatibility getter
     addEpic,
     deleteEpic,
     addClient,
     deleteClient,
-    addProject,
-    deleteProject,
-    addSubsystem,
-    deleteSubsystem,
-    addTaskKind,
-    deleteTaskKind,
-    addTaskType,
-    deleteTaskType,
+    addActivityKind,
+    deleteActivityKind,
+    addProject: addProjectNew,
+    deleteProject: deleteProjectNew,
+    addProduct,
+    deleteProduct,
+    addModule,
+    deleteModule,
+    addProjectGroup,
+    deleteProjectGroup,
+    addTaskKind: addTaskKindNew,
+    deleteTaskKind: deleteTaskKindNew,
+    addTaskType: addTaskTypeNew,
+    deleteTaskType: deleteTaskTypeNew,
+    addProjectStage,
+    deleteProjectStage,
+    addUser,
+    deleteUser,
+    getProjectName,
     addSource,
     deleteSource,
     addInitiative,

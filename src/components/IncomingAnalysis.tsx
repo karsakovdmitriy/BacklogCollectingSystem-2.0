@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Request, Epic, DictionaryItem } from '@/store/index';
+import { Request, Project, Product, Module, TaskKind, TaskType, ProjectStage, User } from '@/store/index';
 import {
   CheckCircle2,
   HelpCircle,
@@ -12,7 +12,9 @@ import {
   Check,
   AlertTriangle,
   Info,
-  Layers
+  Layers,
+  UserCheck,
+  Clock
 } from 'lucide-react';
 
 interface IncomingAnalysisProps {
@@ -30,24 +32,34 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
   const [source, setSource] = useState('');
   const [description, setDescription] = useState('');
 
-  // 6 core required parameters for enterprise classification validation
+  // 9 core required parameters for classification validation
   const [gitlabIssueId, setGitlabIssueId] = useState('');
-  const [client, setClient] = useState('');
-  const [project, setProject] = useState('');
-  const [subsystem, setSubsystem] = useState('');
-  const [taskKind, setTaskKind] = useState('');
-  const [taskType, setTaskType] = useState('');
+  const [projectId, setProjectId] = useState('');
+  const [productId, setProductId] = useState('');
+  const [moduleId, setModuleId] = useState('');
+  const [taskKindId, setTaskKindId] = useState('');
+  const [taskTypeId, setTaskTypeId] = useState('');
+  const [projectStageId, setProjectStageId] = useState('');
+  const [authorId, setAuthorId] = useState('');
+  const [executorId, setExecutorId] = useState('');
+  const [estimate, setEstimate] = useState<number>(0);
+  const [spent, setSpent] = useState<number>(0);
 
   const resetForm = () => {
     setTitle('');
     setSource(store.sources?.[0]?.name || 'Интервью');
     setDescription('');
     setGitlabIssueId('');
-    setClient('');
-    setProject('');
-    setSubsystem('');
-    setTaskKind('');
-    setTaskType('');
+    setProjectId('');
+    setProductId('');
+    setModuleId('');
+    setTaskKindId('');
+    setTaskTypeId('');
+    setProjectStageId('');
+    setAuthorId('');
+    setExecutorId('');
+    setEstimate(0);
+    setSpent(0);
     setIsEditingReqId(null);
   };
 
@@ -62,11 +74,16 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
     setSource(req.source || store.sources?.[0]?.name || 'Интервью');
     setDescription(req.description || '');
     setGitlabIssueId(req.gitlabIssueId || '');
-    setClient(req.client || '');
-    setProject(req.project || '');
-    setSubsystem(req.subsystem || '');
-    setTaskKind(req.taskKind || '');
-    setTaskType(req.taskType || '');
+    setProjectId(req.projectId || '');
+    setProductId(req.productId || '');
+    setModuleId(req.moduleId || '');
+    setTaskKindId(req.taskKindId || '');
+    setTaskTypeId(req.taskTypeId || '');
+    setProjectStageId(req.projectStageId || '');
+    setAuthorId(req.authorId || '');
+    setExecutorId(req.executorId || '');
+    setEstimate(req.estimate || 0);
+    setSpent(req.spent || 0);
     setIsAddModalOpen(true);
   };
 
@@ -80,11 +97,16 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
       description,
       status: 'Неразобранные' as const,
       gitlabIssueId: gitlabIssueId || undefined,
-      client: client || undefined,
-      project: project || undefined,
-      subsystem: subsystem || undefined,
-      taskKind: taskKind || undefined,
-      taskType: taskType || undefined,
+      projectId: projectId || undefined,
+      productId: productId || undefined,
+      moduleId: moduleId || undefined,
+      taskKindId: taskKindId || undefined,
+      taskTypeId: taskTypeId || undefined,
+      projectStageId: projectStageId || undefined,
+      authorId: authorId || undefined,
+      executorId: executorId || undefined,
+      estimate: Number(estimate),
+      spent: Number(spent),
       associatedFeatureId: null,
     };
 
@@ -125,12 +147,14 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
 
   const matchesSearch = (req: Request) => {
     const query = searchQuery.toLowerCase();
+    const proj = store.projects.find((p: Project) => p.id === req.projectId);
+    const projName = proj ? store.getProjectName(proj) : '';
+
     return (
       req.title.toLowerCase().includes(query) ||
       req.code.toLowerCase().includes(query) ||
       (req.description && req.description.toLowerCase().includes(query)) ||
-      (req.client && req.client.toLowerCase().includes(query)) ||
-      (req.project && req.project.toLowerCase().includes(query))
+      projName.toLowerCase().includes(query)
     );
   };
 
@@ -142,11 +166,14 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
   const getMissingParameters = (req: Request) => {
     const missing = [];
     if (!req.gitlabIssueId) missing.push('Id Gitlab');
-    if (!req.client) missing.push('Клиент');
-    if (!req.project) missing.push('Проект');
-    if (!req.subsystem) missing.push('Подсистема');
-    if (!req.taskKind) missing.push('Вид задачи');
-    if (!req.taskType) missing.push('Тип задачи');
+    if (!req.projectId) missing.push('Проект');
+    if (!req.productId) missing.push('Продукт');
+    if (!req.moduleId) missing.push('Модуль');
+    if (!req.taskKindId) missing.push('Вид задачи');
+    if (!req.taskTypeId) missing.push('Тип задачи');
+    if (!req.projectStageId) missing.push('Этап проекта');
+    if (!req.authorId) missing.push('Автор');
+    if (!req.executorId) missing.push('Исполнитель');
     return missing;
   };
 
@@ -157,7 +184,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
         <div className="space-y-1">
           <h2 className="text-base font-semibold text-white">Анализ входящих задач и сигналов</h2>
           <p className="text-xs text-[#8b949e]">
-            Панель первичного сбора требований. Влияние на классификацию: статус (Принят, Отклонен) можно назначить только при заполнении всех 6 обязательных атрибутов (без привязки к Эпику и Фиче).
+            Панель первичного сбора требований. Влияние на классификацию: статус (Принят, Отклонен, В проработку) можно назначить только при заполнении всех 9 обязательных атрибутов (без привязки к Эпику и Фиче).
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -187,7 +214,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
               <Search className="absolute left-2.5 top-2.5 text-[#8b949e]" size={15} />
               <input
                 type="text"
-                placeholder="Поиск по клиенту, названию, коду..."
+                placeholder="Поиск по проекту, названию, коду..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 pr-4 py-2 w-full rounded bg-[#0d1117] border border-[#30363d] focus:outline-none focus:border-[#58a6ff] text-xs text-white"
@@ -219,7 +246,8 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                 <tr className="border-b border-[#30363d] text-[#8b949e] text-xs">
                   <th className="py-2 px-3 font-medium">Код / Источник</th>
                   <th className="py-2 px-3 font-medium">Название и описание</th>
-                  <th className="py-2 px-3 font-medium">Обязательные параметры (6 шт.)</th>
+                  <th className="py-2 px-3 font-medium">Обязательные параметры (9 шт.)</th>
+                  <th className="py-2 px-3 font-medium">Оценки (ч)</th>
                   <th className="py-2 px-3 font-medium">Валидация</th>
                   <th className="py-2 px-3 font-medium">Статус</th>
                   <th className="py-2 px-3 font-medium text-right">Действия</th>
@@ -228,7 +256,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
               <tbody className="divide-y divide-[#30363d]/40">
                 {filteredRequests.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-[#8b949e] italic">
+                    <td colSpan={7} className="py-8 text-center text-[#8b949e] italic">
                       Нет подходящих сигналов в данном сегменте.
                     </td>
                   </tr>
@@ -236,6 +264,15 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                   filteredRequests.map((req: Request) => {
                     const missingParams = getMissingParameters(req);
                     const isFullyConfigured = missingParams.length === 0;
+
+                    const proj = store.projects.find((p: Project) => p.id === req.projectId);
+                    const prod = store.products.find((p: Product) => p.id === req.productId);
+                    const mod = store.modules.find((m: Module) => m.id === req.moduleId);
+                    const kind = store.taskKinds.find((k: TaskKind) => k.id === req.taskKindId);
+                    const type = store.taskTypes.find((t: TaskType) => t.id === req.taskTypeId);
+                    const stage = store.projectStages.find((s: ProjectStage) => s.id === req.projectStageId);
+                    const author = store.users.find((u: User) => u.id === req.authorId);
+                    const executor = store.users.find((u: User) => u.id === req.executorId);
 
                     return (
                       <tr key={req.id} className="hover:bg-[#161b22]/50 text-xs transition-colors">
@@ -248,7 +285,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                         </td>
 
                         {/* Title & Desc */}
-                        <td className="py-3 px-3 align-top max-w-sm">
+                        <td className="py-3 px-3 align-top max-w-xs">
                           <strong className="text-white block leading-snug mb-1">{req.title}</strong>
                           <p className="text-[#8b949e] leading-snug truncate hover:whitespace-normal">
                             {req.description}
@@ -256,15 +293,24 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                         </td>
 
                         {/* Core Required Parameters Details */}
-                        <td className="py-3 px-3 align-top min-w-[250px]">
-                          <div className="space-y-1 text-[10px] text-[#8b949e] font-mono">
+                        <td className="py-3 px-3 align-top min-w-[280px]">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-[#8b949e] font-mono">
                             <div><span className="text-[#58a6ff]">GitLab ID:</span> {req.gitlabIssueId || <span className="text-red-500 italic">не указан</span>}</div>
-                            <div><span className="text-[#58a6ff]">Клиент:</span> {req.client || <span className="text-red-500 italic">не указан</span>}</div>
-                            <div><span className="text-[#58a6ff]">Проект:</span> {req.project || <span className="text-red-500 italic">не указан</span>}</div>
-                            <div><span className="text-[#58a6ff]">Подсистема:</span> {req.subsystem || <span className="text-red-500 italic">не указан</span>}</div>
-                            <div><span className="text-[#58a6ff]">Вид задачи:</span> {req.taskKind || <span className="text-red-500 italic">не указан</span>}</div>
-                            <div><span className="text-[#58a6ff]">Тип задачи:</span> {req.taskType || <span className="text-red-500 italic">не указан</span>}</div>
+                            <div><span className="text-[#58a6ff]">Проект:</span> {proj ? store.getProjectName(proj) : <span className="text-red-500 italic">не указан</span>}</div>
+                            <div><span className="text-[#58a6ff]">Продукт:</span> {prod ? prod.name : <span className="text-red-500 italic">не указан</span>}</div>
+                            <div><span className="text-[#58a6ff]">Модуль:</span> {mod ? mod.name : <span className="text-red-500 italic">не указан</span>}</div>
+                            <div><span className="text-[#58a6ff]">Вид задачи:</span> {kind ? kind.name : <span className="text-red-500 italic">не указан</span>}</div>
+                            <div><span className="text-[#58a6ff]">Тип задачи:</span> {type ? type.name : <span className="text-red-500 italic">не указан</span>}</div>
+                            <div><span className="text-[#58a6ff]">Этап проекта:</span> {stage ? stage.name : <span className="text-red-500 italic">не указан</span>}</div>
+                            <div><span className="text-[#58a6ff]">Автор:</span> {author ? author.fullName : <span className="text-red-500 italic">не указан</span>}</div>
+                            <div><span className="text-[#58a6ff]">Исполнитель:</span> {executor ? executor.fullName : <span className="text-red-500 italic">не указан</span>}</div>
                           </div>
+                        </td>
+
+                        {/* Estimate / Spent */}
+                        <td className="py-3 px-3 align-top whitespace-nowrap font-mono text-[11px] text-white">
+                          <div>Оценка: {req.estimate || 0}ч</div>
+                          <div className="text-[#8b949e]">Затрачено: {req.spent || 0}ч</div>
                         </td>
 
                         {/* Validation Status badge */}
@@ -279,7 +325,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                                 <AlertTriangle size={11} /> Не заполнен ({missingParams.length})
                               </span>
                               <div className="text-[9px] text-[#8b949e] max-w-[140px] leading-tight font-mono">
-                                Прямая блокировка классификации. Требуется заполнение: {missingParams.join(', ')}
+                                Прямая блокировка классификации. Требуется: {missingParams.join(', ')}
                               </div>
                             </div>
                           )}
@@ -310,7 +356,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                               <button
                                 onClick={() => store.classifyRequest(req.id, 'В проработку', null)}
                                 disabled={!isFullyConfigured}
-                                title={isFullyConfigured ? 'Перевести в проработку' : 'Запрещено: Заполните все 6 полей для перевода в статус'}
+                                title={isFullyConfigured ? 'Перевести в проработку' : 'Запрещено: Заполните все поля'}
                                 className={`px-2 py-1 border rounded text-[11px] transition-all ${
                                   isFullyConfigured
                                     ? 'bg-yellow-950 hover:bg-yellow-900 border-yellow-800 text-yellow-400'
@@ -323,7 +369,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                             <button
                               onClick={() => store.classifyRequest(req.id, 'Принят', null)}
                               disabled={!isFullyConfigured}
-                              title={isFullyConfigured ? 'Принять запрос' : 'Запрещено: Заполните все 6 полей для перевода в статус'}
+                              title={isFullyConfigured ? 'Принять запрос' : 'Запрещено: Заполните все поля'}
                               className={`p-1.5 rounded border transition-all ${
                                 isFullyConfigured
                                   ? 'bg-green-950 hover:bg-green-900 border-green-900 text-green-400'
@@ -335,7 +381,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                             <button
                               onClick={() => store.classifyRequest(req.id, 'Отклонен', null)}
                               disabled={!isFullyConfigured}
-                              title={isFullyConfigured ? 'Отклонить запрос' : 'Запрещено: Заполните все 6 полей для перевода в статус'}
+                              title={isFullyConfigured ? 'Отклонить запрос' : 'Запрещено: Заполните все поля'}
                               className={`p-1.5 rounded border transition-all ${
                                 isFullyConfigured
                                   ? 'bg-red-950 hover:bg-red-900 border-red-900 text-red-400'
@@ -356,7 +402,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
         </div>
       </div>
 
-      {/* MODAL: ADD / EDIT DIALOG WITH ALL 7 PARAMETERS */}
+      {/* MODAL: ADD / EDIT DIALOG WITH ALL 9 PARAMETERS */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs overflow-y-auto">
           <div className="bg-[#161b22] border border-[#30363d] rounded-xl max-w-2xl w-full p-6 space-y-4 my-8 shadow-2xl">
@@ -399,18 +445,18 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                     onChange={(e) => setSource(e.target.value)}
                     className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff]"
                   >
-                    {store.sources.map((s: DictionaryItem) => (
+                    {store.sources.map((s: any) => (
                       <option key={s.id} value={s.name}>{s.name}</option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              {/* 6 OBLIGATORY ENTERPRISE DICTIONARY FIELDS SECTION */}
+              {/* 9 OBLIGATORY ENTERPRISE DICTIONARY FIELDS SECTION */}
               <div className="p-4 bg-[#0d1117] border border-[#30363d] rounded-lg space-y-3">
                 <div className="flex items-center gap-1.5 text-yellow-500 font-semibold mb-1">
                   <Info size={14} />
-                  <span>Продуктовая классификация (Обязательные 6 параметров)</span>
+                  <span>Продуктовая классификация (Обязательные 9 параметров)</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -426,47 +472,47 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                     />
                   </div>
 
-                  {/* 2. Client */}
+                  {/* 2. Project */}
                   <div>
-                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">2. КЛИЕНТ:</label>
+                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">2. ПРОЕКТ:</label>
                     <select
-                      value={client}
-                      onChange={(e) => setClient(e.target.value)}
-                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                    >
-                      <option value="">-- Выберите клиента --</option>
-                      {store.clients.map((c: DictionaryItem) => (
-                        <option key={c.id} value={c.name}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* 3. Project */}
-                  <div>
-                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">3. ПРОЕКТ:</label>
-                    <select
-                      value={project}
-                      onChange={(e) => setProject(e.target.value)}
+                      value={projectId}
+                      onChange={(e) => setProjectId(e.target.value)}
                       className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
                     >
                       <option value="">-- Выберите проект --</option>
-                      {store.projects.map((p: DictionaryItem) => (
-                        <option key={p.id} value={p.name}>{p.name}</option>
+                      {store.projects.map((p: Project) => (
+                        <option key={p.id} value={p.id}>{store.getProjectName(p)}</option>
                       ))}
                     </select>
                   </div>
 
-                  {/* 4. Subsystem */}
+                  {/* 3. Product */}
                   <div>
-                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">4. ПОДСИСТЕМА:</label>
+                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">3. ПРОДУКТ:</label>
                     <select
-                      value={subsystem}
-                      onChange={(e) => setSubsystem(e.target.value)}
+                      value={productId}
+                      onChange={(e) => setProductId(e.target.value)}
                       className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
                     >
-                      <option value="">-- Выберите подсистему --</option>
-                      {store.subsystems.map((s: DictionaryItem) => (
-                        <option key={s.id} value={s.name}>{s.name}</option>
+                      <option value="">-- Выберите продукт --</option>
+                      {store.products.map((p: Product) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 4. Module */}
+                  <div>
+                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">4. МОДУЛЬ:</label>
+                    <select
+                      value={moduleId}
+                      onChange={(e) => setModuleId(e.target.value)}
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                    >
+                      <option value="">-- Выберите модуль --</option>
+                      {store.modules.map((m: Module) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
                       ))}
                     </select>
                   </div>
@@ -475,13 +521,13 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                   <div>
                     <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">5. ВИД ЗАДАЧИ:</label>
                     <select
-                      value={taskKind}
-                      onChange={(e) => setTaskKind(e.target.value)}
+                      value={taskKindId}
+                      onChange={(e) => setTaskKindId(e.target.value)}
                       className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
                     >
                       <option value="">-- Выберите вид задачи --</option>
-                      {store.taskKinds.map((k: DictionaryItem) => (
-                        <option key={k.id} value={k.name}>{k.name}</option>
+                      {store.taskKinds.map((k: TaskKind) => (
+                        <option key={k.id} value={k.id}>{k.name}</option>
                       ))}
                     </select>
                   </div>
@@ -490,15 +536,84 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                   <div>
                     <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">6. ТИП ЗАДАЧИ:</label>
                     <select
-                      value={taskType}
-                      onChange={(e) => setTaskType(e.target.value)}
+                      value={taskTypeId}
+                      onChange={(e) => setTaskTypeId(e.target.value)}
                       className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
                     >
                       <option value="">-- Выберите тип задачи --</option>
-                      {store.taskTypes.map((t: DictionaryItem) => (
-                        <option key={t.id} value={t.name}>{t.name}</option>
+                      {store.taskTypes.map((t: TaskType) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
                       ))}
                     </select>
+                  </div>
+
+                  {/* 7. Project Stage */}
+                  <div>
+                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">7. ЭТАП ПРОЕКТА:</label>
+                    <select
+                      value={projectStageId}
+                      onChange={(e) => setProjectStageId(e.target.value)}
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                    >
+                      <option value="">-- Выберите этап --</option>
+                      {store.projectStages.map((s: ProjectStage) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 8. Author */}
+                  <div>
+                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">8. АВТОР:</label>
+                    <select
+                      value={authorId}
+                      onChange={(e) => setAuthorId(e.target.value)}
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                    >
+                      <option value="">-- Выберите автора --</option>
+                      {store.users.map((u: User) => (
+                        <option key={u.id} value={u.id}>{u.fullName}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 9. Executor */}
+                  <div>
+                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">9. ИСПОЛНИТЕЛЬ:</label>
+                    <select
+                      value={executorId}
+                      onChange={(e) => setExecutorId(e.target.value)}
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                    >
+                      <option value="">-- Выберите исполнителя --</option>
+                      {store.users.map((u: User) => (
+                        <option key={u.id} value={u.id}>{u.fullName}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Estimate */}
+                  <div>
+                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">ОЦЕНКА (ЧИСЛО ЧАСОВ):</label>
+                    <input
+                      type="number"
+                      value={estimate}
+                      onChange={(e) => setEstimate(Number(e.target.value))}
+                      placeholder="0"
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                    />
+                  </div>
+
+                  {/* Spent */}
+                  <div>
+                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">ЗАТРАЧЕНО (ЧИСЛО ЧАСОВ):</label>
+                    <input
+                      type="number"
+                      value={spent}
+                      onChange={(e) => setSpent(Number(e.target.value))}
+                      placeholder="0"
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                    />
                   </div>
                 </div>
               </div>

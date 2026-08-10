@@ -10,7 +10,20 @@ test('Verify GitLab Integration Settings, custom Project Path configuration, and
 
   // 1. Visit main page
   await page.goto('http://localhost:3000');
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(500);
+
+  // Self-seed testing state into local storage
+  await page.evaluate(() => {
+    localStorage.setItem('dict_clients', JSON.stringify([{ id: 'cl-1', name: 'ПАО "Сбербанк"' }]));
+    localStorage.setItem('dict_projects', JSON.stringify([{ id: 'pr-1', name: 'Платежный шлюз B2B' }]));
+    localStorage.setItem('dict_subsystems', JSON.stringify([{ id: 'sub-1', name: 'Модуль Клиент-Банк' }]));
+    localStorage.setItem('ep_data', JSON.stringify([{ id: 'ep-1', code: 'EPIC-001', title: 'Единое платежное ядро', description: 'Тест', owner: 'Александр Воронов' }]));
+    localStorage.setItem('init_data', JSON.stringify([{ id: 'in-1', epicId: 'ep-1', code: 'INIT-101', title: 'Автоматический СБП-Биллинг', description: 'Тест', status: 'In Progress' }]));
+  });
+
+  // Reload to apply the local storage values
+  await page.reload();
+  await page.waitForTimeout(500);
 
   // 2. Select "Настройки" tab
   await page.click('button:has-text("Настройки")');

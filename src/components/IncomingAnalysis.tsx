@@ -246,8 +246,6 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                 <tr className="border-b border-[#30363d] text-[#8b949e] text-xs">
                   <th className="py-2 px-3 font-medium">Код / Источник</th>
                   <th className="py-2 px-3 font-medium">Название и описание</th>
-                  <th className="py-2 px-3 font-medium">Обязательные параметры (9 шт.)</th>
-                  <th className="py-2 px-3 font-medium">Оценки (ч)</th>
                   <th className="py-2 px-3 font-medium">Валидация</th>
                   <th className="py-2 px-3 font-medium">Статус</th>
                   <th className="py-2 px-3 font-medium text-right">Действия</th>
@@ -256,7 +254,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
               <tbody className="divide-y divide-[#30363d]/40">
                 {filteredRequests.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-[#8b949e] italic">
+                    <td colSpan={5} className="py-8 text-center text-[#8b949e] italic">
                       Нет подходящих сигналов в данном сегменте.
                     </td>
                   </tr>
@@ -264,15 +262,6 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                   filteredRequests.map((req: Request) => {
                     const missingParams = getMissingParameters(req);
                     const isFullyConfigured = missingParams.length === 0;
-
-                    const proj = store.projects.find((p: Project) => p.id === req.projectId);
-                    const prod = store.products.find((p: Product) => p.id === req.productId);
-                    const mod = store.modules.find((m: Module) => m.id === req.moduleId);
-                    const kind = store.taskKinds.find((k: TaskKind) => k.id === req.taskKindId);
-                    const type = store.taskTypes.find((t: TaskType) => t.id === req.taskTypeId);
-                    const stage = store.projectStages.find((s: ProjectStage) => s.id === req.projectStageId);
-                    const author = store.users.find((u: User) => u.id === req.authorId);
-                    const executor = store.users.find((u: User) => u.id === req.executorId);
 
                     return (
                       <tr key={req.id} className="hover:bg-[#161b22]/50 text-xs transition-colors">
@@ -290,27 +279,6 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                           <p className="text-[#8b949e] leading-snug truncate hover:whitespace-normal">
                             {req.description}
                           </p>
-                        </td>
-
-                        {/* Core Required Parameters Details */}
-                        <td className="py-3 px-3 align-top min-w-[280px]">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-[#8b949e] font-mono">
-                            <div><span className="text-[#58a6ff]">GitLab ID:</span> {req.gitlabIssueId || <span className="text-red-500 italic">не указан</span>}</div>
-                            <div><span className="text-[#58a6ff]">Проект:</span> {proj ? store.getProjectName(proj) : <span className="text-red-500 italic">не указан</span>}</div>
-                            <div><span className="text-[#58a6ff]">Продукт:</span> {prod ? prod.name : <span className="text-red-500 italic">не указан</span>}</div>
-                            <div><span className="text-[#58a6ff]">Модуль:</span> {mod ? mod.name : <span className="text-red-500 italic">не указан</span>}</div>
-                            <div><span className="text-[#58a6ff]">Вид задачи:</span> {kind ? kind.name : <span className="text-red-500 italic">не указан</span>}</div>
-                            <div><span className="text-[#58a6ff]">Тип задачи:</span> {type ? type.name : <span className="text-red-500 italic">не указан</span>}</div>
-                            <div><span className="text-[#58a6ff]">Этап проекта:</span> {stage ? stage.name : <span className="text-red-500 italic">не указан</span>}</div>
-                            <div><span className="text-[#58a6ff]">Автор:</span> {author ? author.fullName : <span className="text-red-500 italic">не указан</span>}</div>
-                            <div><span className="text-[#58a6ff]">Исполнитель:</span> {executor ? executor.fullName : <span className="text-red-500 italic">не указан</span>}</div>
-                          </div>
-                        </td>
-
-                        {/* Estimate / Spent */}
-                        <td className="py-3 px-3 align-top whitespace-nowrap font-mono text-[11px] text-white">
-                          <div>Оценка: {req.estimate || 0}ч</div>
-                          <div className="text-[#8b949e]">Затрачено: {req.spent || 0}ч</div>
                         </td>
 
                         {/* Validation Status badge */}

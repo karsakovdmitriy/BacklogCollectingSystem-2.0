@@ -178,3 +178,56 @@ https://react.dev/link/hydration-mismatch
   82 |                 <span className="text-[#8b949e] block text-[10px]">В ЧЕРНОВИКЕ</span>
  GET / 200 in 60ms (next.js: 3ms, application-code: 56ms)
  GET / 200 in 59ms (next.js: 3ms, application-code: 56ms)
+ GET / 200 in 116ms (next.js: 19ms, application-code: 97ms)
+ GET / 200 in 68ms (next.js: 5ms, application-code: 63ms)
+[browser] Uncaught Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} unauthorized={undefined} ...>
+      <RedirectBoundary>
+        <RedirectErrorBoundary router={{...}}>
+          <InnerLayoutRouter url="/" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+            <SegmentViewNode type="page" pagePath="src/page.tsx">
+              <SegmentTrieNode>
+              <ClientPageRoot Component={function Home} serverProvidedParams={{...}}>
+                <Home params={Promise} searchParams={Promise}>
+                  <div className="flex h-scr...">
+                    <aside className="w-80 bg-[#...">
+                      <div>
+                        <div>
+                        <div className="grid grid-...">
+                          <div className="p-2 rounde...">
+                            <span>
+                            <strong className="text-lg te...">
++                             1
+-                             0
+                              ...
+                          ...
+                        ...
+                      ...
+                    ...
+            ...
+          ...
+
+    at <unknown> (https://react.dev/link/hydration-mismatch)
+    at strong (<anonymous>)
+    at Home (src/app/page.tsx:79:17)
+  77 |               <div className="p-2 rounded bg-[#21262d] border border-[#30363d]">
+  78 |                 <span className="text-[#8b949e] block text-[10px]">В БЭКЛОГЕ</span>
+> 79 |                 <strong className="text-lg text-white">{totalFeatures} фич</strong>
+     |                 ^
+  80 |               </div>
+  81 |               <div className="p-2 rounded bg-[#21262d] border border-[#30363d]">
+  82 |                 <span className="text-[#8b949e] block text-[10px]">В ЧЕРНОВИКЕ</span>
+ GET / 200 in 58ms (next.js: 4ms, application-code: 55ms)
+ GET / 200 in 75ms (next.js: 3ms, application-code: 72ms)

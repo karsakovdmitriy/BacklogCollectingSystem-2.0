@@ -15,7 +15,11 @@ import {
   Check,
   ChevronDown,
   Info,
-  Server
+  Server,
+  Sparkles,
+  ClipboardCheck,
+  Clock,
+  Coins
 } from 'lucide-react';
 
 interface ReleasePlannerProps {
@@ -24,8 +28,15 @@ interface ReleasePlannerProps {
 }
 
 export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerProps) {
-  // Modal toggle for logs view after approval
+  // Modal toggles
   const [selectedLogsRelease, setSelectedLogsRelease] = useState<Release | null>(null);
+  const [isBulkEstimateOpen, setIsBulkEstimateOpen] = useState(false);
+
+  // Bulk estimation form state
+  const [bulkInputs, setBulkInputs] = useState<Record<string, { sp: string; hours: string }>>({});
+
+  // Single card inline estimation form state
+  const [inlineInputs, setInlineInputs] = useState<Record<string, { sp: string; hours: string }>>({});
 
   // Retrieve active releases
   const approvedReleases = store.releases.filter((r: Release) => r.status === 'Approved');
@@ -33,25 +44,48 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
 
   const capacityLimit = draftRelease ? draftRelease.capacitySP : 20;
 
-  // Retrieve features split by status
-  // 1. Backlog (Not in any release)
+  // Retrieve features split by funnel status
   const backlogFeatures = store.features.filter(
-    (f: Feature) => !f.releaseId && f.title.toLowerCase().includes(searchQuery.toLowerCase())
+    (f: Feature) =>
+      !f.releaseId &&
+      (f.status === 'Backlog' || !f.status) &&
+      f.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Sort backlog by final priority score (override score takes precedence)
-  const sortedBacklog = [...backlogFeatures].sort((a, b) => {
-    const scoreA = a.overrideScore !== undefined ? a.overrideScore : a.autoScore;
-    const scoreB = b.overrideScore !== undefined ? b.overrideScore : b.autoScore;
-    return scoreB - scoreA;
-  });
+  const estimatingFeatures = store.features.filter(
+    (f: Feature) =>
+      !f.releaseId &&
+      f.status === 'На оценке' &&
+      f.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  // 2. Draft Release candidates
+  const estimatedFeatures = store.features.filter(
+    (f: Feature) =>
+      !f.releaseId &&
+      f.status === 'Оценено' &&
+      f.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const draftFeatures = store.features.filter(
-    (f: Feature) => f.releaseId === 'rel-draft' && f.title.toLowerCase().includes(searchQuery.toLowerCase())
+    (f: Feature) =>
+      f.releaseId === 'rel-draft' &&
+      f.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Current Capacity details
+  // Sorting
+  const sortFeaturesByScore = (arr: Feature[]) => {
+    return [...arr].sort((a, b) => {
+      const scoreA = a.overrideScore !== undefined ? a.overrideScore : a.autoScore;
+      const scoreB = b.overrideScore !== undefined ? b.overrideScore : b.autoScore;
+      return scoreB - scoreA;
+    });
+  };
+
+  const sortedBacklog = sortFeaturesByScore(backlogFeatures);
+  const sortedEstimating = sortFeaturesByScore(estimatingFeatures);
+  const sortedEstimated = sortFeaturesByScore(estimatedFeatures);
+
+  // Current Capacity details of the draft release
   const totalDraftSP = draftFeatures.reduce((sum: number, f: Feature) => sum + f.effortSP, 0);
   const totalDraftHours = draftFeatures.reduce((sum: number, f: Feature) => sum + f.effortHours, 0);
   const capacityUsagePercent = Math.min((totalDraftSP / capacityLimit) * 100, 100);
@@ -59,16 +93,44 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
 
   // Trigger auto allocation (greedy knapsack algorithm based on highest priority score / SP)
   const handleAutoAllocate = () => {
+    // Only 'Оценено' features can be auto-allocated to the release draft
     store.autoAllocateDraftFeatures(capacityLimit);
   };
 
-  // Drag and Drop simulation functions (also allows single click for fast mobile/desktop prototyping)
+  // Funnel actions
+  const moveToEstimation = (featureId: string) => {
+    store.moveFeatureToEstimation(featureId);
+  };
+
+  const saveSingleEstimation = (featureId: string) => {
+    const inputs = inlineInputs[featureId] || { sp: '5', hours: '40' };
+    const spVal = parseInt(inputs.sp) || 5;
+    const hoursVal = parseInt(inputs.hours) || 40;
+    store.fillFeatureEffort(featureId, spVal, hoursVal);
+  };
+
   const moveToRelease = (featureId: string) => {
     store.toggleFeatureInRelease(featureId, 'rel-draft');
   };
 
   const removeFromRelease = (featureId: string) => {
     store.toggleFeatureInRelease(featureId, null);
+  };
+
+  // Bulk estimate submit
+  const handleBulkEstimateSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const updates = estimatingFeatures.map((f: Feature) => {
+      const inputs = bulkInputs[f.id] || { sp: '5', hours: '40' };
+      return {
+        id: f.id,
+        sp: parseInt(inputs.sp) || 5,
+        hours: parseInt(inputs.hours) || 40
+      };
+    });
+    store.batchFillFeatureEfforts(updates);
+    setIsBulkEstimateOpen(false);
+    alert('Все выбранные фичи успешно оценены и перенесены в статус "Оценено"!');
   };
 
   // Submit/Approve Release
@@ -83,35 +145,55 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
     }
   };
 
-  // Drag and drop event handlers
-  const handleDragStart = (e: React.DragEvent, id: string) => {
-    e.dataTransfer.setData('text/plain', id);
+  // Drag and Drop event handlers
+  const handleDragStart = (e: React.DragEvent, id: string, origin: string) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ id, origin }));
   };
 
-  // Drag over handler
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
 
-  const handleDropToRelease = (e: React.DragEvent) => {
+  const handleDropToBacklog = (e: React.DragEvent) => {
     e.preventDefault();
-    const id = e.dataTransfer.getData('text/plain');
-    if (id) {
-      moveToRelease(id);
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      // No transition backward from estimated to backlog defined, but can reset release
+      if (data.origin === 'draft') {
+        removeFromRelease(data.id);
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  const handleDropToBacklog = (e: React.DragEvent) => {
+  const handleDropToEstimating = (e: React.DragEvent) => {
     e.preventDefault();
-    const id = e.dataTransfer.getData('text/plain');
-    if (id) {
-      removeFromRelease(id);
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      if (data.origin === 'backlog') {
+        moveToEstimation(data.id);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDropToDraft = (e: React.DragEvent) => {
+    e.preventDefault();
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      if (data.origin === 'estimated') {
+        moveToRelease(data.id);
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* CAPCITY DASHBOARD & AUTO-ALLOCATOR CONFIG */}
+      {/* CAPACITY DASHBOARD & AUTO-ALLOCATOR CONFIG */}
       <div className="bg-[#161b22] p-5 rounded-xl border border-[#30363d] space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-1">
@@ -200,75 +282,61 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
         )}
       </div>
 
-      {/* DRAG AND DROP KANBAN / SPLIT CONTAINER */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* 3-COLUMN FUNNEL DASHBOARD */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 h-[720px] overflow-hidden items-stretch">
 
-        {/* LEFT COLUMN: BACKLOG CANDIDATES (DRAG SOURCE) */}
+        {/* COLUMN 1: BACKLOG CANDIDATES */}
         <div
           onDragOver={handleDragOver}
           onDrop={handleDropToBacklog}
-          className="bg-[#161b22] border border-[#30363d] rounded-xl flex flex-col h-[650px]"
+          className="bg-[#161b22] border border-[#30363d] rounded-xl flex flex-col h-full overflow-hidden"
         >
           <div className="px-4 py-3 bg-[#21262d] border-b border-[#30363d] flex items-center justify-between">
-            <span className="font-semibold text-white">Доступно в Бэклоге ({sortedBacklog.length})</span>
-            <span className="text-xs text-[#8b949e]">Отсортировано по приоритету</span>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-white">1. Доступно в Бэклоге ({sortedBacklog.length})</span>
+            </div>
+            <span className="text-[10px] text-[#8b949e] font-mono">STATUS: BACKLOG</span>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#0d1117]/30">
+          <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-[#0d1117]/30 scrollbar-thin">
             {sortedBacklog.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-[#8b949e] space-y-2 text-center p-8">
-                <Info size={24} />
-                <p>Нет доступных фич в бэклоге.</p>
-                <p className="text-[11px]">Создайте новые фичи или удалите их из черновика.</p>
+              <div className="h-full flex flex-col items-center justify-center text-[#8b949e] space-y-2 text-center p-6 border border-dashed border-[#30363d]/40 rounded-lg">
+                <Info size={24} className="text-[#30363d]" />
+                <p className="text-xs">Нет новых фич в бэклоге.</p>
               </div>
             ) : (
               sortedBacklog.map((f: Feature) => {
                 const currentScore = f.overrideScore !== undefined ? f.overrideScore : f.autoScore;
-                const isOverridden = f.overrideScore !== undefined;
-
                 return (
                   <div
                     key={f.id}
                     draggable
-                    onDragStart={(e) => handleDragStart(e, f.id)}
-                    className="p-3.5 bg-[#161b22] hover:bg-[#21262d] border border-[#30363d] hover:border-[#8b949e]/40 rounded-lg cursor-grab active:cursor-grabbing transition-all space-y-2 group"
+                    onDragStart={(e) => handleDragStart(e, f.id, 'backlog')}
+                    className="p-3 bg-[#161b22] hover:bg-[#21262d] border border-[#30363d] rounded-lg cursor-grab active:cursor-grabbing transition-all space-y-2 group"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-1.5">
                           <span className="text-[10px] font-mono text-[#58a6ff]">{f.code}</span>
-                          <span className="text-white font-medium text-xs truncate max-w-[200px]">
+                          <span className="text-white font-medium text-xs truncate max-w-[150px]">
                             {f.title}
                           </span>
                         </div>
-                        <p className="text-[11px] text-[#8b949e] line-clamp-2">{f.description}</p>
+                        <p className="text-[11px] text-[#8b949e] line-clamp-2 leading-relaxed">{f.description}</p>
                       </div>
 
-                      {/* Custom Transfer Trigger (Quick Actions for Click) */}
                       <button
-                        onClick={() => moveToRelease(f.id)}
-                        className="p-1 rounded bg-[#21262d] group-hover:bg-[#1f6feb] border border-[#30363d] text-[#8b949e] group-hover:text-white transition-all"
-                        title="Добавить в Релиз"
+                        onClick={() => moveToEstimation(f.id)}
+                        className="p-1 rounded bg-[#21262d] hover:bg-[#1f6feb] border border-[#30363d] text-[#8b949e] hover:text-white transition-all text-xs flex items-center gap-0.5"
+                        title="Направить на оценку"
                       >
-                        <MoveRight size={13} />
+                        <MoveRight size={12} />
                       </button>
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-[#30363d]/50 font-mono">
-                      <div className="flex gap-2">
-                        <span className="bg-[#0d1117] text-[#c9d1d9] px-1.5 py-0.2 rounded border border-[#30363d]">
-                          {f.effortSP} SP
-                        </span>
-                        <span className="bg-[#0d1117] text-[#8b949e] px-1.5 py-0.2 rounded">
-                          {f.effortHours}h
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 text-xs">
-                        <span className="text-[#8b949e]">Приоритет:</span>
-                        <strong className={`text-green-400 ${isOverridden ? 'text-yellow-500' : ''}`}>
-                          {currentScore}
-                        </strong>
-                      </div>
+                      <span className="text-[#8b949e]">Приоритет: <strong className="text-green-400">{currentScore}</strong></span>
+                      <span className="bg-[#21262d] text-[#8b949e] px-1.5 py-0.2 rounded">Не оценена</span>
                     </div>
                   </div>
                 );
@@ -277,86 +345,212 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
           </div>
         </div>
 
-        {/* RIGHT COLUMN: RELEASES CONSTRUCTOR DRAFT (DRAG TARGET & APPROVAL) */}
+        {/* COLUMN 2: ESTIMATION STAGE */}
         <div
           onDragOver={handleDragOver}
-          onDrop={handleDropToRelease}
-          className="bg-[#161b22] border border-[#30363d] rounded-xl flex flex-col h-[650px]"
+          onDrop={handleDropToEstimating}
+          className="bg-[#161b22] border border-[#30363d] rounded-xl flex flex-col h-full overflow-hidden"
         >
-          <div className="px-4 py-3 bg-[#21262d] border-b border-[#30363d] flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-white">План релиза (Черновик)</span>
-              <span className="inline-flex h-2 w-2 rounded-full bg-yellow-400 animate-ping"></span>
-            </div>
-            <span className="text-xs text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20 font-mono">
-              STATUS: DRAFT
-            </span>
+          <div className="px-4 py-3 bg-[#21262d] border-b border-[#30363d] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <span className="font-semibold text-white">2. На оценку трудоемкости ({estimatingFeatures.length})</span>
+            <button
+              onClick={() => {
+                // Initialize bulk inputs
+                const init: Record<string, { sp: string; hours: string }> = {};
+                estimatingFeatures.forEach((f: Feature) => {
+                  init[f.id] = { sp: String(f.effortSP || 5), hours: String(f.effortHours || 40) };
+                });
+                setBulkInputs(init);
+                setIsBulkEstimateOpen(true);
+              }}
+              disabled={estimatingFeatures.length === 0}
+              className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white font-bold text-[10px] rounded shadow-md transition-all flex items-center gap-1 shrink-0"
+            >
+              <ClipboardCheck size={12} />
+              Заполнить трудоемкость
+            </button>
           </div>
 
-          {/* Features container */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#0d1117]/10">
-            {draftFeatures.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-[#8b949e] space-y-2 text-center p-8 border-2 border-dashed border-[#30363d] rounded-lg">
-                <CalendarRange size={28} className="text-[#30363d]" />
-                <p className="font-semibold text-white">Перетащите фичи сюда</p>
-                <p className="text-[11px] max-w-xs leading-normal">
-                  Используйте Drag-and-Drop или нажмите кнопку авто-подбора, чтобы оптимизировать релиз под емкость команды.
-                </p>
+          <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-[#0d1117]/30 scrollbar-thin">
+            {sortedEstimating.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-[#8b949e] space-y-2 text-center p-6 border-2 border-dashed border-[#30363d]/30 rounded-lg">
+                <Clock size={24} className="text-[#30363d]" />
+                <p className="text-xs font-semibold text-white">Перетащите фичи сюда</p>
+                <p className="text-[10px]">Или нажмите кнопку в первой колонке, чтобы отправить фичи на оценку.</p>
               </div>
             ) : (
-              draftFeatures.map((f: Feature) => {
+              sortedEstimating.map((f: Feature) => {
                 const currentScore = f.overrideScore !== undefined ? f.overrideScore : f.autoScore;
+                const inline = inlineInputs[f.id] || { sp: '5', hours: '40' };
 
                 return (
                   <div
                     key={f.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, f.id)}
-                    className="p-3 bg-[#1f6feb]/5 hover:bg-[#1f6feb]/10 border border-[#1f6feb]/30 rounded-lg cursor-grab active:cursor-grabbing transition-all space-y-2 group"
+                    className="p-3 bg-amber-950/10 border border-amber-800/30 rounded-lg transition-all space-y-2.5"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <button
-                        onClick={() => removeFromRelease(f.id)}
-                        className="p-1 rounded bg-[#21262d] hover:bg-red-950 border border-[#30363d] text-[#8b949e] hover:text-red-400 transition-all"
-                        title="Убрать из Релиза"
-                      >
-                        <MoveLeft size={13} />
-                      </button>
-
-                      <div className="flex-1 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <span className="text-white font-medium text-xs">{f.title}</span>
-                          <span className="text-[10px] font-mono text-[#58a6ff]">{f.code}</span>
-                        </div>
-                        <p className="text-[11px] text-[#8b949e]">{f.description}</p>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-mono text-[#58a6ff]">{f.code}</span>
+                        <span className="text-white font-medium text-xs truncate max-w-[175px]">
+                          {f.title}
+                        </span>
                       </div>
+                      <p className="text-[11px] text-[#8b949e] line-clamp-2 leading-relaxed">{f.description}</p>
                     </div>
 
-                    <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-[#1f6feb]/20 font-mono">
-                      <div className="flex items-center gap-1 text-xs">
-                        <span className="text-[#8b949e]">Эффективность (вес):</span>
-                        <strong className="text-green-400">{currentScore}</strong>
+                    {/* Quick Manual Estimator Form */}
+                    <div className="bg-[#0d1117] p-2 rounded border border-[#30363d] space-y-2">
+                      <div className="grid grid-cols-2 gap-2 text-[10px]">
+                        <div>
+                          <label className="text-[#8b949e] block mb-0.5 font-mono">Story Points:</label>
+                          <input
+                            type="number"
+                            value={inline.sp}
+                            onChange={(e) =>
+                              setInlineInputs({
+                                ...inlineInputs,
+                                [f.id]: { ...inline, sp: e.target.value }
+                              })
+                            }
+                            className="w-full bg-[#161b22] border border-[#30363d] rounded text-white px-1 py-0.5 text-center font-mono font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[#8b949e] block mb-0.5 font-mono">Часы:</label>
+                          <input
+                            type="number"
+                            value={inline.hours}
+                            onChange={(e) =>
+                              setInlineInputs({
+                                ...inlineInputs,
+                                [f.id]: { ...inline, hours: e.target.value }
+                              })
+                            }
+                            className="w-full bg-[#161b22] border border-[#30363d] rounded text-white px-1 py-0.5 text-center font-mono font-bold"
+                          />
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <span className="bg-[#2ea043]/10 text-[#2ea043] px-1.5 py-0.2 rounded border border-[#2ea043]/20">
-                          {f.effortSP} SP
-                        </span>
-                        <span className="bg-[#21262d] text-[#8b949e] px-1.5 py-0.2 rounded">
-                          {f.effortHours}h
-                        </span>
-                      </div>
+                      <button
+                        onClick={() => saveSingleEstimation(f.id)}
+                        className="w-full py-1 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] rounded transition-all flex items-center justify-center gap-1"
+                      >
+                        <Check size={11} /> Сохранить оценку
+                      </button>
+                    </div>
+
+                    <div className="text-[10px] text-[#8b949e] font-mono pt-1 flex justify-between">
+                      <span>Приоритет: <strong className="text-green-400">{currentScore}</strong></span>
+                      <span className="text-amber-500 font-semibold animate-pulse">ОЖИДАЕТ ОЦЕНКИ</span>
                     </div>
                   </div>
                 );
               })
             )}
           </div>
+        </div>
+
+        {/* COLUMN 3: ESTIMATED & DRAFT RELEASE */}
+        <div
+          onDragOver={handleDragOver}
+          onDrop={handleDropToDraft}
+          className="bg-[#161b22] border border-[#30363d] rounded-xl flex flex-col h-full overflow-hidden"
+        >
+          <div className="px-4 py-3 bg-[#21262d] border-b border-[#30363d] flex items-center justify-between">
+            <span className="font-semibold text-white">3. План релиза (Черновик)</span>
+            <span className="text-xs text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20 font-mono">
+              DRAFT
+            </span>
+          </div>
+
+          <div className="flex-1 overflow-hidden flex flex-col">
+
+            {/* Top Half: Estimated Pool Candidates */}
+            <div className="h-1/2 flex flex-col border-b border-[#30363d]/50">
+              <div className="px-3 py-1.5 bg-[#0d1117] text-[10px] font-semibold text-[#8b949e] border-b border-[#30363d]/40 flex justify-between">
+                <span>ОЦЕНЕННЫЕ КАНДИДАТЫ ({sortedEstimated.length})</span>
+                <span>Перетащите вниз для релиза</span>
+              </div>
+              <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-[#0d1117]/10 scrollbar-thin">
+                {sortedEstimated.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-[#8b949e] text-xs italic p-4 text-center">
+                    Оцененных фич нет. Оцените фичи во второй колонке.
+                  </div>
+                ) : (
+                  sortedEstimated.map((f: Feature) => {
+                    const currentScore = f.overrideScore !== undefined ? f.overrideScore : f.autoScore;
+                    return (
+                      <div
+                        key={f.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, f.id, 'estimated')}
+                        className="p-2.5 bg-[#161b22] border border-[#30363d] hover:border-[#8b949e]/40 rounded-lg cursor-grab active:cursor-grabbing transition-all flex items-center justify-between gap-2"
+                      >
+                        <div className="truncate pr-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[9px] font-mono text-[#58a6ff]">{f.code}</span>
+                            <span className="text-white font-medium text-xs truncate max-w-[120px]">{f.title}</span>
+                          </div>
+                          <span className="text-[10px] text-[#8b949e] font-mono">{f.effortSP} SP / {f.effortHours}ч.</span>
+                        </div>
+                        <button
+                          onClick={() => moveToRelease(f.id)}
+                          className="p-1 rounded bg-[#21262d] hover:bg-[#238636] border border-[#30363d] text-[#8b949e] hover:text-white transition-all"
+                          title="Добавить в черновик релиза"
+                        >
+                          <MoveRight size={12} />
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Bottom Half: Target Release Draft */}
+            <div className="h-1/2 flex flex-col bg-[#1f6feb]/5">
+              <div className="px-3 py-1.5 bg-[#1f6feb]/10 text-[10px] font-semibold text-[#58a6ff] border-b border-[#1f6feb]/20 flex justify-between">
+                <span>ВКЛЮЧЕНО В РЕЛИЗ ({draftFeatures.length})</span>
+                <span>Итого: {totalDraftSP} SP</span>
+              </div>
+              <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin">
+                {draftFeatures.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-[#8b949e] space-y-1.5 text-center p-4">
+                    <CalendarRange size={24} className="text-[#30363d]" />
+                    <p className="text-[11px] font-semibold text-white">Перетащите фичи сюда</p>
+                  </div>
+                ) : (
+                  draftFeatures.map((f: Feature) => {
+                    return (
+                      <div
+                        key={f.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, f.id, 'draft')}
+                        className="p-2 bg-[#1f6feb]/10 border border-[#1f6feb]/30 rounded-lg cursor-grab active:cursor-grabbing transition-all flex items-center justify-between gap-2"
+                      >
+                        <button
+                          onClick={() => removeFromRelease(f.id)}
+                          className="p-1 rounded bg-[#21262d] hover:bg-red-950 border border-[#30363d] text-[#8b949e] hover:text-red-400 transition-all"
+                          title="Убрать"
+                        >
+                          <MoveLeft size={11} />
+                        </button>
+                        <div className="text-right flex-1 truncate">
+                          <span className="text-white font-medium text-xs block truncate">{f.title}</span>
+                          <span className="text-[9px] text-[#8b949e] font-mono">{f.effortSP} SP ({f.effortHours}h)</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+          </div>
 
           {/* APPROVE ACTION AREA */}
           <div className="p-4 bg-[#21262d] border-t border-[#30363d] space-y-3">
             <div className="text-xs text-[#8b949e] leading-snug">
-              При нажатии «Утвердить Релиз» система зафиксирует приоритеты, заблокирует изменение состава фич и запустит
-              <strong className="text-white"> автоматический экспорт задач в продуктовый GitLab</strong>.
+              При утверждении система экспортирует задачи в GitLab и переведет фичи в статус релиза.
             </div>
             <button
               onClick={handleApproveRelease}
@@ -364,7 +558,7 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
               className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-white font-bold transition-all ${
                 draftFeatures.length === 0 || isOverCapacity
                   ? 'bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed'
-                  : 'bg-[#238636] hover:bg-[#2ea043] cursor-pointer shadow-lg shadow-green-950/20'
+                  : 'bg-[#238636] hover:bg-[#2ea043] cursor-pointer shadow-lg'
               }`}
             >
               <CheckCircle2 size={16} />
@@ -372,6 +566,7 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
             </button>
           </div>
         </div>
+
       </div>
 
       {/* APPROVED RELEASES CATALOGUE & GITLAB INTEGRATION LOGS */}
@@ -415,6 +610,89 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
           ))}
         </div>
       </div>
+
+      {/* MODAL: BATCH ESTIMATION */}
+      {isBulkEstimateOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs">
+          <form onSubmit={handleBulkEstimateSubmit} className="bg-[#161b22] border border-[#30363d] rounded-xl max-w-2xl w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+              <div className="space-y-0.5">
+                <h3 className="text-lg font-semibold text-white">Пакетная оценка трудоемкости</h3>
+                <p className="text-xs text-[#8b949e]">Заполните Story Points и экспертные часы для всех выбранных фич.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBulkEstimateOpen(false)}
+                className="text-[#8b949e] hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="max-h-[400px] overflow-y-auto space-y-4 pr-1 scrollbar-thin">
+              {estimatingFeatures.map((f: Feature) => {
+                const fInput = bulkInputs[f.id] || { sp: '5', hours: '40' };
+                return (
+                  <div key={f.id} className="p-3 rounded-lg bg-[#0d1117] border border-[#30363d] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#58a6ff] font-mono">{f.code}</span>
+                      <span className="text-xs text-white font-medium truncate max-w-[400px]">{f.title}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-xs">
+                      <div>
+                        <label className="text-[#8b949e] block mb-1 font-mono">Story Points:</label>
+                        <input
+                          type="number"
+                          value={fInput.sp}
+                          onChange={(e) =>
+                            setBulkInputs({
+                              ...bulkInputs,
+                              [f.id]: { ...fInput, sp: e.target.value }
+                            })
+                          }
+                          className="w-full bg-[#161b22] border border-[#30363d] rounded text-white px-2 py-1 font-mono"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[#8b949e] block mb-1 font-mono">Часы трудоемкости:</label>
+                        <input
+                          type="number"
+                          value={fInput.hours}
+                          onChange={(e) =>
+                            setBulkInputs({
+                              ...bulkInputs,
+                              [f.id]: { ...fInput, hours: e.target.value }
+                            })
+                          }
+                          className="w-full bg-[#161b22] border border-[#30363d] rounded text-white px-2 py-1 font-mono"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-[#30363d]">
+              <button
+                type="button"
+                onClick={() => setIsBulkEstimateOpen(false)}
+                className="px-4 py-2 rounded bg-[#21262d] text-white border border-[#30363d] hover:bg-[#30363d] text-xs font-semibold"
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-lg"
+              >
+                Сохранить и Перенести в "Оценено"
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* MODAL: INTEGRATION EXPORT LOGS */}
       {selectedLogsRelease && (

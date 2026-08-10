@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('Verify Backlog view modes, grouping, sorting and drag-and-drop elements', async ({ page }) => {
+test('Verify Backlog Dashboard View, Grouping, and 3-Stage Release Planner Funnel', async ({ page }) => {
   // 1. Visit main page
   await page.goto('http://localhost:3000');
   await page.waitForTimeout(1000);
@@ -12,35 +12,24 @@ test('Verify Backlog view modes, grouping, sorting and drag-and-drop elements', 
   await page.click('button:has-text("Бэклог и Приоритизация")');
   await page.waitForTimeout(500);
 
-  // 3. Take screenshot of default tree-view
-  await page.screenshot({ path: '/home/jules/verification/screenshots/backlog_tree_default.png', fullPage: true });
+  // Take screenshot of default dashboard-only backlog
+  await page.screenshot({ path: '/home/jules/verification/screenshots/backlog_dashboard_default.png', fullPage: true });
 
-  // 4. Try choosing "Дашборд (Board)" view
-  await page.click('button:has-text("Дашборд (Board)")');
-  await page.waitForTimeout(500);
-
-  // Verify that "Входящие сигналы (Inbox)" is visible
+  // Verify that "Входящие сигналы (Inbox)" is visible (Dashboard view is now the only view)
   const inboxHeader = page.locator('h3:has-text("Входящие сигналы (Inbox)")');
   await expect(inboxHeader).toBeVisible();
 
-  await page.screenshot({ path: '/home/jules/verification/screenshots/backlog_dashboard_dragndrop_view.png', fullPage: true });
-
-  // 5. Try grouping by Subsystem
+  // Try grouping by Subsystem
   await page.click('button:has-text("Подсистема")');
   await page.waitForTimeout(500);
   await page.screenshot({ path: '/home/jules/verification/screenshots/backlog_group_subsystem.png', fullPage: true });
 
-  // 6. Try grouping by Task Kind
+  // Try grouping by Task Kind
   await page.click('button:has-text("Вид задач")');
   await page.waitForTimeout(500);
   await page.screenshot({ path: '/home/jules/verification/screenshots/backlog_group_taskkind.png', fullPage: true });
 
-  // 7. Go back to Tree view and group by Epic
-  await page.click('button:has-text("Дерево (Tree)")');
-  await page.click('button:has-text("Эпик")');
-  await page.waitForTimeout(500);
-
-  // 8. Open manual feature creation modal
+  // Open manual feature creation modal
   await page.click('button:has-text("Создать Фичу")');
   await page.waitForTimeout(500);
   await page.screenshot({ path: '/home/jules/verification/screenshots/backlog_create_feature_modal.png' });
@@ -49,5 +38,24 @@ test('Verify Backlog view modes, grouping, sorting and drag-and-drop elements', 
   await page.click('button:has-text("Отмена")');
   await page.waitForTimeout(200);
 
-  console.log('SUCCESS: All backlog views, drag-and-drop layouts, and default tab order verified successfully!');
+  // 3. Move to Constructor Reliza panel to test 3-Stage Funnel
+  await page.click('button:has-text("Конструктор Релиза")');
+  await page.waitForTimeout(500);
+
+  // Verify the three columns / headers are present
+  const col1 = page.locator('span:has-text("Доступно в Бэклоге")');
+  const col2 = page.locator('span:has-text("На оценку трудоемкости")');
+  const col3 = page.locator('span:has-text("План релиза (Черновик)")');
+
+  await expect(col1).toBeVisible();
+  await expect(col2).toBeVisible();
+  await expect(col3).toBeVisible();
+
+  // Verify "Заполнить трудоемкость" bulk estimation button is present
+  const bulkBtn = page.locator('button:has-text("Заполнить трудоемкость")');
+  await expect(bulkBtn).toBeVisible();
+
+  await page.screenshot({ path: '/home/jules/verification/screenshots/release_planner_3stage_funnel.png', fullPage: true });
+
+  console.log('SUCCESS: Backlog Dashboard view and 3-stage Release Planner verified successfully!');
 });

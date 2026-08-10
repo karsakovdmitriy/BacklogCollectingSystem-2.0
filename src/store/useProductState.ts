@@ -281,11 +281,50 @@ export function useProductState() {
     logAction('CREATE_INITIATIVE', `Создана инициатива ${code}: ${init.title}`);
   };
 
+  // Transition feature status
+  const moveFeatureToEstimation = (featureId: string) => {
+    setFeatures((prev) =>
+      prev.map((f) => {
+        if (f.id === featureId) {
+          logAction('MOVE_TO_ESTIMATION', `Фича ${f.code} отправлена на оценку трудоемкости`);
+          return { ...f, status: 'На оценке' };
+        }
+        return f;
+      })
+    );
+  };
+
+  const fillFeatureEffort = (featureId: string, sp: number, hours: number) => {
+    setFeatures((prev) =>
+      prev.map((f) => {
+        if (f.id === featureId) {
+          logAction('FILL_ESTIMATION', `Фича ${f.code} оценена: ${sp} SP, ${hours}ч.`);
+          return { ...f, effortSP: sp, effortHours: hours, status: 'Оценено', developmentCost: sp * 30000 };
+        }
+        return f;
+      })
+    );
+  };
+
+  const batchFillFeatureEfforts = (updates: { id: string; sp: number; hours: number }[]) => {
+    setFeatures((prev) =>
+      prev.map((f) => {
+        const update = updates.find((u) => u.id === f.id);
+        if (update) {
+          logAction('BATCH_ESTIMATION', `Фича ${f.code} оценена пакетом: ${update.sp} SP, ${update.hours}ч.`);
+          return { ...f, effortSP: update.sp, effortHours: update.hours, status: 'Оценено', developmentCost: update.sp * 30000 };
+        }
+        return f;
+      })
+    );
+  };
+
   // Add Feature
   const addFeature = (feat: Omit<Feature, 'id' | 'code' | 'autoScore' | 'adoptionRate' | 'mau' | 'retentionRate' | 'segmentAdoption' | 'revenueGenerated' | 'developmentCost'>) => {
     const code = `FEAT-${100 + features.length + 1}`;
     const baseFeat: Omit<Feature, 'id' | 'code' | 'autoScore'> = {
       ...feat,
+      status: feat.status || 'Backlog',
       adoptionRate: 0,
       mau: 0,
       retentionRate: 0,
@@ -757,6 +796,9 @@ export function useProductState() {
     clearDraftFeatures,
     autoAllocateDraftFeatures,
     approveDraftRelease,
+    moveFeatureToEstimation,
+    fillFeatureEffort,
+    batchFillFeatureEfforts,
     resetAllState
   };
 }

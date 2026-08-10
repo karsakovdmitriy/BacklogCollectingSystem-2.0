@@ -34,8 +34,9 @@ export interface Feature {
   overrideScore?: number; // Manual PM Override
   overrideReason?: string; // Compulsory if overrideScore is set
 
-  // Release status
+  // Release status & estimation funnel status
   releaseId?: string | null; // Associated approved or draft release
+  status?: 'Backlog' | 'На оценке' | 'Оценено';
 
   // Grouping fields
   subsystem?: string;
@@ -190,6 +191,7 @@ export const initialFeatures: Feature[] = [
     itsPriority: 3,
     autoScore: 112, // (14*3) + (4*10) + (3*10) = 42 + 40 + 30 = 112
     releaseId: 'rel-1', // Already in approved release
+    status: 'Оценено',
     adoptionRate: 85,
     mau: 1240,
     retentionRate: 78,
@@ -212,6 +214,7 @@ export const initialFeatures: Feature[] = [
     itsPriority: 4,
     autoScore: 97, // (9*3) + 30 + 40 = 97
     releaseId: null, // In backlog draft candidate
+    status: 'Backlog',
     adoptionRate: 0,
     mau: 0,
     retentionRate: 0,
@@ -234,6 +237,7 @@ export const initialFeatures: Feature[] = [
     itsPriority: 2,
     autoScore: 136, // (22*3) + 50 + 20 = 136
     releaseId: null,
+    status: 'Backlog',
     adoptionRate: 0,
     mau: 0,
     retentionRate: 0,
@@ -256,6 +260,7 @@ export const initialFeatures: Feature[] = [
     itsPriority: 5,
     autoScore: 88, // (6*3) + 20 + 50 = 88
     releaseId: 'rel-1',
+    status: 'Оценено',
     adoptionRate: 92,
     mau: 430,
     retentionRate: 95,
@@ -278,6 +283,7 @@ export const initialFeatures: Feature[] = [
     itsPriority: 5,
     autoScore: 144, // (18*3) + 40 + 50 = 144
     releaseId: null,
+    status: 'Backlog',
     adoptionRate: 0,
     mau: 0,
     retentionRate: 0,
@@ -300,6 +306,7 @@ export const initialFeatures: Feature[] = [
     itsPriority: 1,
     autoScore: 29, // 9 + 10 + 10 = 29
     releaseId: 'rel-1',
+    status: 'Оценено',
     adoptionRate: 45,
     mau: 120,
     retentionRate: 50,
@@ -322,6 +329,7 @@ export const initialFeatures: Feature[] = [
     itsPriority: 3,
     autoScore: 103, // (11*3) + 40 + 30 = 103
     releaseId: null,
+    status: 'Backlog',
     adoptionRate: 0,
     mau: 0,
     retentionRate: 0,
@@ -344,6 +352,7 @@ export const initialFeatures: Feature[] = [
     itsPriority: 2,
     autoScore: 65, // 15 + 30 + 20 = 65
     releaseId: null,
+    status: 'Backlog',
     adoptionRate: 0,
     mau: 0,
     retentionRate: 0,
@@ -366,6 +375,7 @@ export const initialFeatures: Feature[] = [
     itsPriority: 4,
     autoScore: 121, // 51 + 30 + 40 = 121
     releaseId: null,
+    status: 'Backlog',
     adoptionRate: 0,
     mau: 0,
     retentionRate: 0,

@@ -452,6 +452,45 @@ export function useProductState() {
     incrementFeatureRepeatability(featureId, requestId);
   };
 
+  // Convert a request directly to a duplicate Feature and link them together
+  const convertRequestToFeature = (requestId: string) => {
+    const req = requests.find(r => r.id === requestId);
+    if (!req) return;
+
+    // Use the first initiative as default
+    const defaultInitiativeId = initiatives[0]?.id || 'in-1';
+
+    // Add new duplicate feature
+    const newFeatureId = addFeature({
+      initiativeId: defaultInitiativeId,
+      title: req.title,
+      description: req.description || 'Создано автоматически из сигнала ' + req.code,
+      effortHours: 40,
+      effortSP: 5,
+      repeatabilityCount: 1,
+      salesImpact: 3,
+      itsPriority: 3,
+      releaseId: null,
+      subsystem: req.subsystem,
+      taskKind: req.taskKind || 'Фича (Feature)'
+    });
+
+    // Update Request status and link it to the newly created Feature
+    setRequests((prev) =>
+      prev.map((r) => {
+        if (r.id === requestId) {
+          logAction('REQUEST_CONVERTED_TO_FEATURE', `Запрос ${r.code} преобразован в дублирующую фичу ${newFeatureId}`);
+          return {
+            ...r,
+            associatedFeatureId: newFeatureId,
+            status: 'Принят' as const
+          };
+        }
+        return r;
+      })
+    );
+  };
+
   // Classify Request (Enforces 6 parameters constraint for Accepted/Rejected/In Discovery, allows Unsorted freely)
   const classifyRequest = (requestId: string, status: 'Отклонен' | 'В проработку' | 'Принят' | 'Неразобранные', associatedFeatureId?: string | null) => {
     let errorOccurred = false;
@@ -712,6 +751,7 @@ export function useProductState() {
     classifyRequest,
     updateRequestEpic,
     associateRequestWithFeature,
+    convertRequestToFeature,
     updateDraftCapacity,
     toggleFeatureInRelease,
     clearDraftFeatures,

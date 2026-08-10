@@ -8,6 +8,7 @@ import {
   Release,
   AuditLog,
   DictionaryItem,
+  GitLabSettings,
   initialEpics,
   initialInitiatives,
   initialFeatures,
@@ -20,7 +21,8 @@ import {
   initialSubsystems,
   initialTaskKinds,
   initialTaskTypes,
-  initialSources
+  initialSources,
+  initialGitLabSettings
 } from './index';
 
 export function useProductState() {
@@ -129,6 +131,14 @@ export function useProductState() {
     return initialSources;
   });
 
+  const [gitLabSettings, setGitLabSettings] = useState<GitLabSettings>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('gitlab_settings');
+      return saved ? JSON.parse(saved) : initialGitLabSettings;
+    }
+    return initialGitLabSettings;
+  });
+
   // Persist State
   useEffect(() => {
     localStorage.setItem('ep_data', JSON.stringify(epics));
@@ -181,6 +191,10 @@ export function useProductState() {
   useEffect(() => {
     localStorage.setItem('dict_sources', JSON.stringify(sources));
   }, [sources]);
+
+  useEffect(() => {
+    localStorage.setItem('gitlab_settings', JSON.stringify(gitLabSettings));
+  }, [gitLabSettings]);
 
   // Recalculate autoScore for a Feature
   const recalculateAutoScore = (feat: Feature): number => {
@@ -720,6 +734,113 @@ export function useProductState() {
     return newApprovedCode;
   };
 
+  const updateGitLabSettings = (newSettings: GitLabSettings) => {
+    setGitLabSettings(newSettings);
+    logAction('UPDATE_GITLAB_SETTINGS', `Обновлены настройки интеграции GitLab для проекта "${newSettings.projectPath}"`);
+  };
+
+  const importGitLabIssues = () => {
+    // Resolve project name
+    const proj = projects.find((p) => p.id === gitLabSettings.mappedProjectId);
+    const projectName = proj ? proj.name : 'Неразобранный проект';
+
+    // Simulated Issues pulled from configured projectPath
+    const simulatedIssues = [
+      {
+        gitlabId: '#1201',
+        title: `[GitLab / ${gitLabSettings.projectPath}] Критическая XSS уязвимость при обработке транзакций`,
+        description: `Обнаружена брешь при валидации входящих POST запросов. Срочно исправить.\nПроект: ${gitLabSettings.projectPath}`,
+        labels: ['bug', 'integration'],
+      },
+      {
+        gitlabId: '#1202',
+        title: `[GitLab / ${gitLabSettings.projectPath}] Добавление сверки реестров оплат по СБП в JSON формате`,
+        description: `Запрос на импорт JSON реестров для оптимизации взаимодействия.\nПроект: ${gitLabSettings.projectPath}`,
+        labels: ['feature', 'payment'],
+      },
+      {
+        gitlabId: '#1203',
+        title: `[GitLab / ${gitLabSettings.projectPath}] Оптимизация производительности SQL индексов`,
+        description: `Под нагрузкой 500 rps наблюдается замедление выполнения процедур сверки.\nПроект: ${gitLabSettings.projectPath}`,
+        labels: ['tech-debt', 'optimization'],
+      }
+    ];
+
+    const importedRequests: Request[] = [];
+
+    simulatedIssues.forEach((issue, idx) => {
+      // 1. Resolve Task Kind (Labels to local Task Kinds)
+      let resolvedKindName = '';
+      const matchedKindId = issue.labels.reduce<string | null>((acc, label) => {
+        if (acc) return acc;
+        return gitLabSettings.labelToKindMappings[label] || null;
+      }, null) || gitLabSettings.mappedTaskKindId;
+
+      if (matchedKindId) {
+        const kindItem = taskKinds.find((k) => k.id === matchedKindId);
+        if (kindItem) resolvedKindName = kindItem.name;
+      }
+
+      // 2. Resolve Task Type (Labels to local Task Types)
+      let resolvedTypeName = '';
+      const matchedTypeId = issue.labels.reduce<string | null>((acc, label) => {
+        if (acc) return acc;
+        return gitLabSettings.labelToTypeMappings[label] || null;
+      }, null) || gitLabSettings.mappedTaskTypeId;
+
+      if (matchedTypeId) {
+        const typeItem = taskTypes.find((t) => t.id === matchedTypeId);
+        if (typeItem) resolvedTypeName = typeItem.name;
+      }
+
+      // 3. Resolve Epic (If any)
+      // For MVP simulation, we can assign to first epic if mapped, or keep empty
+      const resolvedEpicId = epics[0]?.id;
+
+      const code = `REQ-GL-${Date.now().toString().slice(-4)}-${idx + 1}`;
+
+      const newReq: Request = {
+        id: `req-gl-${Date.now()}-${idx + 1}`,
+        code,
+        title: issue.title,
+        source: 'GitLab',
+        description: issue.description,
+        status: 'Неразобранные',
+        gitlabIssueId: issue.gitlabId,
+        client: clients[0]?.name || 'ПАО "Сбербанк"', // Default client for auto-import
+        project: projectName,
+        subsystem: subsystems[0]?.name || 'СБП Процессинг', // Default subsystem for auto-import
+        taskKind: resolvedKindName || undefined,
+        taskType: resolvedTypeName || undefined,
+        epicId: resolvedEpicId,
+        associatedFeatureId: null,
+        createdAt: new Date().toISOString().substring(0, 10),
+      };
+
+      importedRequests.push(newReq);
+    });
+
+    setRequests((prev) => [...importedRequests, ...prev]);
+
+    logAction(
+      'IMPORT_GITLAB_ISSUES',
+      `Импортировано ${importedRequests.length} задач из GitLab проекта "${gitLabSettings.projectPath}". Проект сопоставлен с "${projectName}"`
+    );
+
+    return {
+      success: true,
+      count: importedRequests.length,
+      projectPath: gitLabSettings.projectPath,
+      projectName,
+      issues: importedRequests.map(r => ({
+        gitlabId: r.gitlabIssueId,
+        title: r.title,
+        kind: r.taskKind,
+        type: r.taskType
+      }))
+    };
+  };
+
   const resetAllState = () => {
     localStorage.removeItem('ep_data');
     localStorage.removeItem('init_data');
@@ -733,6 +854,7 @@ export function useProductState() {
     localStorage.removeItem('dict_subsystems');
     localStorage.removeItem('dict_task_kinds');
     localStorage.removeItem('dict_task_types');
+    localStorage.removeItem('gitlab_settings');
 
     setEpics(initialEpics);
     setInitiatives(initialInitiatives);
@@ -746,6 +868,7 @@ export function useProductState() {
     setSubsystems(initialSubsystems);
     setTaskKinds(initialTaskKinds);
     setTaskTypes(initialTaskTypes);
+    setGitLabSettings(initialGitLabSettings);
 
     logAction('RESET_ALL', 'Сброс всех настроек системы и восстановление демонстрационных данных по умолчанию.');
   };
@@ -798,6 +921,9 @@ export function useProductState() {
     moveFeatureToEstimation,
     fillFeatureEffort,
     batchFillFeatureEfforts,
+    gitLabSettings,
+    updateGitLabSettings,
+    importGitLabIssues,
     resetAllState
   };
 }

@@ -11,7 +11,10 @@ import {
   Layers,
   Settings,
   Tag,
-  Code
+  Code,
+  GitBranch,
+  Save,
+  HelpCircle
 } from 'lucide-react';
 
 interface SettingsPanelProps {
@@ -19,7 +22,7 @@ interface SettingsPanelProps {
 }
 
 export default function SettingsPanel({ store }: SettingsPanelProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'epics' | 'clients' | 'projects' | 'subsystems' | 'kinds' | 'types' | 'sources'>('epics');
+  const [activeSubTab, setActiveSubTab] = useState<'epics' | 'clients' | 'projects' | 'subsystems' | 'kinds' | 'types' | 'sources' | 'gitlab'>('epics');
 
   // Input states for item additions
   const [epicTitle, setEpicTitle] = useState('');
@@ -32,6 +35,69 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
   const [kindName, setKindName] = useState('');
   const [typeName, setTypeName] = useState('');
   const [sourceName, setSourceName] = useState('');
+
+  // GitLab Settings States
+  const [serverUrl, setServerUrl] = useState(store.gitLabSettings?.serverUrl || 'https://gitlab.corp.ru');
+  const [personalAccessToken, setPersonalAccessToken] = useState(store.gitLabSettings?.personalAccessToken || '');
+  const [projectPath, setProjectPath] = useState(store.gitLabSettings?.projectPath || '');
+  const [mappedProjectId, setMappedProjectId] = useState(store.gitLabSettings?.mappedProjectId || '');
+  const [mappedTaskKindId, setMappedTaskKindId] = useState(store.gitLabSettings?.mappedTaskKindId || '');
+  const [mappedTaskTypeId, setMappedTaskTypeId] = useState(store.gitLabSettings?.mappedTaskTypeId || '');
+
+  // Custom Labels Mapping Editor States
+  const [newLabelKey, setNewLabelKey] = useState('');
+  const [newLabelKind, setNewLabelKind] = useState('');
+  const [newLabelType, setNewLabelType] = useState('');
+
+  const [labelToKind, setLabelToKind] = useState<Record<string, string>>(store.gitLabSettings?.labelToKindMappings || {});
+  const [labelToType, setLabelToType] = useState<Record<string, string>>(store.gitLabSettings?.labelToTypeMappings || {});
+
+  const handleSaveGitLab = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!projectPath.trim()) {
+      alert('Ошибка! Путь к проекту GitLab является обязательным параметром.');
+      return;
+    }
+    store.updateGitLabSettings({
+      serverUrl,
+      personalAccessToken,
+      projectPath: projectPath.trim(),
+      mappedProjectId,
+      mappedTaskKindId,
+      mappedTaskTypeId,
+      labelToKindMappings: labelToKind,
+      labelToTypeMappings: labelToType
+    });
+    alert('Настройки интеграции с GitLab успешно сохранены!');
+  };
+
+  const handleAddLabelMapping = () => {
+    if (!newLabelKey.trim()) return;
+    const cleanKey = newLabelKey.trim().toLowerCase();
+
+    if (newLabelKind) {
+      setLabelToKind(prev => ({ ...prev, [cleanKey]: newLabelKind }));
+    }
+    if (newLabelType) {
+      setLabelToType(prev => ({ ...prev, [cleanKey]: newLabelType }));
+    }
+
+    setNewLabelKey('');
+    setNewLabelKind('');
+    setNewLabelType('');
+  };
+
+  const handleRemoveLabelMapping = (label: string, type: 'kind' | 'type') => {
+    if (type === 'kind') {
+      const copy = { ...labelToKind };
+      delete copy[label];
+      setLabelToKind(copy);
+    } else {
+      const copy = { ...labelToType };
+      delete copy[label];
+      setLabelToType(copy);
+    }
+  };
 
   // Submit epic
   const handleAddEpic = (e: React.FormEvent) => {
@@ -187,6 +253,18 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
           >
             <FolderOpen size={14} />
             <span>Источники поступления</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('gitlab')}
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+              activeSubTab === 'gitlab'
+                ? 'bg-[#21262d] text-white border border-[#30363d]'
+                : 'text-[#8b949e] hover:text-white hover:bg-[#161b22]'
+            }`}
+          >
+            <GitBranch size={14} />
+            <span>Интеграция с GitLab</span>
           </button>
         </aside>
 
@@ -438,6 +516,232 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* 8. GITLAB INTEGRATION */}
+          {activeSubTab === 'gitlab' && (
+            <div className="space-y-6">
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-white">Интеграция с GitLab и Маппинг Проектов</h3>
+                <p className="text-xs text-[#8b949e]">
+                  Настройте автоматическое сопоставление путей репозиториев и ярлыков (Labels) для автоматической разметки импортируемых GitLab-задач в качестве Requests.
+                </p>
+              </div>
+
+              <form onSubmit={handleSaveGitLab} className="space-y-4 text-xs">
+                {/* Connection Settings */}
+                <div className="bg-[#0d1117] p-4 rounded-lg border border-[#30363d] space-y-3">
+                  <span className="font-semibold text-white block">1. Параметры авторизации GitLab API</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[#8b949e] mb-1">GitLab API Server URL:</label>
+                      <input
+                        type="url"
+                        required
+                        value={serverUrl}
+                        onChange={(e) => setServerUrl(e.target.value)}
+                        placeholder="https://gitlab.corp.ru"
+                        className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[#8b949e] mb-1">Personal Access Token (PAT):</label>
+                      <input
+                        type="password"
+                        required
+                        value={personalAccessToken}
+                        onChange={(e) => setPersonalAccessToken(e.target.value)}
+                        placeholder="glpat-********************"
+                        className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Scope Path & Project Mapping */}
+                <div className="bg-[#0d1117] p-4 rounded-lg border border-[#30363d] space-y-3">
+                  <span className="font-semibold text-white block">2. Сопоставление путей проектов (Project Path Mapping)</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[#c9d1d9] mb-1 font-semibold">Путь к проекту в GitLab (Обязательно):</label>
+                      <input
+                        type="text"
+                        required
+                        value={projectPath}
+                        onChange={(e) => setProjectPath(e.target.value)}
+                        placeholder="Напр: core/payments или enterprise/its-service"
+                        className="w-full bg-[#161b22] border border-amber-600/50 rounded p-1.5 text-white focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[#8b949e] mb-1">Локальный проект для сопоставления:</label>
+                      <select
+                        required
+                        value={mappedProjectId}
+                        onChange={(e) => setMappedProjectId(e.target.value)}
+                        className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                      >
+                        <option value="">-- Выберите локальный проект --</option>
+                        {store.projects.map((p: DictionaryItem) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Default Fallbacks */}
+                <div className="bg-[#0d1117] p-4 rounded-lg border border-[#30363d] space-y-3">
+                  <span className="font-semibold text-white block">3. Классификация по умолчанию (Fallbacks)</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[#8b949e] mb-1">Вид задачи по умолчанию:</label>
+                      <select
+                        required
+                        value={mappedTaskKindId}
+                        onChange={(e) => setMappedTaskKindId(e.target.value)}
+                        className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                      >
+                        {store.taskKinds.map((k: DictionaryItem) => (
+                          <option key={k.id} value={k.id}>{k.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[#8b949e] mb-1">Тип задачи по умолчанию:</label>
+                      <select
+                        required
+                        value={mappedTaskTypeId}
+                        onChange={(e) => setMappedTaskTypeId(e.target.value)}
+                        className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                      >
+                        {store.taskTypes.map((t: DictionaryItem) => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Label Mapping Engine */}
+                <div className="bg-[#0d1117] p-4 rounded-lg border border-[#30363d] space-y-4">
+                  <div>
+                    <span className="font-semibold text-white block">4. Сопоставление ярлыков GitLab (Label Mapper Engine)</span>
+                    <p className="text-[11px] text-[#8b949e] mt-0.5">
+                      Правила разбора ярлыков из GitLab API для автоматического определения Вида и Типа задачи при импорте.
+                    </p>
+                  </div>
+
+                  {/* Add Mapping Controls */}
+                  <div className="p-3 bg-[#161b22] rounded border border-[#30363d] space-y-2.5">
+                    <span className="font-semibold text-white text-[11px] block">Добавить правило сопоставления</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 items-end">
+                      <div className="sm:col-span-1">
+                        <label className="text-[#8b949e] block mb-1">Ярлык (Label):</label>
+                        <input
+                          type="text"
+                          value={newLabelKey}
+                          onChange={(e) => setNewLabelKey(e.target.value)}
+                          placeholder="bug"
+                          className="w-full bg-[#0d1117] border border-[#30363d] rounded p-1 text-white font-mono"
+                        />
+                      </div>
+                      <div className="sm:col-span-1">
+                        <label className="text-[#8b949e] block mb-1">Вид задачи:</label>
+                        <select
+                          value={newLabelKind}
+                          onChange={(e) => setNewLabelKind(e.target.value)}
+                          className="w-full bg-[#0d1117] border border-[#30363d] rounded p-1 text-white"
+                        >
+                          <option value="">-- Пропустить --</option>
+                          {store.taskKinds.map((k: DictionaryItem) => (
+                            <option key={k.id} value={k.id}>{k.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="sm:col-span-1">
+                        <label className="text-[#8b949e] block mb-1">Тип задачи:</label>
+                        <select
+                          value={newLabelType}
+                          onChange={(e) => setNewLabelType(e.target.value)}
+                          className="w-full bg-[#0d1117] border border-[#30363d] rounded p-1 text-white"
+                        >
+                          <option value="">-- Пропустить --</option>
+                          {store.taskTypes.map((t: DictionaryItem) => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddLabelMapping}
+                        className="py-1 px-3 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-bold h-[28px] transition-all flex items-center justify-center gap-1"
+                      >
+                        <Plus size={14} /> Добавить
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Active Mappings Lists */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Kind Maps */}
+                    <div className="space-y-1.5">
+                      <span className="text-[#8b949e] font-semibold text-[11px] block">Ярлыки ➔ Виды задач</span>
+                      <div className="space-y-1 max-h-36 overflow-y-auto bg-[#161b22]/50 p-2 rounded border border-[#30363d]/60">
+                        {Object.entries(labelToKind).length === 0 ? (
+                          <div className="text-[#8b949e] italic text-[11px] p-2">Нет правил сопоставления видов</div>
+                        ) : (
+                          Object.entries(labelToKind).map(([lbl, kindId]) => {
+                            const kindObj = store.taskKinds.find((k: DictionaryItem) => k.id === kindId);
+                            return (
+                              <div key={lbl} className="flex items-center justify-between bg-[#0d1117] px-2 py-1 rounded border border-[#30363d]/50 text-[11px]">
+                                <span className="font-mono text-indigo-400 bg-indigo-950/40 px-1.5 rounded">{lbl}</span>
+                                <span className="text-[#8b949e]">➔</span>
+                                <span className="text-white font-medium">{kindObj ? kindObj.name : 'Unknown'}</span>
+                                <button type="button" onClick={() => handleRemoveLabelMapping(lbl, 'kind')} className="text-red-400 hover:text-red-300">✕</button>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Type Maps */}
+                    <div className="space-y-1.5">
+                      <span className="text-[#8b949e] font-semibold text-[11px] block">Ярлыки ➔ Типы задач</span>
+                      <div className="space-y-1 max-h-36 overflow-y-auto bg-[#161b22]/50 p-2 rounded border border-[#30363d]/60">
+                        {Object.entries(labelToType).length === 0 ? (
+                          <div className="text-[#8b949e] italic text-[11px] p-2">Нет правил сопоставления типов</div>
+                        ) : (
+                          Object.entries(labelToType).map(([lbl, typeId]) => {
+                            const typeObj = store.taskTypes.find((t: DictionaryItem) => t.id === typeId);
+                            return (
+                              <div key={lbl} className="flex items-center justify-between bg-[#0d1117] px-2 py-1 rounded border border-[#30363d]/50 text-[11px]">
+                                <span className="font-mono text-green-400 bg-green-950/40 px-1.5 rounded">{lbl}</span>
+                                <span className="text-[#8b949e]">➔</span>
+                                <span className="text-white font-medium">{typeObj ? typeObj.name : 'Unknown'}</span>
+                                <button type="button" onClick={() => handleRemoveLabelMapping(lbl, 'type')} className="text-red-400 hover:text-red-300">✕</button>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Save Button */}
+                <div className="flex justify-end pt-3 border-t border-[#30363d]">
+                  <button
+                    type="submit"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-[#238636] hover:bg-[#2ea043] text-white font-bold rounded-lg shadow-md transition-all"
+                  >
+                    <Save size={15} />
+                    Сохранить настройки GitLab
+                  </button>
+                </div>
+              </form>
             </div>
           )}
         </div>

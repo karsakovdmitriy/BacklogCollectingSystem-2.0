@@ -104,44 +104,23 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
   };
 
   const handleGitlabBulkImport = () => {
-    // Generate simulated requests pre-configured or half-configured
-    store.addRequest({
-      title: '[GitLab-950] Повышенная нагрузка при запросах СБП',
-      source: 'GitLab',
-      description: 'Пользователи жалуются на зависание приложения при оплате СБП в утренние часы.',
-      status: 'Неразобранные',
-      gitlabIssueId: '#950',
-      client: 'ПАО "Сбербанк"',
-      project: 'Платежный шлюз B2B',
-      subsystem: 'СБП Процессинг',
-      taskKind: 'Ошибка (Bug)',
-      taskType: 'Интеграционный сбой',
-      associatedFeatureId: null,
-    });
+    const result = store.importGitLabIssues();
+    if (result.success) {
+      const issueDetails = result.issues.map((i: any) =>
+        `• ${i.gitlabId}: ${i.title.slice(0, 45)}...\n  [Маппинг]: Вид: "${i.kind || 'Не сопоставлен'}", Тип: "${i.type || 'Не сопоставлен'}"`
+      ).join('\n\n');
 
-    store.addRequest({
-      title: '[GitLab-961] Доработка СМС информирования',
-      source: 'GitLab',
-      description: 'Необходимо добавить шлюз СМС-ЦЕНТР в качестве резервного для ИТС уведомлений.',
-      status: 'Неразобранные',
-      gitlabIssueId: '#961',
-      client: 'ООО "Вектор"',
-      project: 'Интеграционный шлюз ИТС',
-      subsystem: 'Уведомления и Вебхуки',
-      taskKind: 'Улучшение (Improvement)',
-      taskType: 'Оптимизация БП',
-      associatedFeatureId: null,
-    });
-
-    store.addRequest({
-      title: '[GitLab-403] Ошибка 403 при выгрузке XLS',
-      source: 'GitLab',
-      description: 'Новые менеджеры не могут скачать XLS отчеты, права доступа не учитывают субадминов.',
-      status: 'Неразобранные',
-      gitlabIssueId: '#403', // Only 1 required parameter, other 5 are blank
-    });
-
-    alert('Импортировано 3 новых сигнала из GitLab. 2 сигнала полностью размечены и готовы к классификации. 1 сигнал (#403) требует уточнения метаданных.');
+      alert(
+        `Успешный импорт из GitLab!\n\n` +
+        `Путь к репозиторию: "${result.projectPath}"\n` +
+        `Сопоставлен с проектом: "${result.projectName}"\n` +
+        `Импортировано сигналов: ${result.count} шт.\n\n` +
+        `Результаты сопоставления ярлыков (Labels Mapping):\n\n${issueDetails}\n\n` +
+        `Все сигналы импортированы в статусе "Неразобранные" и добавлены в таблицу.`
+      );
+    } else {
+      alert('Произошла ошибка при импорте задач из GitLab.');
+    }
   };
 
   const matchesSearch = (req: Request) => {

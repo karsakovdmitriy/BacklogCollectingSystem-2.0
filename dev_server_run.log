@@ -1,18 +1,180 @@
 $ next dev
-⚠ Port 3000 is in use by an unknown process, using available port 3001 instead.
 ▲ Next.js 16.3.0 (Turbopack)
-- Local:         http://localhost:3001
-- Network:       http://192.168.0.2:3001
-✓ Ready in 607ms
-✓ Running next.config.ts took 43ms
-⨯ Another next dev server is already running.
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 566ms
+✓ Running next.config.ts took 46ms
 
-- Local:        http://localhost:3000
-- PID:          55889
-- Dir:          /app
-- Log:          .next/dev/logs/next-development.log
+○ Compiling / ...
+ HEAD / 200 in 5.7s (next.js: 5.4s, application-code: 284ms)
+ GET / 200 in 93ms (next.js: 11ms, application-code: 82ms)
+ GET / 200 in 99ms (next.js: 5ms, application-code: 95ms)
+[browser] Uncaught Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
 
-You can access the existing server at http://localhost:3000,
-or run kill 55889 to stop it and start a new one.
-[?25h
-error: script "dev" exited with code 1
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} unauthorized={undefined} ...>
+      <RedirectBoundary>
+        <RedirectErrorBoundary router={{...}}>
+          <InnerLayoutRouter url="/" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+            <SegmentViewNode type="page" pagePath="src/page.tsx">
+              <SegmentTrieNode>
+              <ClientPageRoot Component={function Home} serverProvidedParams={{...}}>
+                <Home params={Promise} searchParams={Promise}>
+                  <div className="flex h-scr...">
+                    <aside className="w-80 bg-[#...">
+                      <div>
+                        <div>
+                        <div className="grid grid-...">
+                          <div className="p-2 rounde...">
+                            <span>
+                            <strong className="text-lg te...">
++                             1
+-                             0
+                              ...
+                          ...
+                        ...
+                      ...
+                    ...
+            ...
+          ...
+
+    at <unknown> (https://react.dev/link/hydration-mismatch)
+    at strong (<anonymous>)
+    at Home (src/app/page.tsx:79:17)
+  77 |               <div className="p-2 rounded bg-[#21262d] border border-[#30363d]">
+  78 |                 <span className="text-[#8b949e] block text-[10px]">В БЭКЛОГЕ</span>
+> 79 |                 <strong className="text-lg text-white">{totalFeatures} фич</strong>
+     |                 ^
+  80 |               </div>
+  81 |               <div className="p-2 rounded bg-[#21262d] border border-[#30363d]">
+  82 |                 <span className="text-[#8b949e] block text-[10px]">В ЧЕРНОВИКЕ</span>
+ GET / 200 in 67ms (next.js: 4ms, application-code: 64ms)
+ GET / 200 in 65ms (next.js: 4ms, application-code: 61ms)
+ GET / 200 in 93ms (next.js: 10ms, application-code: 82ms)
+ GET / 200 in 57ms (next.js: 4ms, application-code: 53ms)
+[browser] Uncaught Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} unauthorized={undefined} ...>
+      <RedirectBoundary>
+        <RedirectErrorBoundary router={{...}}>
+          <InnerLayoutRouter url="/" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+            <SegmentViewNode type="page" pagePath="src/page.tsx">
+              <SegmentTrieNode>
+              <ClientPageRoot Component={function Home} serverProvidedParams={{...}}>
+                <Home params={Promise} searchParams={Promise}>
+                  <div className="flex h-scr...">
+                    <aside className="w-80 bg-[#...">
+                      <div>
+                        <div>
+                        <div className="grid grid-...">
+                          <div className="p-2 rounde...">
+                            <span>
+                            <strong className="text-lg te...">
++                             1
+-                             0
+                              ...
+                          ...
+                        ...
+                      ...
+                    ...
+            ...
+          ...
+
+    at <unknown> (https://react.dev/link/hydration-mismatch)
+    at strong (<anonymous>)
+    at Home (src/app/page.tsx:79:17)
+  77 |               <div className="p-2 rounded bg-[#21262d] border border-[#30363d]">
+  78 |                 <span className="text-[#8b949e] block text-[10px]">В БЭКЛОГЕ</span>
+> 79 |                 <strong className="text-lg text-white">{totalFeatures} фич</strong>
+     |                 ^
+  80 |               </div>
+  81 |               <div className="p-2 rounded bg-[#21262d] border border-[#30363d]">
+  82 |                 <span className="text-[#8b949e] block text-[10px]">В ЧЕРНОВИКЕ</span>
+[browser] Uncaught TypeError: Cannot read properties of undefined (reading 'length')
+    at onClick (src/components/BacklogPanel.tsx:279:38)
+    at button (<anonymous>)
+    at BacklogPanel (src/components/BacklogPanel.tsx:274:13)
+    at Home (src/app/page.tsx:339:13)
+  277 |                   setNewFeatInitId(store.initiatives[0].id);
+  278 |                 }
+> 279 |                 if (store.subsystems.length > 0) {
+      |                                      ^
+  280 |                   setNewFeatSubsystem(store.subsystems[0].name);
+  281 |                 }
+  282 |                 if (store.taskKinds.length > 0) {
+ GET / 200 in 62ms (next.js: 3ms, application-code: 59ms)
+ GET / 200 in 71ms (next.js: 5ms, application-code: 66ms)
+ GET / 200 in 94ms (next.js: 14ms, application-code: 80ms)
+ GET / 200 in 77ms (next.js: 4ms, application-code: 73ms)
+[browser] Uncaught Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} unauthorized={undefined} ...>
+      <RedirectBoundary>
+        <RedirectErrorBoundary router={{...}}>
+          <InnerLayoutRouter url="/" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+            <SegmentViewNode type="page" pagePath="src/page.tsx">
+              <SegmentTrieNode>
+              <ClientPageRoot Component={function Home} serverProvidedParams={{...}}>
+                <Home params={Promise} searchParams={Promise}>
+                  <div className="flex h-scr...">
+                    <aside className="w-80 bg-[#...">
+                      <div>
+                        <div>
+                        <div className="grid grid-...">
+                          <div className="p-2 rounde...">
+                            <span>
+                            <strong className="text-lg te...">
++                             1
+-                             0
+                              ...
+                          ...
+                        ...
+                      ...
+                    ...
+            ...
+          ...
+
+    at <unknown> (https://react.dev/link/hydration-mismatch)
+    at strong (<anonymous>)
+    at Home (src/app/page.tsx:79:17)
+  77 |               <div className="p-2 rounded bg-[#21262d] border border-[#30363d]">
+  78 |                 <span className="text-[#8b949e] block text-[10px]">В БЭКЛОГЕ</span>
+> 79 |                 <strong className="text-lg text-white">{totalFeatures} фич</strong>
+     |                 ^
+  80 |               </div>
+  81 |               <div className="p-2 rounded bg-[#21262d] border border-[#30363d]">
+  82 |                 <span className="text-[#8b949e] block text-[10px]">В ЧЕРНОВИКЕ</span>
+ GET / 200 in 60ms (next.js: 3ms, application-code: 56ms)
+ GET / 200 in 59ms (next.js: 3ms, application-code: 56ms)

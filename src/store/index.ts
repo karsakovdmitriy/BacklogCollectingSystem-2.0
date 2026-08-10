@@ -64,7 +64,84 @@ export interface Task {
   gitlabUrl?: string;
 }
 
-// Updated Request with required enterprise parameters
+// --- NEW/UPDATED ENTITIES ---
+
+// 1. Клиенты
+export interface Client {
+  id: string;
+  name: string;
+  activityKindId: string; // ссылка на Виды деятельности
+}
+
+// 2. Виды деятельности
+export interface ActivityKind {
+  id: string;
+  name: string;
+}
+
+// 3. Проекты
+export interface Project {
+  id: string;
+  name: string; // (если пусто то конструктор "Клиент + Модуль")
+  projectGroupId: string; // ссылка
+  clientId: string; // ссылка
+  productId: string; // ссылка
+  moduleId: string; // ссылка
+  gitlabUrl: string; // ссылка Gitlab
+}
+
+// 4. Продукты
+export interface Product {
+  id: string;
+  name: string;
+}
+
+// 5. Модули
+export interface Module {
+  id: string;
+  name: string;
+  gitlabLabel: string; // Ссылка на label gitlab
+}
+
+// 6. Группы проектов
+export interface ProjectGroup {
+  id: string;
+  name: string;
+  gitlabUrl: string; // Ссылка Gitlab
+}
+
+// 7. Виды задач (Refactored to support new structure)
+export interface TaskKind {
+  id: string;
+  name: string;
+  gitlabLabel: string; // Ссылка на label gitlab
+}
+
+// 8. Типы задач (Refactored to support new structure)
+export interface TaskType {
+  id: string;
+  name: string;
+  gitlabLabel: string; // Ссылка на label gitlab
+}
+
+// 9. Этапы проектов
+export interface ProjectStage {
+  id: string;
+  name: string;
+  gitlabLabel: string; // Ссылка на label gitlab
+}
+
+// 11. Пользователи
+export interface User {
+  id: string;
+  fullName: string; // ФИО
+  isEnabled: boolean; // Вход в систему разрешен
+  email: string;
+  gitlabUser: string; // Пользователь Gitlab (ссылка/имя)
+  role: 'Администратор'; // Роль (перечисление)
+}
+
+// 10. Запрос (Request) - Updated with new schema while preserving current logic fields
 export interface Request {
   id: string;
   code: string;
@@ -73,12 +150,27 @@ export interface Request {
   description: string;
   status: 'Отклонен' | 'В проработку' | 'Принят' | 'Неразобранные'; // Status
   gitlabIssueId?: string; // Обязательный параметр (Id Gitlab)
-  client?: string;        // Обязательный параметр (Клиент)
-  project?: string;       // Обязательный параметр (проект)
-  subsystem?: string;     // Обязательный параметр (подсистема)
-  taskKind?: string;      // Обязательный параметр (вид задачи)
-  taskType?: string;      // Обязательный параметр (тип задачи)
-  epicId?: string;        // Опциональный параметр (Епик)
+
+  // Legacy string fields kept for full functional logic compatibility:
+  client?: string;
+  project?: string;
+  subsystem?: string;
+  taskKind?: string;
+  taskType?: string;
+
+  // New strict relations:
+  authorId?: string; // Автор (ссылка Пользователи)
+  executorId?: string; // Исполнитель (ссылка Пользователи)
+  projectId?: string; // Проект (ссылка)
+  productId?: string; // Продукт (ссылка)
+  moduleId?: string; // Модуль (ссылка)
+  taskKindId?: string; // Вид задачи (ссылка)
+  taskTypeId?: string; // Тип задачи (ссылка)
+  projectStageId?: string; // Этап проекта (ссылка)
+  estimate?: number; // Оценка (число)
+  spent?: number; // Затрачено (число)
+
+  epicId?: string; // Опциональный параметр (Епик)
   associatedFeatureId?: string | null;
   createdAt: string;
 }
@@ -101,7 +193,7 @@ export interface AuditLog {
   details: string;
 }
 
-// Dictionary Items
+// Dictionary Items (generic fallback)
 export interface DictionaryItem {
   id: string;
   name: string;
@@ -145,23 +237,64 @@ export const initialAuditLogs: AuditLog[] = [
   }
 ];
 
-// Initial Dictionaries
-export const initialClients: DictionaryItem[] = [];
-export const initialProjects: DictionaryItem[] = [];
-export const initialSubsystems: DictionaryItem[] = [];
-
-export const initialTaskKinds: DictionaryItem[] = [
-  { id: 'kind-1', name: 'Ошибка (Bug)' },
-  { id: 'kind-2', name: 'Фича (Feature)' },
-  { id: 'kind-3', name: 'Улучшение (Improvement)' },
-  { id: 'kind-4', name: 'Технический долг' }
+// Initial Dictionaries and Entities
+export const initialActivityKinds: ActivityKind[] = [
+  { id: 'act-1', name: 'Банковские услуги' },
+  { id: 'act-2', name: 'Финтех разработка' }
 ];
 
-export const initialTaskTypes: DictionaryItem[] = [
-  { id: 'type-1', name: 'Интеграционный сбой' },
-  { id: 'type-2', name: 'Новый метод оплаты' },
-  { id: 'type-3', name: 'Оптимизация БП' },
-  { id: 'type-4', name: 'Доработка UI' }
+export const initialClients: Client[] = [
+  { id: 'cl-1', name: 'ПАО "Сбербанк"', activityKindId: 'act-1' }
+];
+
+export const initialProducts: Product[] = [
+  { id: 'prod-1', name: 'Мобильный Банк B2B' },
+  { id: 'prod-2', name: 'СБП Процессинг' }
+];
+
+export const initialModules: Module[] = [
+  { id: 'mod-1', name: 'Модуль Клиент-Банк', gitlabLabel: 'module::client-bank' },
+  { id: 'mod-2', name: 'Ядро Процессинга', gitlabLabel: 'module::core' }
+];
+
+export const initialProjectGroups: ProjectGroup[] = [
+  { id: 'grp-1', name: 'Группа СБП Проектов', gitlabUrl: 'https://gitlab.corp.ru/sbp' }
+];
+
+export const initialProjects: Project[] = [
+  {
+    id: 'pr-1',
+    name: 'Платежный шлюз B2B',
+    projectGroupId: 'grp-1',
+    clientId: 'cl-1',
+    productId: 'prod-2',
+    moduleId: 'mod-1',
+    gitlabUrl: 'https://gitlab.corp.ru/sbp/gateway'
+  }
+];
+
+export const initialTaskKinds: TaskKind[] = [
+  { id: 'kind-1', name: 'Ошибка (Bug)', gitlabLabel: 'bug' },
+  { id: 'kind-2', name: 'Фича (Feature)', gitlabLabel: 'feature' },
+  { id: 'kind-3', name: 'Улучшение (Improvement)', gitlabLabel: 'enhancement' },
+  { id: 'kind-4', name: 'Технический долг', gitlabLabel: 'tech-debt' }
+];
+
+export const initialTaskTypes: TaskType[] = [
+  { id: 'type-1', name: 'Интеграционный сбой', gitlabLabel: 'type::integration' },
+  { id: 'type-2', name: 'Новый метод оплаты', gitlabLabel: 'type::payment' },
+  { id: 'type-3', name: 'Оптимизация БП', gitlabLabel: 'type::optimization' },
+  { id: 'type-4', name: 'Доработка UI', gitlabLabel: 'type::ui' }
+];
+
+export const initialProjectStages: ProjectStage[] = [
+  { id: 'stg-1', name: 'Аналитика', gitlabLabel: 'stage::analysis' },
+  { id: 'stg-2', name: 'Разработка', gitlabLabel: 'stage::development' },
+  { id: 'stg-3', name: 'Тестирование', gitlabLabel: 'stage::testing' }
+];
+
+export const initialUsers: User[] = [
+  { id: 'usr-1', fullName: 'Администратор Системы', isEnabled: true, email: 'admin@corp.ru', gitlabUser: 'admin_git', role: 'Администратор' }
 ];
 
 export const initialSources: DictionaryItem[] = [

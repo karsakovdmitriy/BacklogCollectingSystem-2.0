@@ -82,65 +82,22 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
   // GitLab Settings States
   const [serverUrl, setServerUrl] = useState(store.gitLabSettings?.serverUrl || 'https://gitlab.corp.ru');
   const [personalAccessToken, setPersonalAccessToken] = useState(store.gitLabSettings?.personalAccessToken || '');
-  const [projectPath, setProjectPath] = useState(store.gitLabSettings?.projectPath || '');
-  const [mappedProjectId, setMappedProjectId] = useState(store.gitLabSettings?.mappedProjectId || '');
-  const [mappedTaskKindId, setMappedTaskKindId] = useState(store.gitLabSettings?.mappedTaskKindId || '');
-  const [mappedTaskTypeId, setMappedTaskTypeId] = useState(store.gitLabSettings?.mappedTaskTypeId || '');
-
-  // Custom Labels Mapping Editor States
-  const [newLabelKey, setNewLabelKey] = useState('');
-  const [newLabelKind, setNewLabelKind] = useState('');
-  const [newLabelType, setNewLabelType] = useState('');
-
-  const [labelToKind, setLabelToKind] = useState<Record<string, string>>(store.gitLabSettings?.labelToKindMappings || {});
-  const [labelToType, setLabelToType] = useState<Record<string, string>>(store.gitLabSettings?.labelToTypeMappings || {});
+  const [projectGroup, setProjectGroup] = useState(store.gitLabSettings?.projectGroup || 'enterprise-products');
 
   const handleSaveGitLab = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!projectPath.trim()) {
-      alert('Ошибка! Путь к проекту GitLab является обязательным параметром.');
+    if (!projectGroup.trim()) {
+      alert('Ошибка! Группа проектов GitLab является обязательным параметром.');
       return;
     }
     store.updateGitLabSettings({
       serverUrl,
       personalAccessToken,
-      projectPath: projectPath.trim(),
-      mappedProjectId,
-      mappedTaskKindId,
-      mappedTaskTypeId,
-      labelToKindMappings: labelToKind,
-      labelToTypeMappings: labelToType
+      projectGroup: projectGroup.trim()
     });
     alert('Настройки интеграции с GitLab успешно сохранены!');
   };
 
-  const handleAddLabelMapping = () => {
-    if (!newLabelKey.trim()) return;
-    const cleanKey = newLabelKey.trim().toLowerCase();
-
-    if (newLabelKind) {
-      setLabelToKind(prev => ({ ...prev, [cleanKey]: newLabelKind }));
-    }
-    if (newLabelType) {
-      setLabelToType(prev => ({ ...prev, [cleanKey]: newLabelType }));
-    }
-
-    setNewLabelKey('');
-    setNewLabelKind('');
-    setNewLabelType('');
-  };
-
-  const handleRemoveLabelMapping = (label: string, type: 'kind' | 'type') => {
-    if (type === 'kind') {
-      const copy = { ...labelToKind };
-      delete copy[label];
-      setLabelToKind(copy);
-    } else {
-      const copy = { ...labelToType };
-      delete copy[label];
-      setLabelToType(copy);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -255,7 +212,19 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
           {/* 1. CLIENTS */}
           {activeSubTab === 'clients' && (
             <div className="space-y-6">
-              <h3 className="text-sm font-semibold text-white">1. Справочник клиентов</h3>
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">1. Справочник клиентов</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const imported = store.importClientsFromGitLab();
+                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
+                >
+                  <GitBranch size={13} /> Импортировать из GitLab
+                </button>
+              </div>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -310,7 +279,19 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
           {/* 2. ACTIVITY KINDS */}
           {activeSubTab === 'activity_kinds' && (
             <div className="space-y-6">
-              <h3 className="text-sm font-semibold text-white">2. Виды деятельности</h3>
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">2. Виды деятельности</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const imported = store.importActivityKindsFromGitLab();
+                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
+                >
+                  <GitBranch size={13} /> Импортировать из GitLab
+                </button>
+              </div>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -342,7 +323,19 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
           {/* 3. PROJECTS */}
           {activeSubTab === 'projects' && (
             <div className="space-y-6">
-              <h3 className="text-sm font-semibold text-white">3. Проекты развития (с автоконструктором)</h3>
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">3. Проекты развития (с автоконструктором)</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const imported = store.importProjectsFromGitLab();
+                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
+                >
+                  <GitBranch size={13} /> Импортировать из GitLab
+                </button>
+              </div>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -430,7 +423,19 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
           {/* 4. PRODUCTS */}
           {activeSubTab === 'products' && (
             <div className="space-y-6">
-              <h3 className="text-sm font-semibold text-white">4. Продукты</h3>
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">4. Продукты</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const imported = store.importProductsFromGitLab();
+                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
+                >
+                  <GitBranch size={13} /> Импортировать из GitLab
+                </button>
+              </div>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -462,7 +467,19 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
           {/* 5. MODULES */}
           {activeSubTab === 'modules' && (
             <div className="space-y-6">
-              <h3 className="text-sm font-semibold text-white">5. Модули системы</h3>
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">5. Модули системы</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const imported = store.importModulesFromGitLab();
+                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
+                >
+                  <GitBranch size={13} /> Импортировать из GitLab
+                </button>
+              </div>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -509,7 +526,19 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
           {/* 6. PROJECT GROUPS */}
           {activeSubTab === 'project_groups' && (
             <div className="space-y-6">
-              <h3 className="text-sm font-semibold text-white">6. Группы проектов</h3>
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">6. Группы проектов</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const imported = store.importProjectGroupsFromGitLab();
+                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
+                >
+                  <GitBranch size={13} /> Импортировать из GitLab
+                </button>
+              </div>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -556,7 +585,19 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
           {/* 7. TASK KINDS */}
           {activeSubTab === 'kinds' && (
             <div className="space-y-6">
-              <h3 className="text-sm font-semibold text-white">7. Виды задач</h3>
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">7. Виды задач</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const imported = store.importTaskKindsFromGitLab();
+                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
+                >
+                  <GitBranch size={13} /> Импортировать из GitLab
+                </button>
+              </div>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -603,7 +644,19 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
           {/* 8. TASK TYPES */}
           {activeSubTab === 'types' && (
             <div className="space-y-6">
-              <h3 className="text-sm font-semibold text-white">8. Типы задач</h3>
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">8. Типы задач</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const imported = store.importTaskTypesFromGitLab();
+                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
+                >
+                  <GitBranch size={13} /> Импортировать из GitLab
+                </button>
+              </div>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -650,7 +703,19 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
           {/* 9. PROJECT STAGES */}
           {activeSubTab === 'stages' && (
             <div className="space-y-6">
-              <h3 className="text-sm font-semibold text-white">9. Этапы проектов</h3>
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">9. Этапы проектов</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const imported = store.importProjectStagesFromGitLab();
+                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
+                >
+                  <GitBranch size={13} /> Импортировать из GitLab
+                </button>
+              </div>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -697,7 +762,19 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
           {/* 11. USERS */}
           {activeSubTab === 'users' && (
             <div className="space-y-6">
-              <h3 className="text-sm font-semibold text-white">11. Пользователи</h3>
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">11. Пользователи</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const imported = store.importUsersFromGitLab();
+                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
+                >
+                  <GitBranch size={13} /> Импортировать из GitLab
+                </button>
+              </div>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -818,9 +895,9 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
           {activeSubTab === 'gitlab' && (
             <div className="space-y-6">
               <div className="space-y-1">
-                <h3 className="text-sm font-semibold text-white">Интеграция с GitLab и Маппинг Проектов</h3>
+                <h3 className="text-sm font-semibold text-white">Интеграция с GitLab</h3>
                 <p className="text-xs text-[#8b949e]">
-                  Настройте автоматическое сопоставление путей репозиториев и ярлыков (Labels) для автоматической разметки импортируемых GitLab-задач.
+                  Настройте параметры авторизации и группу проектов для последующего автоматического импорта справочников.
                 </p>
               </div>
 
@@ -846,122 +923,13 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 </div>
 
                 <div className="bg-[#0d1117] p-4 rounded-lg border border-[#30363d] space-y-3">
-                  <span className="font-semibold text-white block">2. Сопоставление путей проектов (Project Path Mapping)</span>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[#c9d1d9] mb-1 font-semibold">Путь к проекту в GitLab (Обязательно):</label>
-                      <input
-                        type="text" required value={projectPath} onChange={(e) => setProjectPath(e.target.value)}
-                        placeholder="Напр: core/payments или enterprise/its-service" className="w-full bg-[#161b22] border border-amber-600/50 rounded p-1.5 text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[#8b949e] mb-1">Локальный проект для сопоставления:</label>
-                      <select required value={mappedProjectId} onChange={(e) => setMappedProjectId(e.target.value)} className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white">
-                        <option value="">-- Выберите локальный проект --</option>
-                        {store.projects.map((p: Project) => (
-                          <option key={p.id} value={p.id}>{store.getProjectName(p)}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-[#0d1117] p-4 rounded-lg border border-[#30363d] space-y-3">
-                  <span className="font-semibold text-white block">3. Классификация по умолчанию (Fallbacks)</span>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[#8b949e] mb-1">Вид задачи по умолчанию:</label>
-                      <select required value={mappedTaskKindId} onChange={(e) => setMappedTaskKindId(e.target.value)} className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white">
-                        {store.taskKinds.map((k: TaskKind) => (
-                          <option key={k.id} value={k.id}>{k.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[#8b949e] mb-1">Тип задачи по умолчанию:</label>
-                      <select required value={mappedTaskTypeId} onChange={(e) => setMappedTaskTypeId(e.target.value)} className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white">
-                        {store.taskTypes.map((t: TaskType) => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-[#0d1117] p-4 rounded-lg border border-[#30363d] space-y-4">
+                  <span className="font-semibold text-white block">2. Группа проектов</span>
                   <div>
-                    <span className="font-semibold text-white block">4. Сопоставление ярлыков GitLab (Label Mapper Engine)</span>
-                  </div>
-                  <div className="p-3 bg-[#161b22] rounded border border-[#30363d] space-y-2.5">
-                    <span className="font-semibold text-white text-[11px] block">Добавить правило сопоставления</span>
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 items-end">
-                      <div>
-                        <label className="text-[#8b949e] block mb-1">Ярлык (Label):</label>
-                        <input type="text" value={newLabelKey} onChange={(e) => setNewLabelKey(e.target.value)} placeholder="bug" className="w-full bg-[#0d1117] border border-[#30363d] rounded p-1 text-white font-mono" />
-                      </div>
-                      <div>
-                        <label className="text-[#8b949e] block mb-1">Вид задачи:</label>
-                        <select value={newLabelKind} onChange={(e) => setNewLabelKind(e.target.value)} className="w-full bg-[#0d1117] border border-[#30363d] rounded p-1 text-white">
-                          <option value="">-- Пропустить --</option>
-                          {store.taskKinds.map((k: TaskKind) => <option key={k.id} value={k.id}>{k.name}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[#8b949e] block mb-1">Тип задачи:</label>
-                        <select value={newLabelType} onChange={(e) => setNewLabelType(e.target.value)} className="w-full bg-[#0d1117] border border-[#30363d] rounded p-1 text-white">
-                          <option value="">-- Пропустить --</option>
-                          {store.taskTypes.map((t: TaskType) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                        </select>
-                      </div>
-                      <button type="button" onClick={handleAddLabelMapping} className="py-1 px-3 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-bold h-[28px] transition-all flex items-center justify-center gap-1">
-                        <Plus size={14} /> Добавить
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <span className="text-[#8b949e] font-semibold text-[11px] block">Ярлыки ➔ Виды задач</span>
-                      <div className="space-y-1 max-h-36 overflow-y-auto bg-[#161b22]/50 p-2 rounded border border-[#30363d]/60">
-                        {Object.entries(labelToKind).length === 0 ? (
-                          <div className="text-[#8b949e] italic text-[11px] p-2">Нет правил</div>
-                        ) : (
-                          Object.entries(labelToKind).map(([lbl, kindId]) => {
-                            const kindObj = store.taskKinds.find((k: TaskKind) => k.id === kindId);
-                            return (
-                              <div key={lbl} className="flex items-center justify-between bg-[#0d1117] px-2 py-1 rounded border border-[#30363d]/50 text-[11px]">
-                                <span className="font-mono text-indigo-400 bg-indigo-950/40 px-1.5 rounded">{lbl}</span>
-                                <span className="text-[#8b949e]">➔</span>
-                                <span className="text-white font-medium">{kindObj ? kindObj.name : 'Unknown'}</span>
-                                <button type="button" onClick={() => handleRemoveLabelMapping(lbl, 'kind')} className="text-red-400">✕</button>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <span className="text-[#8b949e] font-semibold text-[11px] block">Ярлыки ➔ Типы задач</span>
-                      <div className="space-y-1 max-h-36 overflow-y-auto bg-[#161b22]/50 p-2 rounded border border-[#30363d]/60">
-                        {Object.entries(labelToType).length === 0 ? (
-                          <div className="text-[#8b949e] italic text-[11px] p-2">Нет правил</div>
-                        ) : (
-                          Object.entries(labelToType).map(([lbl, typeId]) => {
-                            const typeObj = store.taskTypes.find((t: TaskType) => t.id === typeId);
-                            return (
-                              <div key={lbl} className="flex items-center justify-between bg-[#0d1117] px-2 py-1 rounded border border-[#30363d]/50 text-[11px]">
-                                <span className="font-mono text-green-400 bg-green-950/40 px-1.5 rounded">{lbl}</span>
-                                <span className="text-[#8b949e]">➔</span>
-                                <span className="text-white font-medium">{typeObj ? typeObj.name : 'Unknown'}</span>
-                                <button type="button" onClick={() => handleRemoveLabelMapping(lbl, 'type')} className="text-red-400">✕</button>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
+                    <label className="block text-[#c9d1d9] mb-1 font-semibold">Группа проектов в GitLab (Обязательно):</label>
+                    <input
+                      type="text" required value={projectGroup} onChange={(e) => setProjectGroup(e.target.value)}
+                      placeholder="enterprise-products" className="w-full bg-[#161b22] border border-amber-600/50 rounded p-1.5 text-white"
+                    />
                   </div>
                 </div>
 

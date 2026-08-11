@@ -202,12 +202,7 @@ export interface DictionaryItem {
 export interface GitLabSettings {
   serverUrl: string;
   personalAccessToken: string;
-  projectPath: string; // e.g. "enterprise/payment-system"
-  mappedProjectId: string; // Local project ID mapped to this project path
-  mappedTaskKindId: string; // Default Task Kind ID
-  mappedTaskTypeId: string; // Default Task Type ID
-  labelToKindMappings: Record<string, string>; // GitLab label -> Local Task Kind ID
-  labelToTypeMappings: Record<string, string>; // GitLab label -> Local Task Type ID
+  projectGroup: string; // Группа проектов в GitLab
 }
 
 // Initial Mock Data
@@ -307,20 +302,5 @@ export const initialSources: DictionaryItem[] = [
 export const initialGitLabSettings: GitLabSettings = {
   serverUrl: 'https://gitlab.corp.ru',
   personalAccessToken: 'glpat-A1B2C3D4E5F6G7H8I9J0',
-  projectPath: 'core/payments',
-  mappedProjectId: 'pr-1', // Платежный шлюз B2B
-  mappedTaskKindId: 'kind-2', // Фича (Feature)
-  mappedTaskTypeId: 'type-1', // Интеграционный сбой
-  labelToKindMappings: {
-    'bug': 'kind-1', // Ошибка (Bug)
-    'feature': 'kind-2', // Фича (Feature)
-    'enhancement': 'kind-3', // Улучшение (Improvement)
-    'tech-debt': 'kind-4', // Технический долг
-  },
-  labelToTypeMappings: {
-    'integration': 'type-1', // Интеграционный сбой
-    'payment': 'type-2', // Новый метод оплаты
-    'optimization': 'type-3', // Оптимизация БП
-    'ui': 'type-4', // Доработка UI
-  }
+  projectGroup: 'enterprise-products'
 };

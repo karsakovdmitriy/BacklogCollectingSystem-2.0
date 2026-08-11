@@ -1058,32 +1058,32 @@ export function useProductState() {
 
   const updateGitLabSettings = (newSettings: GitLabSettings) => {
     setGitLabSettings(newSettings);
-    logAction('UPDATE_GITLAB_SETTINGS', `Обновлены настройки интеграции GitLab для проекта "${newSettings.projectPath}"`);
+    logAction('UPDATE_GITLAB_SETTINGS', `Обновлены настройки интеграции GitLab для группы проектов "${newSettings.projectGroup}"`);
   };
 
   const importGitLabIssues = () => {
-    // Resolve project name
-    const proj = projects.find((p) => p.id === gitLabSettings.mappedProjectId);
+    // Resolve project name - use first project or create default
+    const proj = projects[0] || { id: 'pr-1', productId: 'prod-2', moduleId: 'mod-1' };
     const projectName = proj ? getProjectName(proj) : 'Неразобранный проект';
 
-    // Simulated Issues pulled from configured projectPath
+    // Simulated Issues pulled from configured projectGroup
     const simulatedIssues = [
       {
         gitlabId: '#1201',
-        title: `[GitLab / ${gitLabSettings.projectPath}] Критическая XSS уязвимость при обработке транзакций`,
-        description: `Обнаружена брешь при валидации входящих POST запросов. Срочно исправить.\nПроект: ${gitLabSettings.projectPath}`,
+        title: `[GitLab / ${gitLabSettings.projectGroup}] Критическая XSS уязвимость при обработке транзакций`,
+        description: `Обнаружена брешь при валидации входящих POST запросов. Срочно исправить.\nГруппа: ${gitLabSettings.projectGroup}`,
         labels: ['bug', 'integration'],
       },
       {
         gitlabId: '#1202',
-        title: `[GitLab / ${gitLabSettings.projectPath}] Добавление сверки реестров оплат по СБП в JSON формате`,
-        description: `Запрос на импорт JSON реестров для оптимизации взаимодействия.\nПроект: ${gitLabSettings.projectPath}`,
+        title: `[GitLab / ${gitLabSettings.projectGroup}] Добавление сверки реестров оплат по СБП в JSON формате`,
+        description: `Запрос на импорт JSON реестров для оптимизации взаимодействия.\nГруппа: ${gitLabSettings.projectGroup}`,
         labels: ['feature', 'payment'],
       },
       {
         gitlabId: '#1203',
-        title: `[GitLab / ${gitLabSettings.projectPath}] Оптимизация производительности SQL индексов`,
-        description: `Под нагрузкой 500 rps наблюдается замедление выполнения процедур сверки.\nПроект: ${gitLabSettings.projectPath}`,
+        title: `[GitLab / ${gitLabSettings.projectGroup}] Оптимизация производительности SQL индексов`,
+        description: `Под нагрузкой 500 rps наблюдается замедление выполнения процедур сверки.\nГруппа: ${gitLabSettings.projectGroup}`,
         labels: ['tech-debt', 'optimization'],
       }
     ];
@@ -1091,34 +1091,13 @@ export function useProductState() {
     const importedRequests: Request[] = [];
 
     simulatedIssues.forEach((issue, idx) => {
-      // 1. Resolve Task Kind (Labels to local Task Kinds)
-      let resolvedKindName = '';
-      const matchedKindId = issue.labels.reduce<string | null>((acc, label) => {
-        if (acc) return acc;
-        return gitLabSettings.labelToKindMappings[label] || null;
-      }, null) || gitLabSettings.mappedTaskKindId;
+      const matchedKindId = taskKinds[0]?.id || 'kind-2';
+      const resolvedKindName = taskKinds.find(k => k.id === matchedKindId)?.name || 'Фича (Feature)';
 
-      if (matchedKindId) {
-        const kindItem = taskKinds.find((k) => k.id === matchedKindId);
-        if (kindItem) resolvedKindName = kindItem.name;
-      }
+      const matchedTypeId = taskTypes[0]?.id || 'type-1';
+      const resolvedTypeName = taskTypes.find(t => t.id === matchedTypeId)?.name || 'Интеграционный сбой';
 
-      // 2. Resolve Task Type (Labels to local Task Types)
-      let resolvedTypeName = '';
-      const matchedTypeId = issue.labels.reduce<string | null>((acc, label) => {
-        if (acc) return acc;
-        return gitLabSettings.labelToTypeMappings[label] || null;
-      }, null) || gitLabSettings.mappedTaskTypeId;
-
-      if (matchedTypeId) {
-        const typeItem = taskTypes.find((t) => t.id === matchedTypeId);
-        if (typeItem) resolvedTypeName = typeItem.name;
-      }
-
-      // 3. Resolve Epic (If any)
-      // For MVP simulation, we can assign to first epic if mapped, or keep empty
       const resolvedEpicId = epics[0]?.id;
-
       const code = `REQ-GL-${Date.now().toString().slice(-4)}-${idx + 1}`;
 
       const newReq: Request = {
@@ -1129,22 +1108,22 @@ export function useProductState() {
         description: issue.description,
         status: 'Неразобранные',
         gitlabIssueId: issue.gitlabId,
-        client: clients[0]?.name || 'ПАО "Сбербанк"', // Default client for auto-import
+        client: clients[0]?.name || 'ПАО "Сбербанк"',
         project: projectName,
-        subsystem: modules[0]?.name || 'СБП Процессинг', // Default subsystem/module for auto-import
-        taskKind: resolvedKindName || undefined,
-        taskType: resolvedTypeName || undefined,
+        subsystem: modules[0]?.name || 'СБП Процессинг',
+        taskKind: resolvedKindName,
+        taskType: resolvedTypeName,
         epicId: resolvedEpicId,
         associatedFeatureId: null,
 
         // Strict references for auto-import
         authorId: users[0]?.id || 'usr-1',
         executorId: users[0]?.id || 'usr-1',
-        projectId: proj ? proj.id : (projects[0]?.id || 'pr-1'),
-        productId: proj ? proj.productId : (products[0]?.id || 'prod-1'),
-        moduleId: proj ? proj.moduleId : (modules[0]?.id || 'mod-1'),
-        taskKindId: matchedKindId || undefined,
-        taskTypeId: matchedTypeId || undefined,
+        projectId: proj ? proj.id : 'pr-1',
+        productId: proj ? proj.productId : 'prod-1',
+        moduleId: proj ? proj.moduleId : 'mod-1',
+        taskKindId: matchedKindId,
+        taskTypeId: matchedTypeId,
         projectStageId: projectStages[0]?.id || 'stg-1',
         estimate: 10,
         spent: 0,
@@ -1159,13 +1138,13 @@ export function useProductState() {
 
     logAction(
       'IMPORT_GITLAB_ISSUES',
-      `Импортировано ${importedRequests.length} задач из GitLab проекта "${gitLabSettings.projectPath}". Проект сопоставлен с "${projectName}"`
+      `Импортировано ${importedRequests.length} задач из GitLab группы проектов "${gitLabSettings.projectGroup}".`
     );
 
     return {
       success: true,
       count: importedRequests.length,
-      projectPath: gitLabSettings.projectPath,
+      projectPath: gitLabSettings.projectGroup,
       projectName,
       issues: importedRequests.map(r => ({
         gitlabId: r.gitlabIssueId,
@@ -1174,6 +1153,164 @@ export function useProductState() {
         type: r.taskType
       }))
     };
+  };
+
+  // Automated simulated GitLab imports for all entities
+  const importClientsFromGitLab = () => {
+    const defaultActKind = activityKinds[0]?.id || 'act-1';
+    const newItems: Client[] = [
+      { id: `cl-gl-1`, name: 'ПАО "Сбербанк" (GitLab)', activityKindId: defaultActKind },
+      { id: `cl-gl-2`, name: 'АО "Альфа-Банк" (GitLab)', activityKindId: defaultActKind },
+      { id: `cl-gl-3`, name: 'ООО "Яндекс" (GitLab)', activityKindId: defaultActKind }
+    ];
+    setClients((prev) => {
+      const existingNames = prev.map(i => i.name);
+      const filtered = newItems.filter(i => !existingNames.includes(i.name));
+      return [...prev, ...filtered];
+    });
+    logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано клиентов из группы проектов ${gitLabSettings.projectGroup}`);
+    return newItems.map(i => i.name);
+  };
+
+  const importActivityKindsFromGitLab = () => {
+    const newItems: ActivityKind[] = [
+      { id: `act-gl-1`, name: 'Финансовые сервисы (GitLab)' },
+      { id: `act-gl-2`, name: 'Телекоммуникации (GitLab)' }
+    ];
+    setActivityKinds((prev) => {
+      const existingNames = prev.map(i => i.name);
+      const filtered = newItems.filter(i => !existingNames.includes(i.name));
+      return [...prev, ...filtered];
+    });
+    logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано видов деятельности из группы проектов ${gitLabSettings.projectGroup}`);
+    return newItems.map(i => i.name);
+  };
+
+  const importProjectsFromGitLab = () => {
+    const newItems: Project[] = [
+      {
+        id: `pr-gl-1`,
+        name: 'Платежный шлюз B2B (GitLab)',
+        projectGroupId: projectGroups[0]?.id || 'grp-1',
+        clientId: clients[0]?.id || 'cl-1',
+        productId: products[0]?.id || 'prod-2',
+        moduleId: modules[0]?.id || 'mod-1',
+        gitlabUrl: `${gitLabSettings.serverUrl}/${gitLabSettings.projectGroup}/b2b-gateway`
+      },
+      {
+        id: `pr-gl-2`,
+        name: 'Мобильное приложение Альфа (GitLab)',
+        projectGroupId: projectGroups[0]?.id || 'grp-1',
+        clientId: clients[0]?.id || 'cl-1',
+        productId: products[0]?.id || 'prod-1',
+        moduleId: modules[0]?.id || 'mod-1',
+        gitlabUrl: `${gitLabSettings.serverUrl}/${gitLabSettings.projectGroup}/mobile-app`
+      }
+    ];
+    setProjects((prev) => {
+      const existingNames = prev.map(i => i.name);
+      const filtered = newItems.filter(i => !existingNames.includes(i.name));
+      return [...prev, ...filtered];
+    });
+    logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано проектов из группы проектов ${gitLabSettings.projectGroup}`);
+    return newItems.map(i => i.name || 'Unknown Project');
+  };
+
+  const importProductsFromGitLab = () => {
+    const newItems: Product[] = [
+      { id: `prod-gl-1`, name: 'СБП Процессинг (GitLab)' },
+      { id: `prod-gl-2`, name: 'Кредитный конвейер (GitLab)' }
+    ];
+    setProducts((prev) => {
+      const existingNames = prev.map(i => i.name);
+      const filtered = newItems.filter(i => !existingNames.includes(i.name));
+      return [...prev, ...filtered];
+    });
+    logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано продуктов из группы проектов ${gitLabSettings.projectGroup}`);
+    return newItems.map(i => i.name);
+  };
+
+  const importModulesFromGitLab = () => {
+    const newItems: Module[] = [
+      { id: `mod-gl-1`, name: 'Модуль Клиент-Банк (GitLab)', gitlabLabel: 'module::client-bank' },
+      { id: `mod-gl-2`, name: 'Ядро Процессинга (GitLab)', gitlabLabel: 'module::core' }
+    ];
+    setModules((prev) => {
+      const existingNames = prev.map(i => i.name);
+      const filtered = newItems.filter(i => !existingNames.includes(i.name));
+      return [...prev, ...filtered];
+    });
+    logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано модулей из группы проектов ${gitLabSettings.projectGroup}`);
+    return newItems.map(i => i.name);
+  };
+
+  const importProjectGroupsFromGitLab = () => {
+    const newItems: ProjectGroup[] = [
+      { id: `grp-gl-1`, name: 'Группа СБП Проектов (GitLab)', gitlabUrl: `${gitLabSettings.serverUrl}/${gitLabSettings.projectGroup}` }
+    ];
+    setProjectGroups((prev) => {
+      const existingNames = prev.map(i => i.name);
+      const filtered = newItems.filter(i => !existingNames.includes(i.name));
+      return [...prev, ...filtered];
+    });
+    logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано групп проектов из группы проектов ${gitLabSettings.projectGroup}`);
+    return newItems.map(i => i.name);
+  };
+
+  const importTaskKindsFromGitLab = () => {
+    const newItems: TaskKind[] = [
+      { id: `kind-gl-1`, name: 'Ошибка (Bug) (GitLab)', gitlabLabel: 'bug' },
+      { id: `kind-gl-2`, name: 'Фича (Feature) (GitLab)', gitlabLabel: 'feature' }
+    ];
+    setTaskKinds((prev) => {
+      const existingNames = prev.map(i => i.name);
+      const filtered = newItems.filter(i => !existingNames.includes(i.name));
+      return [...prev, ...filtered];
+    });
+    logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано видов задач из группы проектов ${gitLabSettings.projectGroup}`);
+    return newItems.map(i => i.name);
+  };
+
+  const importTaskTypesFromGitLab = () => {
+    const newItems: TaskType[] = [
+      { id: `type-gl-1`, name: 'Интеграционный сбой (GitLab)', gitlabLabel: 'type::integration' },
+      { id: `type-gl-2`, name: 'Новый метод оплаты (GitLab)', gitlabLabel: 'type::payment' }
+    ];
+    setTaskTypes((prev) => {
+      const existingNames = prev.map(i => i.name);
+      const filtered = newItems.filter(i => !existingNames.includes(i.name));
+      return [...prev, ...filtered];
+    });
+    logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано типов задач из группы проектов ${gitLabSettings.projectGroup}`);
+    return newItems.map(i => i.name);
+  };
+
+  const importProjectStagesFromGitLab = () => {
+    const newItems: ProjectStage[] = [
+      { id: `stg-gl-1`, name: 'Аналитика (GitLab)', gitlabLabel: 'stage::analysis' },
+      { id: `stg-gl-2`, name: 'Разработка (GitLab)', gitlabLabel: 'stage::development' }
+    ];
+    setProjectStages((prev) => {
+      const existingNames = prev.map(i => i.name);
+      const filtered = newItems.filter(i => !existingNames.includes(i.name));
+      return [...prev, ...filtered];
+    });
+    logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано этапов проектов из группы проектов ${gitLabSettings.projectGroup}`);
+    return newItems.map(i => i.name);
+  };
+
+  const importUsersFromGitLab = () => {
+    const newItems: User[] = [
+      { id: `usr-gl-1`, fullName: 'Алексей Иванов (GitLab)', isEnabled: true, email: 'alex@corp.ru', gitlabUser: 'alex_git', role: 'Администратор' },
+      { id: `usr-gl-2`, fullName: 'Екатерина Смирнова (GitLab)', isEnabled: true, email: 'katya@corp.ru', gitlabUser: 'katya_git', role: 'Администратор' }
+    ];
+    setUsers((prev) => {
+      const existingNames = prev.map(i => i.fullName);
+      const filtered = newItems.filter(i => !existingNames.includes(i.fullName));
+      return [...prev, ...filtered];
+    });
+    logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано пользователей из группы проектов ${gitLabSettings.projectGroup}`);
+    return newItems.map(i => i.fullName);
   };
 
   const resetAllState = () => {
@@ -1290,6 +1427,16 @@ export function useProductState() {
     gitLabSettings,
     updateGitLabSettings,
     importGitLabIssues,
+    importClientsFromGitLab,
+    importActivityKindsFromGitLab,
+    importProjectsFromGitLab,
+    importProductsFromGitLab,
+    importModulesFromGitLab,
+    importProjectGroupsFromGitLab,
+    importTaskKindsFromGitLab,
+    importTaskTypesFromGitLab,
+    importProjectStagesFromGitLab,
+    importUsersFromGitLab,
     resetAllState
   };
 }

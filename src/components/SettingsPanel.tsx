@@ -25,7 +25,7 @@ interface SettingsPanelProps {
 
 export default function SettingsPanel({ store }: SettingsPanelProps) {
   const [activeSubTab, setActiveSubTab] = useState<
-    'epics' | 'clients' | 'activity_kinds' | 'projects' | 'products' | 'modules' | 'project_groups' | 'kinds' | 'types' | 'stages' | 'users' | 'roles' | 'sources' | 'gitlab'
+    'epics' | 'clients' | 'activity_kinds' | 'projects' | 'products' | 'modules' | 'project_groups' | 'kinds' | 'types' | 'stages' | 'users' | 'roles' | 'sources' | 'gitlab' | 'priority_formula'
   >('epics');
 
   // Epic Inputs
@@ -62,6 +62,19 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
   // Task Kinds Inputs
   const [kindName, setKindName] = useState('');
   const [kindLabel, setKindLabel] = useState('');
+  const [kindPoints, setKindPoints] = useState(3);
+
+  // Priority formula configurable states
+  const [wType, setWType] = useState(store.priorityWeights?.weightType || 0.25);
+  const [wDemand, setWDemand] = useState(store.priorityWeights?.weightDemand || 0.25);
+  const [wApplicability, setWApplicability] = useState(store.priorityWeights?.weightApplicability || 0.20);
+  const [wSpentCost, setWSpentCost] = useState(store.priorityWeights?.weightSpentCost || 0.15);
+  const [wReleaseEffort, setWReleaseEffort] = useState(store.priorityWeights?.weightReleaseEffort || 0.15);
+  const [appEntity, setAppEntity] = useState<'module' | 'product'>(store.priorityWeights?.applicabilityEntity || 'module');
+
+  // Release Effort states
+  const [effName, setEffName] = useState('');
+  const [effPoints, setEffPoints] = useState(3);
 
   // Task Types Inputs
   const [typeName, setTypeName] = useState('');
@@ -129,6 +142,7 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
             { id: 'roles', label: '12. Роли', icon: <ShieldAlert size={14} /> },
             { id: 'sources', label: 'Источники сигналов', icon: <FolderOpen size={14} /> },
             { id: 'gitlab', label: 'Интеграция с GitLab', icon: <GitBranch size={14} /> },
+            { id: 'priority_formula', label: '⚙️ Настройка приоритетов', icon: <Settings size={14} /> },
           ].map((subTab) => (
             <button
               key={subTab.id}
@@ -602,10 +616,10 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (!kindName.trim() || !kindLabel.trim()) return;
-                  store.addTaskKind(kindName, kindLabel);
-                  setKindName(''); setKindLabel('');
+                  store.addTaskKind(kindName, kindLabel, kindPoints);
+                  setKindName(''); setKindLabel(''); setKindPoints(3);
                 }}
-                className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
+                className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
               >
                 <div>
                   <label className="block text-[#8b949e] mb-1">Наименование:</label>
@@ -621,8 +635,15 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                     placeholder="bug" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
                   />
                 </div>
-                <div className="md:col-span-2 flex justify-end">
-                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white">
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Баллы приоритета (1-5):</label>
+                  <input
+                    type="number" required min={1} max={5} value={kindPoints} onChange={(e) => setKindPoints(Number(e.target.value))}
+                    className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                  />
+                </div>
+                <div className="md:col-span-3 flex justify-end">
+                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white font-semibold">
                     <Plus size={14} /> Добавить вид задач
                   </button>
                 </div>
@@ -632,7 +653,7 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                   <div key={k.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between text-xs font-mono">
                     <div>
                       <strong className="text-white">{k.name}</strong>
-                      <span className="text-[10px] text-[#58a6ff] block">GitLab Label: {k.gitlabLabel}</span>
+                      <span className="text-[10px] text-[#58a6ff] block">GitLab Label: {k.gitlabLabel} | Баллы: <strong className="text-yellow-400 font-bold">{k.priorityPoints || 3}</strong></span>
                     </div>
                     <button onClick={() => store.deleteTaskKind(k.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
                   </div>
@@ -939,6 +960,158 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                   </button>
                 </div>
               </form>
+            </div>
+          )}
+
+          {/* PRIORITY FORMULA CONFIGURATION */}
+          {activeSubTab === 'priority_formula' && (
+            <div className="space-y-8">
+              <div className="border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">⚙️ Настройка формулы приоритетов фич</h3>
+                <p className="text-xs text-[#8b949e] mt-1">
+                  Настройте веса критериев и связанные сущности для автоматического расчета приоритета (Auto Score). Сумма весов должна быть равна 1.0 для корректной нормировки.
+                </p>
+              </div>
+
+              {/* 1. WEIGHTS FORM */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const total = Number(wType) + Number(wDemand) + Number(wApplicability) + Number(wSpentCost) + Number(wReleaseEffort);
+                  if (Math.abs(total - 1.0) > 0.001) {
+                    if (!confirm(`Предупреждение: Сумма весов равна ${total.toFixed(2)}, а не 1.00. Вы уверены, что хотите сохранить?`)) {
+                      return;
+                    }
+                  }
+                  store.setPriorityWeights({
+                    weightType: Number(wType),
+                    weightDemand: Number(wDemand),
+                    weightApplicability: Number(wApplicability),
+                    weightSpentCost: Number(wSpentCost),
+                    weightReleaseEffort: Number(wReleaseEffort),
+                    applicabilityEntity: appEntity
+                  });
+                  alert('Настройки весов и формулы приоритета успешно сохранены!');
+                }}
+                className="p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs space-y-4"
+              >
+                <span className="font-semibold text-white text-xs block">1. Весовые коэффициенты</span>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                  <div>
+                    <label className="block text-[#8b949e] mb-1">Вид задачи (Type):</label>
+                    <input
+                      type="number" required step="0.05" min="0" max="1" value={wType} onChange={(e) => setWType(e.target.value)}
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[#8b949e] mb-1">Повторяемость (Demand):</label>
+                    <input
+                      type="number" required step="0.05" min="0" max="1" value={wDemand} onChange={(e) => setWDemand(e.target.value)}
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[#8b949e] mb-1">Применимость (Applicability):</label>
+                    <input
+                      type="number" required step="0.05" min="0" max="1" value={wApplicability} onChange={(e) => setWApplicability(e.target.value)}
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[#8b949e] mb-1">Затраты (SpentCost):</label>
+                    <input
+                      type="number" required step="0.05" min="0" max="1" value={wSpentCost} onChange={(e) => setWSpentCost(e.target.value)}
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[#8b949e] mb-1">Сложность релиза (ReleaseEffort):</label>
+                    <input
+                      type="number" required step="0.05" min="0" max="1" value={wReleaseEffort} onChange={(e) => setWReleaseEffort(e.target.value)}
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <label className="block text-[#8b949e] mb-1">Сущность для расчета Применимости (Applicability):</label>
+                    <select
+                      value={appEntity}
+                      onChange={(e) => setAppEntity(e.target.value as any)}
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                    >
+                      <option value="module">Модуль (Кол-во проектов на том же модуле)</option>
+                      <option value="product">Продукт (Кол-во проектов на том же продукте)</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end justify-end">
+                    <button type="submit" className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded shadow transition-all">
+                      <Save size={14} /> Сохранить формулу приоритета
+                    </button>
+                  </div>
+                </div>
+              </form>
+
+              {/* 2. RELEASE EFFORT DICTIONARY (Сложность переноса в релиз) */}
+              <div className="space-y-4">
+                <div className="border-b border-[#30363d]/50 pb-2">
+                  <span className="font-semibold text-white text-xs block">2. Справочник: Степень сложности переноса (ReleaseEffort)</span>
+                  <p className="text-[11px] text-[#8b949e] mt-0.5">
+                    Управляйте классификатором готовности доработок для передачи в продукт. Чем меньше усилий требуется от продуктовой команды, тем выше балл.
+                  </p>
+                </div>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!effName.trim()) return;
+                    store.addReleaseEffortOption(effName, effPoints);
+                    setEffName(''); setEffPoints(3);
+                  }}
+                  className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
+                >
+                  <div className="md:col-span-2">
+                    <label className="block text-[#8b949e] mb-1">Вариант сложности:</label>
+                    <input
+                      type="text" required value={effName} onChange={(e) => setEffName(e.target.value)}
+                      placeholder="Например: Перенести 1в1 (готов к релизу без изменений)"
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[#8b949e] mb-1">Баллы (1-5):</label>
+                    <input
+                      type="number" required min={1} max={5} value={effPoints} onChange={(e) => setEffPoints(Number(e.target.value))}
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                    />
+                  </div>
+                  <div className="md:col-span-3 flex justify-end">
+                    <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white font-semibold">
+                      <Plus size={14} /> Добавить вариант
+                    </button>
+                  </div>
+                </form>
+
+                <div className="space-y-2">
+                  {store.releaseEffortOptions?.map((o: any) => (
+                    <div key={o.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between text-xs font-mono">
+                      <div>
+                        <strong className="text-white">{o.name}</strong>
+                        <span className="text-[10px] text-[#8b949e] block mt-0.5">Начисляемые баллы: <strong className="text-yellow-400 font-bold">{o.points}</strong></span>
+                      </div>
+                      <button
+                        onClick={() => store.deleteReleaseEffortOption(o.id)}
+                        className="text-[#8b949e] hover:text-red-400"
+                        title="Удалить"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 

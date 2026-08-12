@@ -28,8 +28,11 @@ export interface Feature {
   salesImpact: 1 | 2 | 3 | 4 | 5; // 1: Low, 5: Critical/High
   itsPriority: 1 | 2 | 3 | 4 | 5; // 1: low, 5: Critical
 
+  // New Scoring Logic fields
+  releaseEffortId?: string; // ID сложности переноса в релиз (Сложность переноса в релиз)
+
   // Scoring
-  autoScore: number; // calculated as: (repeatabilityCount * 3) + (salesImpact * 10) + (itsPriority * 10)
+  autoScore: number; // calculated according to configurable weights & formula
   overrideScore?: number; // Manual PM Override
   overrideReason?: string; // Compulsory if overrideScore is set
 
@@ -115,6 +118,7 @@ export interface TaskKind {
   id: string;
   name: string;
   gitlabLabel: string; // Ссылка на label gitlab
+  priorityPoints?: number; // Новое поле для настройки приоритетов (1 to 5)
 }
 
 // 8. Типы задач (Refactored to support new structure)
@@ -193,6 +197,23 @@ export interface AuditLog {
   details: string;
 }
 
+// Сложность переноса в релиз (ReleaseEffort)
+export interface ReleaseEffortOption {
+  id: string;
+  name: string; // E.g. "Перенести 1в1"
+  points: number; // 1 to 5
+}
+
+// Настройка весов формулы приоритета
+export interface PriorityWeights {
+  weightType: number;
+  weightDemand: number;
+  weightApplicability: number;
+  weightSpentCost: number;
+  weightReleaseEffort: number;
+  applicabilityEntity: 'module' | 'product';
+}
+
 // Dictionary Items (generic fallback)
 export interface DictionaryItem {
   id: string;
@@ -232,6 +253,23 @@ export const initialAuditLogs: AuditLog[] = [
   }
 ];
 
+export const defaultPriorityWeights: PriorityWeights = {
+  weightType: 0.25,
+  weightDemand: 0.25,
+  weightApplicability: 0.20,
+  weightSpentCost: 0.15,
+  weightReleaseEffort: 0.15,
+  applicabilityEntity: 'module',
+};
+
+export const initialReleaseEffortOptions: ReleaseEffortOption[] = [
+  { id: 're-5', name: 'Перенести 1в1 (готов к релизу без изменений)', points: 5 },
+  { id: 're-4', name: 'Требуется доработка от продуктовой команды (минимальная адаптируемость/шлифовка)', points: 4 },
+  { id: 're-3', name: 'Требуется пересмотр логики внутри (нужно скорректировать архитектуру или код)', points: 3 },
+  { id: 're-2', name: 'Требуется пересмотр логики от продуктовой команды (нужно пересмотреть продуктовые сценарии/требования)', points: 2 },
+  { id: 're-1', name: 'Требуется проработка с нуля от продуктовой команды (фактически сделать заново)', points: 1 },
+];
+
 // Initial Dictionaries and Entities
 export const initialActivityKinds: ActivityKind[] = [
   { id: 'act-1', name: 'Банковские услуги' },
@@ -269,10 +307,14 @@ export const initialProjects: Project[] = [
 ];
 
 export const initialTaskKinds: TaskKind[] = [
-  { id: 'kind-1', name: 'Ошибка (Bug)', gitlabLabel: 'bug' },
-  { id: 'kind-2', name: 'Фича (Feature)', gitlabLabel: 'feature' },
-  { id: 'kind-3', name: 'Улучшение (Improvement)', gitlabLabel: 'enhancement' },
-  { id: 'kind-4', name: 'Технический долг', gitlabLabel: 'tech-debt' }
+  { id: 'kind-1', name: 'Ошибка (Bug)', gitlabLabel: 'bug', priorityPoints: 4 },
+  { id: 'kind-2', name: 'Фича (Feature)', gitlabLabel: 'feature', priorityPoints: 3 },
+  { id: 'kind-3', name: 'Улучшение (Improvement)', gitlabLabel: 'enhancement', priorityPoints: 3 },
+  { id: 'kind-4', name: 'Технический долг', gitlabLabel: 'tech-debt', priorityPoints: 2 },
+  { id: 'kind-5', name: 'Соответствие стандартам отрасли', gitlabLabel: 'industry-standard', priorityPoints: 5 },
+  { id: 'kind-6', name: 'Доработка UX', gitlabLabel: 'ux-refinement', priorityPoints: 3 },
+  { id: 'kind-7', name: 'Доработка UI', gitlabLabel: 'ui-refinement', priorityPoints: 2 },
+  { id: 'kind-8', name: 'Интеграция', gitlabLabel: 'integration', priorityPoints: 1 }
 ];
 
 export const initialTaskTypes: TaskType[] = [

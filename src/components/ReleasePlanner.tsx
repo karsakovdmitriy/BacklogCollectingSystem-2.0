@@ -155,7 +155,6 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
     e.preventDefault();
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-      // No transition backward from estimated to backlog defined, but can reset release
       if (data.origin === 'draft') {
         removeFromRelease(data.id);
       }
@@ -378,7 +377,7 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
             ) : (
               sortedEstimating.map((f: Feature) => {
                 const currentScore = f.overrideScore !== undefined ? f.overrideScore : f.autoScore;
-                const inline = inlineInputs[f.id] || { sp: '5', hours: '40' };
+                const inline = inlineInputs[f.id] || { hours: '40' };
 
                 return (
                   <div
@@ -614,7 +613,7 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
 
             <div className="max-h-[400px] overflow-y-auto space-y-4 pr-1 scrollbar-thin">
               {estimatingFeatures.map((f: Feature) => {
-                const fInput = bulkInputs[f.id] || { sp: '5', hours: '40' };
+                const fInput = bulkInputs[f.id] || { hours: '40' };
                 return (
                   <div key={f.id} className="p-3 rounded-lg bg-[#0d1117] border border-[#30363d] space-y-2">
                     <div className="flex items-center justify-between">

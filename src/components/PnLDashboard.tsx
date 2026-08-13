@@ -23,7 +23,7 @@ export default function PnLDashboard({ store }: PnLDashboardProps) {
   );
 
   // Financial aggregates
-  // P&L calculation: Cost is simulated based on expert development cost (Story Points * constant rate)
+  // P&L calculation: Cost is simulated based on expert development cost (estimated_hours * hourly rate)
   // Revenue is calculated based on B2B closed contract telemetry linked to that feature.
   const totalCost = store.features.reduce((sum: number, f: Feature) => sum + f.developmentCost, 0);
   const totalRevenue = store.features.reduce((sum: number, f: Feature) => sum + f.revenueGenerated, 0);
@@ -67,7 +67,7 @@ export default function PnLDashboard({ store }: PnLDashboardProps) {
             <strong className="text-xl text-white font-mono font-bold">
               {totalCost.toLocaleString('ru-RU')} ₽
             </strong>
-            <p className="text-[11px] text-[#8b949e] mt-1">На основе Story Points (30k ₽/SP)</p>
+            <p className="text-[11px] text-[#8b949e] mt-1">На основе экспертных часов (2000 ₽ / час)</p>
           </div>
         </div>
 

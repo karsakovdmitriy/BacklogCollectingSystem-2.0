@@ -36,13 +36,9 @@ interface BacklogPanelProps {
 }
 
 export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) {
-  // Views, Grouping and Sorting States
-  const [viewMode, setViewMode] = useState<'tree' | 'dashboard'>('dashboard');
+  // Grouping and Sorting States
   const [groupBy, setGroupBy] = useState<'epic' | 'subsystem' | 'taskKind'>('epic');
   const [sortBy, setSortBy] = useState<'priority' | 'autoScore' | 'sp' | 'alphabetical'>('priority');
-
-  // Collapsed states for Group Headers in Tree View
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   // Modals & form state
   const [isFeatureModalOpen, setIsFeatureModalOpen] = useState(false);
@@ -68,11 +64,6 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
   const [newFeatItsPriority, setNewFeatItsPriority] = useState<1|2|3|4|5>(3);
   const [newFeatSubsystem, setNewFeatSubsystem] = useState('');
   const [newFeatTaskKind, setNewFeatTaskKind] = useState('');
-
-  // Helper toggle collapse
-  const toggleGroup = (groupId: string) => {
-    setCollapsedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
-  };
 
   // Submit PM Priority Override
   const handleOverrideSubmit = (e: React.FormEvent) => {

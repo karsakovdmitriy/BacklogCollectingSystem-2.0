@@ -602,13 +602,18 @@ export function useProductState() {
 
     const client = supabase;
     if (isSupabaseConfigured && client) {
-      await client.from('epics').insert({
-        id: newEpic.id,
-        code: newEpic.code,
-        title: newEpic.title,
-        description: newEpic.description,
-        owner: newEpic.owner,
-      });
+      try {
+        const { error } = await client.from('epics').insert({
+          id: newEpic.id,
+          code: newEpic.code,
+          title: newEpic.title,
+          description: newEpic.description,
+          owner: newEpic.owner,
+        });
+        if (error) console.error('Error adding Epic to Supabase:', error);
+      } catch (err) {
+        console.error('Exception adding Epic to Supabase:', err);
+      }
     }
   };
 
@@ -618,7 +623,12 @@ export function useProductState() {
 
     const client = supabase;
     if (isSupabaseConfigured && client) {
-      await client.from('epics').delete().eq('id', id);
+      try {
+        const { error } = await client.from('epics').delete().eq('id', id);
+        if (error) console.error('Error deleting Epic from Supabase:', error);
+      } catch (err) {
+        console.error('Exception deleting Epic from Supabase:', err);
+      }
     }
   };
 
@@ -631,11 +641,16 @@ export function useProductState() {
 
     const client = supabase;
     if (isSupabaseConfigured && client) {
-      await client.from('clients').insert({
-        id: newItem.id,
-        name: newItem.name,
-        activity_kind_id: newItem.activityKindId,
-      });
+      try {
+        const { error } = await client.from('clients').insert({
+          id: newItem.id,
+          name: newItem.name,
+          activity_kind_id: newItem.activityKindId,
+        });
+        if (error) console.error('Error adding Client to Supabase:', error);
+      } catch (err) {
+        console.error('Exception adding Client to Supabase:', err);
+      }
     }
   };
   const deleteClient = async (id: string) => {
@@ -644,7 +659,12 @@ export function useProductState() {
 
     const client = supabase;
     if (isSupabaseConfigured && client) {
-      await client.from('clients').delete().eq('id', id);
+      try {
+        const { error } = await client.from('clients').delete().eq('id', id);
+        if (error) console.error('Error deleting Client from Supabase:', error);
+      } catch (err) {
+        console.error('Exception deleting Client from Supabase:', err);
+      }
     }
   };
 
@@ -656,10 +676,15 @@ export function useProductState() {
 
     const client = supabase;
     if (isSupabaseConfigured && client) {
-      await client.from('activity_kinds').insert({
-        id: newItem.id,
-        name: newItem.name,
-      });
+      try {
+        const { error } = await client.from('activity_kinds').insert({
+          id: newItem.id,
+          name: newItem.name,
+        });
+        if (error) console.error('Error adding ActivityKind to Supabase:', error);
+      } catch (err) {
+        console.error('Exception adding ActivityKind to Supabase:', err);
+      }
     }
   };
   const deleteActivityKind = async (id: string) => {
@@ -668,7 +693,12 @@ export function useProductState() {
 
     const client = supabase;
     if (isSupabaseConfigured && client) {
-      await client.from('activity_kinds').delete().eq('id', id);
+      try {
+        const { error } = await client.from('activity_kinds').delete().eq('id', id);
+        if (error) console.error('Error deleting ActivityKind from Supabase:', error);
+      } catch (err) {
+        console.error('Exception deleting ActivityKind from Supabase:', err);
+      }
     }
   };
 
@@ -680,15 +710,20 @@ export function useProductState() {
 
     const client = supabase;
     if (isSupabaseConfigured && client) {
-      await client.from('projects').insert({
-        id: newItem.id,
-        name: newItem.name,
-        project_group_id: newItem.projectGroupId,
-        client_id: newItem.clientId,
-        product_id: newItem.productId,
-        module_id: newItem.moduleId,
-        gitlab_url: newItem.gitlabUrl,
-      });
+      try {
+        const { error } = await client.from('projects').insert({
+          id: newItem.id,
+          name: newItem.name,
+          project_group_id: newItem.projectGroupId,
+          client_id: newItem.clientId,
+          product_id: newItem.productId,
+          module_id: newItem.moduleId,
+          gitlab_url: newItem.gitlabUrl,
+        });
+        if (error) console.error('Error adding Project to Supabase:', error);
+      } catch (err) {
+        console.error('Exception adding Project to Supabase:', err);
+      }
     }
   };
   const deleteProjectNew = async (id: string) => {
@@ -697,7 +732,12 @@ export function useProductState() {
 
     const client = supabase;
     if (isSupabaseConfigured && client) {
-      await client.from('projects').delete().eq('id', id);
+      try {
+        const { error } = await client.from('projects').delete().eq('id', id);
+        if (error) console.error('Error deleting Project from Supabase:', error);
+      } catch (err) {
+        console.error('Exception deleting Project from Supabase:', err);
+      }
     }
   };
 
@@ -1044,27 +1084,35 @@ export function useProductState() {
 
     const client = supabase;
     if (isSupabaseConfigured && client) {
-      client.from('features').insert({
-        id: newFeat.id,
-        initiative_id: newFeat.initiativeId,
-        code: newFeat.code,
-        title: newFeat.title,
-        description: newFeat.description,
-        effort_hours: newFeat.effortHours,
-        repeatability_count: newFeat.repeatabilityCount,
-        sales_impact: newFeat.salesImpact,
-        its_priority: newFeat.itsPriority,
-        auto_score: newFeat.autoScore,
-        status: newFeat.status,
-        subsystem: newFeat.subsystem,
-        task_kind: newFeat.taskKind,
-        adoption_rate: newFeat.adoptionRate,
-        mau: newFeat.mau,
-        retention_rate: newFeat.retentionRate,
-        segment_adoption: newFeat.segmentAdoption,
-        revenue_generated: newFeat.revenueGenerated,
-        development_cost: newFeat.developmentCost,
-      }).then();
+      try {
+        client.from('features').insert({
+          id: newFeat.id,
+          initiative_id: newFeat.initiativeId,
+          code: newFeat.code,
+          title: newFeat.title,
+          description: newFeat.description,
+          effort_hours: newFeat.effortHours,
+          repeatability_count: newFeat.repeatabilityCount,
+          sales_impact: newFeat.salesImpact,
+          its_priority: newFeat.itsPriority,
+          auto_score: newFeat.autoScore,
+          status: newFeat.status,
+          subsystem: newFeat.subsystem,
+          task_kind: newFeat.taskKind,
+          adoption_rate: newFeat.adoptionRate,
+          mau: newFeat.mau,
+          retention_rate: newFeat.retentionRate,
+          segment_adoption: newFeat.segmentAdoption,
+          revenue_generated: newFeat.revenueGenerated,
+          development_cost: newFeat.developmentCost,
+        }).then(({ error }: any) => {
+          if (error) console.error('Error adding Feature to Supabase:', error);
+        }).catch((err: any) => {
+          console.error('Exception adding Feature to Supabase:', err);
+        });
+      } catch (err) {
+        console.error('Unexpected Exception adding Feature to Supabase:', err);
+      }
     }
 
     return newFeat.id;
@@ -1079,27 +1127,32 @@ export function useProductState() {
 
     const client = supabase;
     if (isSupabaseConfigured && client) {
-      await client.from('features').update({
-        title: finalFeat.title,
-        description: finalFeat.description,
-        effort_hours: finalFeat.effortHours,
-        repeatability_count: finalFeat.repeatabilityCount,
-        sales_impact: finalFeat.salesImpact,
-        its_priority: finalFeat.itsPriority,
-        auto_score: finalFeat.autoScore,
-        override_score: finalFeat.overrideScore,
-        override_reason: finalFeat.overrideReason,
-        release_id: finalFeat.releaseId,
-        status: finalFeat.status,
-        subsystem: finalFeat.subsystem,
-        task_kind: finalFeat.taskKind,
-        adoption_rate: finalFeat.adoptionRate,
-        mau: finalFeat.mau,
-        retention_rate: finalFeat.retentionRate,
-        segment_adoption: finalFeat.segmentAdoption,
-        revenue_generated: finalFeat.revenueGenerated,
-        development_cost: finalFeat.developmentCost,
-      }).eq('id', finalFeat.id);
+      try {
+        const { error } = await client.from('features').update({
+          title: finalFeat.title,
+          description: finalFeat.description,
+          effort_hours: finalFeat.effortHours,
+          repeatability_count: finalFeat.repeatabilityCount,
+          sales_impact: finalFeat.salesImpact,
+          its_priority: finalFeat.itsPriority,
+          auto_score: finalFeat.autoScore,
+          override_score: finalFeat.overrideScore,
+          override_reason: finalFeat.overrideReason,
+          release_id: finalFeat.releaseId,
+          status: finalFeat.status,
+          subsystem: finalFeat.subsystem,
+          task_kind: finalFeat.taskKind,
+          adoption_rate: finalFeat.adoptionRate,
+          mau: finalFeat.mau,
+          retention_rate: finalFeat.retentionRate,
+          segment_adoption: finalFeat.segmentAdoption,
+          revenue_generated: finalFeat.revenueGenerated,
+          development_cost: finalFeat.developmentCost,
+        }).eq('id', finalFeat.id);
+        if (error) console.error('Error updating Feature in Supabase:', error);
+      } catch (err) {
+        console.error('Exception updating Feature in Supabase:', err);
+      }
     }
   };
 
@@ -1268,33 +1321,38 @@ export function useProductState() {
 
     const client = supabase;
     if (isSupabaseConfigured && client) {
-      await client.from('requests').insert({
-        id: newReq.id,
-        code: newReq.code,
-        title: newReq.title,
-        source: newReq.source,
-        description: newReq.description,
-        status: newReq.status,
-        gitlab_issue_id: newReq.gitlabIssueId,
-        client: newReq.client,
-        project: newReq.project,
-        subsystem: newReq.subsystem,
-        task_kind: newReq.taskKind,
-        task_type: newReq.taskType,
-        author_id: newReq.authorId,
-        executor_id: newReq.executorId,
-        project_id: newReq.projectId,
-        product_id: newReq.productId,
-        module_id: newReq.moduleId,
-        task_kind_id: newReq.taskKindId,
-        task_type_id: newReq.taskTypeId,
-        project_stage_id: newReq.projectStageId,
-        estimate: newReq.estimate,
-        spent: newReq.spent,
-        epic_id: newReq.epicId,
-        associated_feature_id: newReq.associatedFeatureId,
-        created_at: newReq.createdAt,
-      });
+      try {
+        const { error } = await client.from('requests').insert({
+          id: newReq.id,
+          code: newReq.code,
+          title: newReq.title,
+          source: newReq.source,
+          description: newReq.description,
+          status: newReq.status,
+          gitlab_issue_id: newReq.gitlabIssueId,
+          client: newReq.client,
+          project: newReq.project,
+          subsystem: newReq.subsystem,
+          task_kind: newReq.taskKind,
+          task_type: newReq.taskType,
+          author_id: newReq.authorId,
+          executor_id: newReq.executorId,
+          project_id: newReq.projectId,
+          product_id: newReq.productId,
+          module_id: newReq.moduleId,
+          task_kind_id: newReq.taskKindId,
+          task_type_id: newReq.taskTypeId,
+          project_stage_id: newReq.projectStageId,
+          estimate: newReq.estimate,
+          spent: newReq.spent,
+          epic_id: newReq.epicId,
+          associated_feature_id: newReq.associatedFeatureId,
+          created_at: newReq.createdAt,
+        });
+        if (error) console.error('Error adding Request to Supabase:', error);
+      } catch (err) {
+        console.error('Exception adding Request to Supabase:', err);
+      }
     }
 
     // If fully configured, accepted, and bound, update repeatability
@@ -1344,30 +1402,35 @@ export function useProductState() {
 
     const client = supabase;
     if (isSupabaseConfigured && client) {
-      await client.from('requests').update({
-        title: payload.title,
-        source: payload.source,
-        description: payload.description,
-        status: payload.status,
-        gitlab_issue_id: payload.gitlabIssueId,
-        client: payload.client,
-        project: payload.project,
-        subsystem: payload.subsystem,
-        task_kind: payload.taskKind,
-        task_type: payload.taskType,
-        author_id: payload.authorId,
-        executor_id: payload.executorId,
-        project_id: payload.projectId,
-        product_id: payload.productId,
-        module_id: payload.moduleId,
-        task_kind_id: payload.taskKindId,
-        task_type_id: payload.taskTypeId,
-        project_stage_id: payload.projectStageId,
-        estimate: payload.estimate,
-        spent: payload.spent,
-        epic_id: payload.epicId,
-        associated_feature_id: payload.associatedFeatureId,
-      }).eq('id', payload.id);
+      try {
+        const { error } = await client.from('requests').update({
+          title: payload.title,
+          source: payload.source,
+          description: payload.description,
+          status: payload.status,
+          gitlab_issue_id: payload.gitlabIssueId,
+          client: payload.client,
+          project: payload.project,
+          subsystem: payload.subsystem,
+          task_kind: payload.taskKind,
+          task_type: payload.taskType,
+          author_id: payload.authorId,
+          executor_id: payload.executorId,
+          project_id: payload.projectId,
+          product_id: payload.productId,
+          module_id: payload.moduleId,
+          task_kind_id: payload.taskKindId,
+          task_type_id: payload.taskTypeId,
+          project_stage_id: payload.projectStageId,
+          estimate: payload.estimate,
+          spent: payload.spent,
+          epic_id: payload.epicId,
+          associated_feature_id: payload.associatedFeatureId,
+        }).eq('id', payload.id);
+        if (error) console.error('Error updating Request in Supabase:', error);
+      } catch (err) {
+        console.error('Exception updating Request in Supabase:', err);
+      }
     }
   };
 

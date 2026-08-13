@@ -322,61 +322,61 @@ ALTER TABLE pm_audits ENABLE ROW LEVEL SECURITY;
 -- (Для MVP даем полный доступ для чтения всем, а на запись — авторизованным пользователям)
 
 CREATE POLICY "Allow public read access" ON activity_kinds FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON activity_kinds FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON activity_kinds FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON clients FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON clients FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON clients FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON project_groups FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON project_groups FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON project_groups FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON products FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON products FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON products FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON modules FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON modules FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON modules FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON projects FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON projects FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON projects FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON task_kinds FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON task_kinds FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON task_kinds FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON task_types FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON task_types FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON task_types FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON project_stages FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON project_stages FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON project_stages FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON users FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON users FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON users FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON sources FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON sources FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON sources FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON gitlab_settings FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON gitlab_settings FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON gitlab_settings FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON epics FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON epics FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON epics FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON initiatives FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON initiatives FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON initiatives FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON release_effort_options FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON release_effort_options FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON release_effort_options FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON releases FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON releases FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON releases FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON features FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON features FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON features FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON tasks FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON tasks FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON tasks FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON requests FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON requests FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON requests FOR ALL USING (true);
 
 CREATE POLICY "Allow public read access" ON pm_audits FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated modifications" ON pm_audits FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow public modifications" ON pm_audits FOR ALL USING (true);

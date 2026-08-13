@@ -129,9 +129,14 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
     try {
       const result = await store.importGitLabIssues();
       if (result.success) {
-        const issueDetails = result.issues.map((i: any) =>
-          `• ${i.gitlabId}: ${i.title.slice(0, 45)}...\n  [Маппинг]: Вид: "${i.kind || 'Не сопоставлен'}", Тип: "${i.type || 'Не сопоставлен'}"`
-        ).join('\n\n');
+        let issueDetails = '';
+        if (result.issues.length > 0) {
+          issueDetails = result.issues.map((i: any) =>
+            `• ${i.gitlabId}: ${i.title.slice(0, 45)}...\n  [Маппинг]: Вид: "${i.kind || 'Не сопоставлен'}", Тип: "${i.type || 'Не сопоставлен'}"`
+          ).join('\n\n');
+        } else {
+          issueDetails = 'Задачи не найдены в указанной группе репозиториев.';
+        }
 
         alert(
           `Успешный импорт из GitLab!\n\n` +
@@ -144,9 +149,9 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
       } else {
         alert('Произошла ошибка при импорте задач из GitLab.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Произошла ошибка при импорте задач из GitLab.');
+      alert(err.message || 'Произошла ошибка при импорте задач из GitLab.');
     }
   };
 

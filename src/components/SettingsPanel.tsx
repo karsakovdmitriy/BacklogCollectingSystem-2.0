@@ -228,16 +228,6 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
                 <h3 className="text-sm font-semibold text-white">1. Справочник клиентов</h3>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const imported = await store.importClientsFromGitLab();
-                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
-                >
-                  <GitBranch size={13} /> Импортировать из GitLab
-                </button>
               </div>
               <form
                 onSubmit={(e) => {
@@ -295,16 +285,6 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
                 <h3 className="text-sm font-semibold text-white">2. Виды деятельности</h3>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const imported = await store.importActivityKindsFromGitLab();
-                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
-                >
-                  <GitBranch size={13} /> Импортировать из GitLab
-                </button>
               </div>
               <form
                 onSubmit={(e) => {
@@ -342,8 +322,12 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 <button
                   type="button"
                   onClick={async () => {
-                    const imported = await store.importProjectsFromGitLab();
-                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                    try {
+                      const imported = await store.importProjectsFromGitLab();
+                      alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                    } catch (err: any) {
+                      alert(err.message || err);
+                    }
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
                 >
@@ -439,16 +423,6 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
                 <h3 className="text-sm font-semibold text-white">4. Продукты</h3>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const imported = await store.importProductsFromGitLab();
-                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
-                >
-                  <GitBranch size={13} /> Импортировать из GitLab
-                </button>
               </div>
               <form
                 onSubmit={(e) => {
@@ -486,8 +460,12 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 <button
                   type="button"
                   onClick={async () => {
-                    const imported = await store.importModulesFromGitLab();
-                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                    try {
+                      const imported = await store.importModulesFromGitLab();
+                      alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                    } catch (err: any) {
+                      alert(err.message || err);
+                    }
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
                 >
@@ -542,16 +520,6 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
                 <h3 className="text-sm font-semibold text-white">6. Группы проектов</h3>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const imported = await store.importProjectGroupsFromGitLab();
-                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
-                >
-                  <GitBranch size={13} /> Импортировать из GitLab
-                </button>
               </div>
               <form
                 onSubmit={(e) => {
@@ -604,8 +572,12 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 <button
                   type="button"
                   onClick={async () => {
-                    const imported = await store.importTaskKindsFromGitLab();
-                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                    try {
+                      const imported = await store.importTaskKindsFromGitLab();
+                      alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                    } catch (err: any) {
+                      alert(err.message || err);
+                    }
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
                 >
@@ -670,8 +642,12 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 <button
                   type="button"
                   onClick={async () => {
-                    const imported = await store.importTaskTypesFromGitLab();
-                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                    try {
+                      const imported = await store.importTaskTypesFromGitLab();
+                      alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                    } catch (err: any) {
+                      alert(err.message || err);
+                    }
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
                 >
@@ -729,8 +705,12 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 <button
                   type="button"
                   onClick={async () => {
-                    const imported = await store.importProjectStagesFromGitLab();
-                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                    try {
+                      const imported = await store.importProjectStagesFromGitLab();
+                      alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                    } catch (err: any) {
+                      alert(err.message || err);
+                    }
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
                 >
@@ -788,8 +768,12 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 <button
                   type="button"
                   onClick={async () => {
-                    const imported = await store.importUsersFromGitLab();
-                    alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                    try {
+                      const imported = await store.importUsersFromGitLab();
+                      alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                    } catch (err: any) {
+                      alert(err.message || err);
+                    }
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
                 >

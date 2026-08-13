@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 import {
   Epic,
   Initiative,
@@ -97,8 +98,6 @@ export function useProductState() {
     return initialAuditLogs;
   });
 
-  // --- PERSIST STATES WITH COMPATIBILITY PARSERS FOR ORIGINAL STORAGE KEYS ---
-
   const [activityKinds, setActivityKinds] = useState<ActivityKind[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('dict_activity_kinds');
@@ -147,7 +146,6 @@ export function useProductState() {
           }));
         } catch {}
       }
-      // Fallback check for subsystems
       const savedSubs = localStorage.getItem('dict_subsystems');
       if (savedSubs) {
         try {
@@ -264,7 +262,243 @@ export function useProductState() {
     return initialGitLabSettings;
   });
 
-  // Persist State
+  // --- SUPABASE HYDRATION LAYER ON MOUNT ---
+  useEffect(() => {
+    const client = supabase;
+    if (!isSupabaseConfigured || !client) return;
+
+    const pullFromSupabase = async () => {
+      try {
+        const [
+          { data: epDb },
+          { data: initDb },
+          { data: featDb },
+          { data: taskDb },
+          { data: reqDb },
+          { data: relDb },
+          { data: auditDb },
+          { data: actDb },
+          { data: clDb },
+          { data: prodDb },
+          { data: modDb },
+          { data: grpDb },
+          { data: projDb },
+          { data: kindDb },
+          { data: typeDb },
+          { data: stageDb },
+          { data: userDb },
+          { data: srcDb }
+        ] = await Promise.all([
+          client.from('epics').select('*'),
+          client.from('initiatives').select('*'),
+          client.from('features').select('*'),
+          client.from('tasks').select('*'),
+          client.from('requests').select('*'),
+          client.from('releases').select('*'),
+          client.from('pm_audits').select('*'),
+          client.from('activity_kinds').select('*'),
+          client.from('clients').select('*'),
+          client.from('products').select('*'),
+          client.from('modules').select('*'),
+          client.from('project_groups').select('*'),
+          client.from('projects').select('*'),
+          client.from('task_kinds').select('*'),
+          client.from('task_types').select('*'),
+          client.from('project_stages').select('*'),
+          client.from('users').select('*'),
+          client.from('sources').select('*')
+        ]);
+
+        if (epDb) setEpics(epDb as Epic[]);
+        if (initDb) setInitiatives(initDb as Initiative[]);
+        if (featDb) {
+          setFeatures(
+            (featDb as any[]).map((f) => ({
+              id: f.id,
+              initiativeId: f.initiative_id,
+              code: f.code,
+              title: f.title,
+              description: f.description || '',
+              effortHours: f.effort_hours,
+              repeatabilityCount: f.repeatability_count,
+              salesImpact: f.sales_impact,
+              itsPriority: f.its_priority,
+              autoScore: Number(f.auto_score),
+              overrideScore: f.override_score !== null ? Number(f.override_score) : undefined,
+              overrideReason: f.override_reason || undefined,
+              releaseId: f.release_id,
+              status: f.status,
+              subsystem: f.subsystem || undefined,
+              taskKind: f.task_kind || undefined,
+              adoptionRate: f.adoption_rate,
+              mau: f.mau,
+              retentionRate: f.retention_rate,
+              segmentAdoption: f.segment_adoption,
+              revenueGenerated: Number(f.revenue_generated),
+              developmentCost: Number(f.development_cost),
+            }))
+          );
+        }
+        if (taskDb) {
+          setTasks(
+            (taskDb as any[]).map((t) => ({
+              id: t.id,
+              featureId: t.feature_id,
+              code: t.code,
+              title: t.title,
+              status: t.status,
+              developer: t.developer,
+              gitlabUrl: t.gitlab_url || undefined,
+            }))
+          );
+        }
+        if (reqDb) {
+          setRequests(
+            (reqDb as any[]).map((r) => ({
+              id: r.id,
+              code: r.code,
+              title: r.title,
+              source: r.source,
+              description: r.description || '',
+              status: r.status,
+              gitlabIssueId: r.gitlab_issue_id || undefined,
+              client: r.client || undefined,
+              project: r.project || undefined,
+              subsystem: r.subsystem || undefined,
+              taskKind: r.task_kind || undefined,
+              taskType: r.task_type || undefined,
+              authorId: r.author_id || undefined,
+              executorId: r.executor_id || undefined,
+              projectId: r.project_id || undefined,
+              productId: r.product_id || undefined,
+              moduleId: r.module_id || undefined,
+              taskKindId: r.task_kind_id || undefined,
+              taskTypeId: r.task_type_id || undefined,
+              projectStageId: r.project_stage_id || undefined,
+              estimate: r.estimate,
+              spent: r.spent,
+              epicId: r.epic_id || undefined,
+              associatedFeatureId: r.associated_feature_id || undefined,
+              createdAt: r.created_at,
+            }))
+          );
+        }
+        if (relDb) {
+          setReleases(
+            (relDb as any[]).map((r) => ({
+              id: r.id,
+              code: r.code,
+              title: r.title,
+              capacityHours: r.capacity_hours,
+              status: r.status,
+              approvedAt: r.approved_at || undefined,
+              exportLogs: r.export_logs || undefined,
+            }))
+          );
+        }
+        if (auditDb) {
+          setAuditLogs(
+            (auditDb as any[]).map((a) => ({
+              id: String(a.id),
+              timestamp: a.created_at,
+              userId: a.pm_email,
+              action: 'AUDIT',
+              details: `Фича: ${a.feature_name}. Предыдущий вес: ${a.old_score}. Новый вес: ${a.new_score}. Причина: ${a.reason}`,
+            }))
+          );
+        }
+        if (actDb) setActivityKinds(actDb as ActivityKind[]);
+        if (clDb) {
+          setClients(
+            (clDb as any[]).map((c) => ({
+              id: c.id,
+              name: c.name,
+              activityKindId: c.activity_kind_id,
+            }))
+          );
+        }
+        if (prodDb) setProducts(prodDb as Product[]);
+        if (modDb) {
+          setModules(
+            (modDb as any[]).map((m) => ({
+              id: m.id,
+              name: m.name,
+              gitlabLabel: m.gitlab_label,
+            }))
+          );
+        }
+        if (grpDb) {
+          setProjectGroups(
+            (grpDb as any[]).map((g) => ({
+              id: g.id,
+              name: g.name,
+              gitlabUrl: g.gitlab_url,
+            }))
+          );
+        }
+        if (projDb) {
+          setProjects(
+            (projDb as any[]).map((p) => ({
+              id: p.id,
+              name: p.name,
+              projectGroupId: p.project_group_id,
+              clientId: p.client_id,
+              productId: p.product_id,
+              moduleId: p.module_id,
+              gitlabUrl: p.gitlab_url,
+            }))
+          );
+        }
+        if (kindDb) {
+          setTaskKinds(
+            (kindDb as any[]).map((k) => ({
+              id: k.id,
+              name: k.name,
+              gitlabLabel: k.gitlab_label,
+              priorityPoints: k.priority_points,
+            }))
+          );
+        }
+        if (typeDb) {
+          setTaskTypes(
+            (typeDb as any[]).map((t) => ({
+              id: t.id,
+              name: t.name,
+              gitlabLabel: t.gitlab_label,
+            }))
+          );
+        }
+        if (stageDb) {
+          setProjectStages(
+            (stageDb as any[]).map((s) => ({
+              id: s.id,
+              name: s.name,
+              gitlabLabel: s.gitlab_label,
+            }))
+          );
+        }
+        if (userDb) {
+          setUsers(
+            (userDb as any[]).map((u) => ({
+              id: u.id,
+              fullName: u.full_name,
+              isEnabled: u.is_enabled,
+              email: u.email,
+              gitlabUser: u.gitlab_user,
+              role: u.role,
+            }))
+          );
+        }
+        if (srcDb) setSources(srcDb as DictionaryItem[]);
+      } catch (err) {
+        console.error('Supabase Hydration error:', err);
+      }
+    };
+
+    pullFromSupabase();
+  }, []);
+
+  // --- PERSIST STATE TO LOCALSTORAGE (For Fallbacks) ---
   useEffect(() => {
     localStorage.setItem('ep_data', JSON.stringify(epics));
   }, [epics]);
@@ -293,7 +527,6 @@ export function useProductState() {
     localStorage.setItem('audit_data', JSON.stringify(auditLogs));
   }, [auditLogs]);
 
-  // --- SAVE LOCAL STORAGE WITH COMPATIBLE KEYS ---
   useEffect(() => {
     localStorage.setItem('dict_activity_kinds', JSON.stringify(activityKinds));
   }, [activityKinds]);
@@ -308,7 +541,6 @@ export function useProductState() {
 
   useEffect(() => {
     localStorage.setItem('dict_modules', JSON.stringify(modules));
-    // Synced subsystem backup for fully resilient backward compatibility
     localStorage.setItem('dict_subsystems', JSON.stringify(modules));
   }, [modules]);
 
@@ -350,7 +582,7 @@ export function useProductState() {
   };
 
   // Log Audit Action
-  const logAction = (action: string, details: string) => {
+  const logAction = async (action: string, details: string) => {
     const newLog: AuditLog = {
       id: `log-${Date.now()}`,
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
@@ -362,113 +594,225 @@ export function useProductState() {
   };
 
   // Add / Delete Epic
-  const addEpic = (epic: Omit<Epic, 'id' | 'code'>) => {
+  const addEpic = async (epic: Omit<Epic, 'id' | 'code'>) => {
     const code = `EPIC-${String(epics.length + 1).padStart(3, '0')}`;
     const newEpic: Epic = { ...epic, id: `ep-${Date.now()}`, code };
     setEpics((prev) => [...prev, newEpic]);
     logAction('CREATE_EPIC', `Создан эпик ${code}: ${epic.title}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('epics').insert({
+        id: newEpic.id,
+        code: newEpic.code,
+        title: newEpic.title,
+        description: newEpic.description,
+        owner: newEpic.owner,
+      });
+    }
   };
 
-  const deleteEpic = (id: string) => {
+  const deleteEpic = async (id: string) => {
     setEpics((prev) => prev.filter((e) => e.id !== id));
     logAction('DELETE_EPIC', `Удален эпик ${id}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('epics').delete().eq('id', id);
+    }
   };
 
-  // --- CRUD HELPERS FOR THE NEW 12 ENTITIES ---
-
-  // 1. Clients (Клиенты)
-  const addClient = (name: string, activityKindId?: string) => {
+  // 1. Clients
+  const addClient = async (name: string, activityKindId?: string) => {
     const defaultActKind = activityKinds[0]?.id || 'act-1';
     const newItem: Client = { id: `cl-${Date.now()}`, name, activityKindId: activityKindId || defaultActKind };
     setClients((prev) => [...prev, newItem]);
     logAction('ADD_DICTIONARY', `Справочник: Добавлен клиент ${name}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('clients').insert({
+        id: newItem.id,
+        name: newItem.name,
+        activity_kind_id: newItem.activityKindId,
+      });
+    }
   };
-  const deleteClient = (id: string) => {
+  const deleteClient = async (id: string) => {
     setClients((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален клиент ${id}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('clients').delete().eq('id', id);
+    }
   };
 
-  // 2. Activity Kinds (Виды деятельности)
-  const addActivityKind = (name: string) => {
+  // 2. Activity Kinds
+  const addActivityKind = async (name: string) => {
     const newItem: ActivityKind = { id: `act-${Date.now()}`, name };
     setActivityKinds((prev) => [...prev, newItem]);
     logAction('ADD_DICTIONARY', `Справочник: Добавлен вид деятельности ${name}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('activity_kinds').insert({
+        id: newItem.id,
+        name: newItem.name,
+      });
+    }
   };
-  const deleteActivityKind = (id: string) => {
+  const deleteActivityKind = async (id: string) => {
     setActivityKinds((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален вид деятельности ${id}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('activity_kinds').delete().eq('id', id);
+    }
   };
 
-  // 3. Projects (Проекты)
-  const addProjectNew = (projectData: Omit<Project, 'id'>) => {
+  // 3. Projects
+  const addProjectNew = async (projectData: Omit<Project, 'id'>) => {
     const newItem: Project = { id: `pr-${Date.now()}`, ...projectData };
     setProjects((prev) => [...prev, newItem]);
     logAction('ADD_DICTIONARY', `Справочник: Добавлен проект ${projectData.name || '(Клиент + Модуль)'}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('projects').insert({
+        id: newItem.id,
+        name: newItem.name,
+        project_group_id: newItem.projectGroupId,
+        client_id: newItem.clientId,
+        product_id: newItem.productId,
+        module_id: newItem.moduleId,
+        gitlab_url: newItem.gitlabUrl,
+      });
+    }
   };
-  const deleteProjectNew = (id: string) => {
+  const deleteProjectNew = async (id: string) => {
     setProjects((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален проект ${id}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('projects').delete().eq('id', id);
+    }
   };
 
   const addProject = (name: string) => {
-    const newItem: Project = {
-      id: `pr-${Date.now()}`,
+    addProjectNew({
       name,
       projectGroupId: projectGroups[0]?.id || 'grp-1',
       clientId: clients[0]?.id || 'cl-1',
       productId: products[0]?.id || 'prod-2',
       moduleId: modules[0]?.id || 'mod-1',
       gitlabUrl: 'https://gitlab.corp.ru'
-    };
-    setProjects((prev) => [...prev, newItem]);
-    logAction('ADD_DICTIONARY', `Справочник: Добавлен проект ${name}`);
+    });
   };
   const deleteProject = (id: string) => {
     deleteProjectNew(id);
   };
 
-  // 4. Products (Продукты)
-  const addProduct = (name: string) => {
+  // 4. Products
+  const addProduct = async (name: string) => {
     const newItem: Product = { id: `prod-${Date.now()}`, name };
     setProducts((prev) => [...prev, newItem]);
     logAction('ADD_DICTIONARY', `Справочник: Добавлен продукт ${name}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('products').insert({
+        id: newItem.id,
+        name: newItem.name,
+      });
+    }
   };
-  const deleteProduct = (id: string) => {
+  const deleteProduct = async (id: string) => {
     setProducts((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален продукт ${id}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('products').delete().eq('id', id);
+    }
   };
 
-  // 5. Modules (Модули)
-  const addModule = (name: string, gitlabLabel?: string) => {
+  // 5. Modules
+  const addModule = async (name: string, gitlabLabel?: string) => {
     const newItem: Module = { id: `mod-${Date.now()}`, name, gitlabLabel: gitlabLabel || 'module::custom' };
     setModules((prev) => [...prev, newItem]);
     logAction('ADD_DICTIONARY', `Справочник: Добавлен модуль ${name}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('modules').insert({
+        id: newItem.id,
+        name: newItem.name,
+        gitlab_label: newItem.gitlabLabel,
+      });
+    }
   };
-  const deleteModule = (id: string) => {
+  const deleteModule = async (id: string) => {
     setModules((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален модуль ${id}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('modules').delete().eq('id', id);
+    }
   };
 
-  // 6. Project Groups (Группы проектов)
-  const addProjectGroup = (name: string, gitlabUrl: string) => {
+  // 6. Project Groups
+  const addProjectGroup = async (name: string, gitlabUrl: string) => {
     const newItem: ProjectGroup = { id: `grp-${Date.now()}`, name, gitlabUrl };
     setProjectGroups((prev) => [...prev, newItem]);
     logAction('ADD_DICTIONARY', `Справочник: Добавлена группа проектов ${name}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('project_groups').insert({
+        id: newItem.id,
+        name: newItem.name,
+        gitlab_url: newItem.gitlabUrl,
+      });
+    }
   };
-  const deleteProjectGroup = (id: string) => {
+  const deleteProjectGroup = async (id: string) => {
     setProjectGroups((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удалена группа проектов ${id}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('project_groups').delete().eq('id', id);
+    }
   };
 
-  // 7. Task Kinds (Виды задач)
-  const addTaskKindNew = (name: string, gitlabLabel?: string) => {
-    const newItem: TaskKind = { id: `kind-${Date.now()}`, name, gitlabLabel: gitlabLabel || 'custom-label' };
+  // 7. Task Kinds
+  const addTaskKindNew = async (name: string, gitlabLabel?: string) => {
+    const newItem: TaskKind = { id: `kind-${Date.now()}`, name, gitlabLabel: gitlabLabel || 'custom-label', priorityPoints: 3 };
     setTaskKinds((prev) => [...prev, newItem]);
     logAction('ADD_DICTIONARY', `Справочник: Добавлен вид задачи ${name}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('task_kinds').insert({
+        id: newItem.id,
+        name: newItem.name,
+        gitlab_label: newItem.gitlabLabel,
+        priority_points: newItem.priorityPoints,
+      });
+    }
   };
-  const deleteTaskKindNew = (id: string) => {
+  const deleteTaskKindNew = async (id: string) => {
     setTaskKinds((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален вид задачи ${id}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('task_kinds').delete().eq('id', id);
+    }
   };
 
   const addTaskKind = (name: string, gitlabLabel?: string) => {
@@ -478,15 +822,29 @@ export function useProductState() {
     deleteTaskKindNew(id);
   };
 
-  // 8. Task Types (Типы задач)
-  const addTaskTypeNew = (name: string, gitlabLabel?: string) => {
+  // 8. Task Types
+  const addTaskTypeNew = async (name: string, gitlabLabel?: string) => {
     const newItem: TaskType = { id: `type-${Date.now()}`, name, gitlabLabel: gitlabLabel || 'custom-type-label' };
     setTaskTypes((prev) => [...prev, newItem]);
     logAction('ADD_DICTIONARY', `Справочник: Добавлен тип задачи ${name}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('task_types').insert({
+        id: newItem.id,
+        name: newItem.name,
+        gitlab_label: newItem.gitlabLabel,
+      });
+    }
   };
-  const deleteTaskTypeNew = (id: string) => {
+  const deleteTaskTypeNew = async (id: string) => {
     setTaskTypes((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален тип задачи ${id}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('task_types').delete().eq('id', id);
+    }
   };
 
   const addTaskType = (name: string, gitlabLabel?: string) => {
@@ -496,78 +854,165 @@ export function useProductState() {
     deleteTaskTypeNew(id);
   };
 
-  // 9. Project Stages (Этапы проектов)
-  const addProjectStage = (name: string, gitlabLabel: string) => {
+  // 9. Project Stages
+  const addProjectStage = async (name: string, gitlabLabel: string) => {
     const newItem: ProjectStage = { id: `stg-${Date.now()}`, name, gitlabLabel };
     setProjectStages((prev) => [...prev, newItem]);
     logAction('ADD_DICTIONARY', `Справочник: Добавлен этап проекта ${name}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('project_stages').insert({
+        id: newItem.id,
+        name: newItem.name,
+        gitlab_label: newItem.gitlabLabel,
+      });
+    }
   };
-  const deleteProjectStage = (id: string) => {
+  const deleteProjectStage = async (id: string) => {
     setProjectStages((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален этап проекта ${id}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('project_stages').delete().eq('id', id);
+    }
   };
 
-  // 11. Users (Пользователи)
-  const addUser = (userData: Omit<User, 'id'>) => {
+  // 11. Users
+  const addUser = async (userData: Omit<User, 'id'>) => {
     const newItem: User = { id: `usr-${Date.now()}`, ...userData };
     setUsers((prev) => [...prev, newItem]);
     logAction('ADD_DICTIONARY', `Справочник: Добавлен пользователь ${userData.fullName}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('users').insert({
+        id: newItem.id,
+        full_name: newItem.fullName,
+        is_enabled: newItem.isEnabled,
+        email: newItem.email,
+        gitlab_user: newItem.gitlabUser,
+        role: newItem.role,
+      });
+    }
   };
-  const deleteUser = (id: string) => {
+  const deleteUser = async (id: string) => {
     setUsers((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален пользователь ${id}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('users').delete().eq('id', id);
+    }
   };
 
-  const addSource = (name: string) => {
+  const addSource = async (name: string) => {
     const newItem = { id: `src-${Date.now()}`, name };
     setSources((prev) => [...prev, newItem]);
     logAction('ADD_DICTIONARY', `Справочник: Добавлен источник ${name}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('sources').insert({
+        id: newItem.id,
+        name: newItem.name,
+      });
+    }
   };
-  const deleteSource = (id: string) => {
+  const deleteSource = async (id: string) => {
     setSources((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален источник ${id}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('sources').delete().eq('id', id);
+    }
   };
 
   // Add / Edit Initiative
-  const addInitiative = (init: Omit<Initiative, 'id' | 'code'>) => {
+  const addInitiative = async (init: Omit<Initiative, 'id' | 'code'>) => {
     const code = `INIT-${100 + initiatives.length + 1}`;
     const newInit: Initiative = { ...init, id: `in-${Date.now()}`, code };
     setInitiatives((prev) => [...prev, newInit]);
     logAction('CREATE_INITIATIVE', `Создана инициатива ${code}: ${init.title}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('initiatives').insert({
+        id: newInit.id,
+        epic_id: newInit.epicId,
+        code: newInit.code,
+        title: newInit.title,
+        description: newInit.description,
+        status: newInit.status,
+      });
+    }
   };
 
   // Transition feature status
-  const moveFeatureToEstimation = (featureId: string) => {
+  const moveFeatureToEstimation = async (featureId: string) => {
     setFeatures((prev) =>
       prev.map((f) => {
         if (f.id === featureId) {
           logAction('MOVE_TO_ESTIMATION', `Фича ${f.code} отправлена на оценку трудоемкости`);
-          return { ...f, status: 'На оценке' };
+          const updated = { ...f, status: 'На оценке' as const };
+          const client = supabase;
+          if (isSupabaseConfigured && client) {
+            client.from('features').update({ status: 'На оценке' }).eq('id', featureId).then();
+          }
+          return updated;
         }
         return f;
       })
     );
   };
 
-  const fillFeatureEffort = (featureId: string, hours: number) => {
+  const fillFeatureEffort = async (featureId: string, hours: number) => {
     setFeatures((prev) =>
       prev.map((f) => {
         if (f.id === featureId) {
           logAction('FILL_ESTIMATION', `Фича ${f.code} оценена: ${hours}ч.`);
-          return { ...f, effortHours: hours, status: 'Оценено', developmentCost: hours * 2000 };
+          const updated = { ...f, effortHours: hours, status: 'Оценено' as const, developmentCost: hours * 2000 };
+          const client = supabase;
+          if (isSupabaseConfigured && client) {
+            client
+              .from('features')
+              .update({
+                effort_hours: hours,
+                status: 'Оценено',
+                development_cost: hours * 2000,
+              })
+              .eq('id', featureId)
+              .then();
+          }
+          return updated;
         }
         return f;
       })
     );
   };
 
-  const batchFillFeatureEfforts = (updates: { id: string; hours: number }[]) => {
+  const batchFillFeatureEfforts = async (updates: { id: string; hours: number }[]) => {
     setFeatures((prev) =>
       prev.map((f) => {
         const update = updates.find((u) => u.id === f.id);
         if (update) {
           logAction('BATCH_ESTIMATION', `Фича ${f.code} оценена пакетом: ${update.hours}ч.`);
-          return { ...f, effortHours: update.hours, status: 'Оценено', developmentCost: update.hours * 2000 };
+          const updated = { ...f, effortHours: update.hours, status: 'Оценено' as const, developmentCost: update.hours * 2000 };
+          const client = supabase;
+          if (isSupabaseConfigured && client) {
+            client
+              .from('features')
+              .update({
+                effort_hours: update.hours,
+                status: 'Оценено',
+                development_cost: update.hours * 2000,
+              })
+              .eq('id', f.id)
+              .then();
+          }
+          return updated;
         }
         return f;
       })
@@ -596,19 +1041,70 @@ export function useProductState() {
     };
     setFeatures((prev) => [...prev, newFeat]);
     logAction('CREATE_FEATURE', `Создана фича ${code}: ${feat.title} (AutoScore: ${autoScore})`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      client.from('features').insert({
+        id: newFeat.id,
+        initiative_id: newFeat.initiativeId,
+        code: newFeat.code,
+        title: newFeat.title,
+        description: newFeat.description,
+        effort_hours: newFeat.effortHours,
+        repeatability_count: newFeat.repeatabilityCount,
+        sales_impact: newFeat.salesImpact,
+        its_priority: newFeat.itsPriority,
+        auto_score: newFeat.autoScore,
+        status: newFeat.status,
+        subsystem: newFeat.subsystem,
+        task_kind: newFeat.taskKind,
+        adoption_rate: newFeat.adoptionRate,
+        mau: newFeat.mau,
+        retention_rate: newFeat.retentionRate,
+        segment_adoption: newFeat.segmentAdoption,
+        revenue_generated: newFeat.revenueGenerated,
+        development_cost: newFeat.developmentCost,
+      }).then();
+    }
+
     return newFeat.id;
   };
 
   // Update Feature
-  const updateFeature = (updatedFeat: Feature) => {
+  const updateFeature = async (updatedFeat: Feature) => {
     const autoScore = recalculateAutoScore(updatedFeat);
     const cost = updatedFeat.effortHours * 2000;
     const finalFeat = { ...updatedFeat, autoScore, developmentCost: cost };
     setFeatures((prev) => prev.map((f) => (f.id === updatedFeat.id ? finalFeat : f)));
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('features').update({
+        title: finalFeat.title,
+        description: finalFeat.description,
+        effort_hours: finalFeat.effortHours,
+        repeatability_count: finalFeat.repeatabilityCount,
+        sales_impact: finalFeat.salesImpact,
+        its_priority: finalFeat.itsPriority,
+        auto_score: finalFeat.autoScore,
+        override_score: finalFeat.overrideScore,
+        override_reason: finalFeat.overrideReason,
+        release_id: finalFeat.releaseId,
+        status: finalFeat.status,
+        subsystem: finalFeat.subsystem,
+        task_kind: finalFeat.taskKind,
+        adoption_rate: finalFeat.adoptionRate,
+        mau: finalFeat.mau,
+        retention_rate: finalFeat.retentionRate,
+        segment_adoption: finalFeat.segmentAdoption,
+        revenue_generated: finalFeat.revenueGenerated,
+        development_cost: finalFeat.developmentCost,
+      }).eq('id', finalFeat.id);
+    }
   };
 
   // PM Score Override
-  const overrideFeatureScore = (featureId: string, overrideScore: number | undefined, reason: string) => {
+  const overrideFeatureScore = async (featureId: string, overrideScore: number | undefined, reason: string) => {
     setFeatures((prev) =>
       prev.map((f) => {
         if (f.id === featureId) {
@@ -618,6 +1114,24 @@ export function useProductState() {
             'PRIORITY_OVERRIDE',
             `PM изменил приоритет ${f.code}: с ${prevScore} на ${targetScore}. Причина: ${reason}`
           );
+
+          const client = supabase;
+          if (isSupabaseConfigured && client) {
+            client.from('features').update({
+              override_score: overrideScore,
+              override_reason: overrideScore !== undefined ? reason : null,
+            }).eq('id', featureId).then();
+
+            client.from('pm_audits').insert({
+              feature_id: featureId,
+              feature_name: f.title,
+              old_score: prevScore,
+              new_score: targetScore,
+              reason: reason,
+              pm_email: 'pm_current@corp.ru',
+            }).then();
+          }
+
           return {
             ...f,
             overrideScore,
@@ -630,11 +1144,20 @@ export function useProductState() {
   };
 
   // Reset Priority Override
-  const resetFeatureOverride = (featureId: string) => {
+  const resetFeatureOverride = async (featureId: string) => {
     setFeatures((prev) =>
       prev.map((f) => {
         if (f.id === featureId) {
           logAction('RESET_PRIORITY', `Сброс ручного приоритета для ${f.code} к системному значению ${f.autoScore}`);
+
+          const client = supabase;
+          if (isSupabaseConfigured && client) {
+            client.from('features').update({
+              override_score: null,
+              override_reason: null,
+            }).eq('id', featureId).then();
+          }
+
           return {
             ...f,
             overrideScore: undefined,
@@ -647,14 +1170,26 @@ export function useProductState() {
   };
 
   // Add Task
-  const addTask = (task: Omit<Task, 'id' | 'code'>) => {
+  const addTask = async (task: Omit<Task, 'id' | 'code'>) => {
     const code = `TASK-${1000 + tasks.length + 1}`;
     const newTask: Task = { ...task, id: `t-${Date.now()}`, code };
     setTasks((prev) => [...prev, newTask]);
     logAction('CREATE_TASK', `Добавлена задача ${code}: ${task.title} к фиче ${task.featureId}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('tasks').insert({
+        id: newTask.id,
+        feature_id: newTask.featureId,
+        code: newTask.code,
+        title: newTask.title,
+        status: newTask.status,
+        developer: newTask.developer,
+        gitlab_url: newTask.gitlabUrl,
+      });
+    }
   };
 
-  // Helper helper to render constructed Project Name
   const getProjectName = (proj: Project): string => {
     if (proj.name && proj.name.trim() !== '') {
       return proj.name;
@@ -664,7 +1199,6 @@ export function useProductState() {
     return `${c ? c.name : 'Unknown Client'} + ${m ? m.name : 'Unknown Module'}`;
   };
 
-  // Helper validation logic checking for new mandatory attributes (except status 'Неразобранные')
   const isRequestFullyConfigured = (req: Partial<Request>): boolean => {
     return !!(
       req.gitlabIssueId &&
@@ -680,10 +1214,9 @@ export function useProductState() {
   };
 
   // Add Request
-  const addRequest = (req: Omit<Request, 'id' | 'code' | 'createdAt'>) => {
+  const addRequest = async (req: Omit<Request, 'id' | 'code' | 'createdAt'>) => {
     const code = `REQ-${100 + requests.length + 1}`;
 
-    // Fill legacy fields for backward compatibility / logic mapping:
     let legacyClient = '';
     let legacyProject = '';
     let legacySubsystem = '';
@@ -733,6 +1266,37 @@ export function useProductState() {
     setRequests((prev) => [...prev, newReq]);
     logAction('CREATE_REQUEST', `Получен запрос ${code}: ${req.title} (${req.source})`);
 
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('requests').insert({
+        id: newReq.id,
+        code: newReq.code,
+        title: newReq.title,
+        source: newReq.source,
+        description: newReq.description,
+        status: newReq.status,
+        gitlab_issue_id: newReq.gitlabIssueId,
+        client: newReq.client,
+        project: newReq.project,
+        subsystem: newReq.subsystem,
+        task_kind: newReq.taskKind,
+        task_type: newReq.taskType,
+        author_id: newReq.authorId,
+        executor_id: newReq.executorId,
+        project_id: newReq.projectId,
+        product_id: newReq.productId,
+        module_id: newReq.moduleId,
+        task_kind_id: newReq.taskKindId,
+        task_type_id: newReq.taskTypeId,
+        project_stage_id: newReq.projectStageId,
+        estimate: newReq.estimate,
+        spent: newReq.spent,
+        epic_id: newReq.epicId,
+        associated_feature_id: newReq.associatedFeatureId,
+        created_at: newReq.createdAt,
+      });
+    }
+
     // If fully configured, accepted, and bound, update repeatability
     if (validatedStatus === 'Принят' && req.associatedFeatureId) {
       incrementFeatureRepeatability(req.associatedFeatureId, code);
@@ -740,8 +1304,7 @@ export function useProductState() {
   };
 
   // Update request inline details
-  const updateRequestDetails = (updatedReq: Request) => {
-    // Re-fill legacy fields for logic mapping:
+  const updateRequestDetails = async (updatedReq: Request) => {
     let legacyClient = '';
     let legacyProject = '';
     let legacySubsystem = '';
@@ -778,14 +1341,46 @@ export function useProductState() {
 
     setRequests((prev) => prev.map((r) => (r.id === updatedReq.id ? payload : r)));
     logAction('UPDATE_REQUEST_DETAILS', `Обновлены метаданные запроса ${updatedReq.code}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('requests').update({
+        title: payload.title,
+        source: payload.source,
+        description: payload.description,
+        status: payload.status,
+        gitlab_issue_id: payload.gitlabIssueId,
+        client: payload.client,
+        project: payload.project,
+        subsystem: payload.subsystem,
+        task_kind: payload.taskKind,
+        task_type: payload.taskType,
+        author_id: payload.authorId,
+        executor_id: payload.executorId,
+        project_id: payload.projectId,
+        product_id: payload.productId,
+        module_id: payload.moduleId,
+        task_kind_id: payload.taskKindId,
+        task_type_id: payload.taskTypeId,
+        project_stage_id: payload.projectStageId,
+        estimate: payload.estimate,
+        spent: payload.spent,
+        epic_id: payload.epicId,
+        associated_feature_id: payload.associatedFeatureId,
+      }).eq('id', payload.id);
+    }
   };
 
   // Drag-and-drop helpers to update Request's Epic
-  const updateRequestEpic = (requestId: string, epicId: string) => {
+  const updateRequestEpic = async (requestId: string, epicId: string) => {
     setRequests((prev) =>
       prev.map((r) => {
         if (r.id === requestId) {
           logAction('REQUEST_EPIC_UPDATE_DND', `Запрос ${r.code} перенесен в Эпик ${epicId} через drag-and-drop`);
+          const client = supabase;
+          if (isSupabaseConfigured && client) {
+            client.from('requests').update({ epic_id: epicId }).eq('id', requestId).then();
+          }
           return { ...r, epicId };
         }
         return r;
@@ -794,10 +1389,9 @@ export function useProductState() {
   };
 
   // Drag-and-drop helpers to bind request to a feature
-  const associateRequestWithFeature = (requestId: string, featureId: string) => {
+  const associateRequestWithFeature = async (requestId: string, featureId: string) => {
     let targetEpicId: string | undefined = undefined;
 
-    // Find the feature to see its Epic (if any)
     const feat = features.find((f) => f.id === featureId);
     if (feat) {
       const init = initiatives.find((i) => i.id === feat.initiativeId);
@@ -813,12 +1407,24 @@ export function useProductState() {
             'REQUEST_FEATURE_BIND_DND',
             `Запрос ${r.code} привязан к Фиче ${featureId} через drag-and-drop`
           );
-          return {
+
+          const updated = {
             ...r,
             associatedFeatureId: featureId,
-            status: 'Принят' as const, // auto-approve upon direct feature association
-            epicId: targetEpicId || r.epicId, // auto-update epic to align with feature's epic
+            status: 'Принят' as const,
+            epicId: targetEpicId || r.epicId,
           };
+
+          const client = supabase;
+          if (isSupabaseConfigured && client) {
+            client.from('requests').update({
+              associated_feature_id: featureId,
+              status: 'Принят',
+              epic_id: updated.epicId,
+            }).eq('id', requestId).then();
+          }
+
+          return updated;
         }
         return r;
       })
@@ -828,14 +1434,12 @@ export function useProductState() {
   };
 
   // Convert a request directly to a duplicate Feature and link them together
-  const convertRequestToFeature = (requestId: string) => {
+  const convertRequestToFeature = async (requestId: string) => {
     const req = requests.find(r => r.id === requestId);
     if (!req) return;
 
-    // Use the first initiative as default
     const defaultInitiativeId = initiatives[0]?.id || 'in-1';
 
-    // Add new duplicate feature
     const newFeatureId = addFeature({
       initiativeId: defaultInitiativeId,
       title: req.title,
@@ -849,11 +1453,17 @@ export function useProductState() {
       taskKind: req.taskKind || 'Фича (Feature)'
     });
 
-    // Update Request status and link it to the newly created Feature
     setRequests((prev) =>
       prev.map((r) => {
         if (r.id === requestId) {
           logAction('REQUEST_CONVERTED_TO_FEATURE', `Запрос ${r.code} преобразован в дублирующую фичу ${newFeatureId}`);
+          const client = supabase;
+          if (isSupabaseConfigured && client) {
+            client.from('requests').update({
+              associated_feature_id: newFeatureId,
+              status: 'Принят',
+            }).eq('id', requestId).then();
+          }
           return {
             ...r,
             associatedFeatureId: newFeatureId,
@@ -865,13 +1475,12 @@ export function useProductState() {
     );
   };
 
-  // Classify Request (Enforces 9 parameters constraint for Accepted/Rejected/In Discovery, allows Unsorted freely)
+  // Classify Request
   const classifyRequest = (requestId: string, status: 'Отклонен' | 'В проработку' | 'Принят' | 'Неразобранные', associatedFeatureId?: string | null) => {
     let errorOccurred = false;
     setRequests((prev) =>
       prev.map((r) => {
         if (r.id === requestId) {
-          // Validation is compulsory for Accepted ('Принят'), Rejected ('Отклонен') and In Discovery ('В проработку')
           if ((status === 'Принят' || status === 'Отклонен' || status === 'В проработку') && !isRequestFullyConfigured(r)) {
             alert(`Ошибка! Невозможно изменить статус запроса ${r.code} на "${status}". Сначала заполните все обязательные параметры.`);
             errorOccurred = true;
@@ -881,10 +1490,18 @@ export function useProductState() {
           const oldStatus = r.status;
           logAction('CLASSIFY_REQUEST', `Запрос ${r.code} классифицирован: ${oldStatus || 'Неразобранные'} -> ${status}`);
 
+          const client = supabase;
+          if (isSupabaseConfigured && client) {
+            client.from('requests').update({
+              status: status,
+              associated_feature_id: associatedFeatureId || null,
+            }).eq('id', requestId).then();
+          }
+
           if (status === 'Принят' && associatedFeatureId) {
             incrementFeatureRepeatability(associatedFeatureId, r.code);
           }
-          return { ...r, status, associatedFeatureId };
+          return { ...r, status, associatedFeatureId: associatedFeatureId || undefined };
         }
         return r;
       })
@@ -899,6 +1516,15 @@ export function useProductState() {
           const updated = { ...f, repeatabilityCount: f.repeatabilityCount + 1 };
           updated.autoScore = recalculateAutoScore(updated);
           logAction('AUTO_WEIGHT_UPDATE', `Повторяемость фичи ${f.code} выросла до ${updated.repeatabilityCount} из-за сигнала ${triggerCode}. Новый авто-скор: ${updated.autoScore}`);
+
+          const client = supabase;
+          if (isSupabaseConfigured && client) {
+            client.from('features').update({
+              repeatability_count: updated.repeatabilityCount,
+              auto_score: updated.autoScore,
+            }).eq('id', featureId).then();
+          }
+
           return updated;
         }
         return f;
@@ -907,18 +1533,31 @@ export function useProductState() {
   };
 
   // Release Planner actions
-  const updateDraftCapacity = (capacity: number) => {
+  const updateDraftCapacity = async (capacity: number) => {
     setReleases((prev) =>
-      prev.map((r) => (r.id === 'rel-draft' ? { ...r, capacityHours: capacity } : r))
+      prev.map((r) => {
+        if (r.id === 'rel-draft') {
+          const client = supabase;
+          if (isSupabaseConfigured && client) {
+            client.from('releases').update({ capacity_hours: capacity }).eq('id', 'rel-draft').then();
+          }
+          return { ...r, capacityHours: capacity };
+        }
+        return r;
+      })
     );
   };
 
-  const toggleFeatureInRelease = (featureId: string, releaseId: string | null) => {
+  const toggleFeatureInRelease = async (featureId: string, releaseId: string | null) => {
     setFeatures((prev) =>
       prev.map((f) => {
         if (f.id === featureId) {
           const actionText = releaseId ? `Добавление в релиз ${releaseId}` : 'Удаление из релиза';
           logAction('RELEASE_UPDATE_FEATURE', `Фича ${f.code}: ${actionText}`);
+          const client = supabase;
+          if (isSupabaseConfigured && client) {
+            client.from('features').update({ release_id: releaseId }).eq('id', featureId).then();
+          }
           return { ...f, releaseId };
         }
         return f;
@@ -927,15 +1566,24 @@ export function useProductState() {
   };
 
   // Clear draft features
-  const clearDraftFeatures = () => {
+  const clearDraftFeatures = async () => {
     setFeatures((prev) =>
-      prev.map((f) => (f.releaseId === 'rel-draft' ? { ...f, releaseId: null } : f))
+      prev.map((f) => {
+        if (f.releaseId === 'rel-draft') {
+          const client = supabase;
+          if (isSupabaseConfigured && client) {
+            client.from('features').update({ release_id: null }).eq('id', f.id).then();
+          }
+          return { ...f, releaseId: null };
+        }
+        return f;
+      })
     );
     logAction('RELEASE_CLEAR_DRAFT', `Все фичи удалены из черновика релиза.`);
   };
 
-  // Auto-allocate Features to draft release (Capacity constrained Knapsack algorithm based on Score)
-  const autoAllocateDraftFeatures = (capacityLimit: number) => {
+  // Auto-allocate Features to draft release
+  const autoAllocateDraftFeatures = async (capacityLimit: number) => {
     const candidates = features.filter(f => f.releaseId !== 'rel-1');
     const sorted = [...candidates].sort((a, b) => {
       const scoreA = a.overrideScore !== undefined ? a.overrideScore : a.autoScore;
@@ -959,11 +1607,15 @@ export function useProductState() {
     setFeatures((prev) =>
       prev.map((f) => {
         if (f.releaseId === 'rel-1') return f;
-        if (allocatedIds.includes(f.id)) {
-          return { ...f, releaseId: 'rel-draft' };
-        } else {
-          return { ...f, releaseId: null };
+        const willBeAllocated = allocatedIds.includes(f.id);
+        const nextReleaseId = willBeAllocated ? 'rel-draft' : null;
+
+        const client = supabase;
+        if (isSupabaseConfigured && client) {
+          client.from('features').update({ release_id: nextReleaseId }).eq('id', f.id).then();
         }
+
+        return { ...f, releaseId: nextReleaseId };
       })
     );
 
@@ -973,8 +1625,8 @@ export function useProductState() {
     );
   };
 
-  // Approve Release (locks Draft and exports mock Tasks to GitLab)
-  const approveDraftRelease = () => {
+  // Approve Release
+  const approveDraftRelease = async () => {
     const draftRelease = releases.find(r => r.id === 'rel-draft');
     if (!draftRelease) return;
 
@@ -1030,7 +1682,7 @@ export function useProductState() {
     setFeatures((prev) =>
       prev.map((f) => {
         if (f.releaseId === 'rel-draft') {
-          return {
+          const updated = {
             ...f,
             releaseId: newApprovedId,
             adoptionRate: Math.floor(Math.random() * 40 + 20),
@@ -1043,6 +1695,20 @@ export function useProductState() {
             },
             revenueGenerated: Math.floor(Math.random() * 400000 + 50000)
           };
+
+          const client = supabase;
+          if (isSupabaseConfigured && client) {
+            client.from('features').update({
+              release_id: updated.releaseId,
+              adoption_rate: updated.adoptionRate,
+              mau: updated.mau,
+              retention_rate: updated.retentionRate,
+              segment_adoption: updated.segmentAdoption,
+              revenue_generated: updated.revenueGenerated,
+            }).eq('id', f.id).then();
+          }
+
+          return updated;
         }
         return f;
       })
@@ -1053,20 +1719,48 @@ export function useProductState() {
       `PM утвердил релиз ${newApprovedCode}. Автоматически экспортировано задач в GitLab. Продуктовая телеметрия активирована.`
     );
 
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('releases').insert({
+        id: newApprovedRelease.id,
+        code: newApprovedRelease.code,
+        title: newApprovedRelease.title,
+        capacity_hours: newApprovedRelease.capacityHours,
+        status: 'Approved',
+        approved_at: newApprovedRelease.approvedAt,
+        export_logs: newApprovedRelease.exportLogs,
+      });
+
+      await client.from('releases').update({
+        code: `RELEASE-PLAN-${new Date().getFullYear() + 1}`,
+        title: `План релиза: Следующая Итерация`,
+        capacity_hours: 160,
+        status: 'Draft'
+      }).eq('id', 'rel-draft');
+    }
+
     return newApprovedCode;
   };
 
-  const updateGitLabSettings = (newSettings: GitLabSettings) => {
+  const updateGitLabSettings = async (newSettings: GitLabSettings) => {
     setGitLabSettings(newSettings);
     logAction('UPDATE_GITLAB_SETTINGS', `Обновлены настройки интеграции GitLab для группы проектов "${newSettings.projectGroup}"`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('gitlab_settings').upsert({
+        id: 1,
+        server_url: newSettings.serverUrl,
+        personal_access_token: newSettings.personalAccessToken,
+        project_group: newSettings.projectGroup,
+      });
+    }
   };
 
   const importGitLabIssues = () => {
-    // Resolve project name - use first project or create default
     const proj = projects[0] || { id: 'pr-1', productId: 'prod-2', moduleId: 'mod-1' };
     const projectName = proj ? getProjectName(proj) : 'Неразобранный проект';
 
-    // Simulated Issues pulled from configured projectGroup
     const simulatedIssues = [
       {
         gitlabId: '#1201',
@@ -1141,6 +1835,39 @@ export function useProductState() {
       `Импортировано ${importedRequests.length} задач из GitLab группы проектов "${gitLabSettings.projectGroup}".`
     );
 
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      importedRequests.forEach((newReq) => {
+        client.from('requests').insert({
+          id: newReq.id,
+          code: newReq.code,
+          title: newReq.title,
+          source: newReq.source,
+          description: newReq.description,
+          status: newReq.status,
+          gitlab_issue_id: newReq.gitlabIssueId,
+          client: newReq.client,
+          project: newReq.project,
+          subsystem: newReq.subsystem,
+          task_kind: newReq.taskKind,
+          task_type: newReq.taskType,
+          author_id: newReq.authorId,
+          executor_id: newReq.executorId,
+          project_id: newReq.projectId,
+          product_id: newReq.productId,
+          module_id: newReq.moduleId,
+          task_kind_id: newReq.taskKindId,
+          task_type_id: newReq.taskTypeId,
+          project_stage_id: newReq.projectStageId,
+          estimate: newReq.estimate,
+          spent: newReq.spent,
+          epic_id: newReq.epicId,
+          associated_feature_id: newReq.associatedFeatureId,
+          created_at: newReq.createdAt,
+        }).then();
+      });
+    }
+
     return {
       success: true,
       count: importedRequests.length,
@@ -1155,7 +1882,7 @@ export function useProductState() {
     };
   };
 
-  // Automated simulated GitLab imports for all entities
+  // Simulated GitLab imports for dictionaries
   const importClientsFromGitLab = () => {
     const defaultActKind = activityKinds[0]?.id || 'act-1';
     const newItems: Client[] = [
@@ -1166,6 +1893,14 @@ export function useProductState() {
     setClients((prev) => {
       const existingNames = prev.map(i => i.name);
       const filtered = newItems.filter(i => !existingNames.includes(i.name));
+
+      const client = supabase;
+      if (isSupabaseConfigured && client) {
+        filtered.forEach(c => {
+          client.from('clients').insert({ id: c.id, name: c.name, activity_kind_id: c.activityKindId }).then();
+        });
+      }
+
       return [...prev, ...filtered];
     });
     logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано клиентов из группы проектов ${gitLabSettings.projectGroup}`);
@@ -1180,6 +1915,14 @@ export function useProductState() {
     setActivityKinds((prev) => {
       const existingNames = prev.map(i => i.name);
       const filtered = newItems.filter(i => !existingNames.includes(i.name));
+
+      const client = supabase;
+      if (isSupabaseConfigured && client) {
+        filtered.forEach(a => {
+          client.from('activity_kinds').insert({ id: a.id, name: a.name }).then();
+        });
+      }
+
       return [...prev, ...filtered];
     });
     logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано видов деятельности из группы проектов ${gitLabSettings.projectGroup}`);
@@ -1210,6 +1953,22 @@ export function useProductState() {
     setProjects((prev) => {
       const existingNames = prev.map(i => i.name);
       const filtered = newItems.filter(i => !existingNames.includes(i.name));
+
+      const client = supabase;
+      if (isSupabaseConfigured && client) {
+        filtered.forEach(p => {
+          client.from('projects').insert({
+            id: p.id,
+            name: p.name,
+            project_group_id: p.projectGroupId,
+            client_id: p.clientId,
+            product_id: p.productId,
+            module_id: p.moduleId,
+            gitlab_url: p.gitlabUrl,
+          }).then();
+        });
+      }
+
       return [...prev, ...filtered];
     });
     logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано проектов из группы проектов ${gitLabSettings.projectGroup}`);
@@ -1224,6 +1983,14 @@ export function useProductState() {
     setProducts((prev) => {
       const existingNames = prev.map(i => i.name);
       const filtered = newItems.filter(i => !existingNames.includes(i.name));
+
+      const client = supabase;
+      if (isSupabaseConfigured && client) {
+        filtered.forEach(p => {
+          client.from('products').insert({ id: p.id, name: p.name }).then();
+        });
+      }
+
       return [...prev, ...filtered];
     });
     logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано продуктов из группы проектов ${gitLabSettings.projectGroup}`);
@@ -1238,6 +2005,14 @@ export function useProductState() {
     setModules((prev) => {
       const existingNames = prev.map(i => i.name);
       const filtered = newItems.filter(i => !existingNames.includes(i.name));
+
+      const client = supabase;
+      if (isSupabaseConfigured && client) {
+        filtered.forEach(m => {
+          client.from('modules').insert({ id: m.id, name: m.name, gitlab_label: m.gitlabLabel }).then();
+        });
+      }
+
       return [...prev, ...filtered];
     });
     logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано модулей из группы проектов ${gitLabSettings.projectGroup}`);
@@ -1251,6 +2026,14 @@ export function useProductState() {
     setProjectGroups((prev) => {
       const existingNames = prev.map(i => i.name);
       const filtered = newItems.filter(i => !existingNames.includes(i.name));
+
+      const client = supabase;
+      if (isSupabaseConfigured && client) {
+        filtered.forEach(g => {
+          client.from('project_groups').insert({ id: g.id, name: g.name, gitlab_url: g.gitlabUrl }).then();
+        });
+      }
+
       return [...prev, ...filtered];
     });
     logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано групп проектов из группы проектов ${gitLabSettings.projectGroup}`);
@@ -1259,12 +2042,25 @@ export function useProductState() {
 
   const importTaskKindsFromGitLab = () => {
     const newItems: TaskKind[] = [
-      { id: `kind-gl-1`, name: 'Ошибка (Bug) (GitLab)', gitlabLabel: 'bug' },
-      { id: `kind-gl-2`, name: 'Фича (Feature) (GitLab)', gitlabLabel: 'feature' }
+      { id: `kind-gl-1`, name: 'Ошибка (Bug) (GitLab)', gitlabLabel: 'bug', priorityPoints: 3 },
+      { id: `kind-gl-2`, name: 'Фича (Feature) (GitLab)', gitlabLabel: 'feature', priorityPoints: 3 }
     ];
     setTaskKinds((prev) => {
       const existingNames = prev.map(i => i.name);
       const filtered = newItems.filter(i => !existingNames.includes(i.name));
+
+      const client = supabase;
+      if (isSupabaseConfigured && client) {
+        filtered.forEach(k => {
+          client.from('task_kinds').insert({
+            id: k.id,
+            name: k.name,
+            gitlab_label: k.gitlabLabel,
+            priority_points: k.priorityPoints,
+          }).then();
+        });
+      }
+
       return [...prev, ...filtered];
     });
     logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано видов задач из группы проектов ${gitLabSettings.projectGroup}`);
@@ -1279,6 +2075,14 @@ export function useProductState() {
     setTaskTypes((prev) => {
       const existingNames = prev.map(i => i.name);
       const filtered = newItems.filter(i => !existingNames.includes(i.name));
+
+      const client = supabase;
+      if (isSupabaseConfigured && client) {
+        filtered.forEach(t => {
+          client.from('task_types').insert({ id: t.id, name: t.name, gitlab_label: t.gitlabLabel }).then();
+        });
+      }
+
       return [...prev, ...filtered];
     });
     logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано типов задач из группы проектов ${gitLabSettings.projectGroup}`);
@@ -1293,6 +2097,14 @@ export function useProductState() {
     setProjectStages((prev) => {
       const existingNames = prev.map(i => i.name);
       const filtered = newItems.filter(i => !existingNames.includes(i.name));
+
+      const client = supabase;
+      if (isSupabaseConfigured && client) {
+        filtered.forEach(s => {
+          client.from('project_stages').insert({ id: s.id, name: s.name, gitlab_label: s.gitlabLabel }).then();
+        });
+      }
+
       return [...prev, ...filtered];
     });
     logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано этапов проектов из группы проектов ${gitLabSettings.projectGroup}`);
@@ -1307,13 +2119,28 @@ export function useProductState() {
     setUsers((prev) => {
       const existingNames = prev.map(i => i.fullName);
       const filtered = newItems.filter(i => !existingNames.includes(i.fullName));
+
+      const client = supabase;
+      if (isSupabaseConfigured && client) {
+        filtered.forEach(u => {
+          client.from('users').insert({
+            id: u.id,
+            full_name: u.fullName,
+            is_enabled: u.isEnabled,
+            email: u.email,
+            gitlab_user: u.gitlabUser,
+            role: u.role,
+          }).then();
+        });
+      }
+
       return [...prev, ...filtered];
     });
     logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано пользователей из группы проектов ${gitLabSettings.projectGroup}`);
     return newItems.map(i => i.fullName);
   };
 
-  const resetAllState = () => {
+  const resetAllState = async () => {
     localStorage.removeItem('ep_data');
     localStorage.removeItem('init_data');
     localStorage.removeItem('feat_data');
@@ -1354,9 +2181,36 @@ export function useProductState() {
     setGitLabSettings(initialGitLabSettings);
 
     logAction('RESET_ALL', 'Сброс всех настроек системы и восстановление демонстрационных данных по умолчанию.');
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      try {
+        await Promise.all([
+          client.from('epics').delete().neq('id', 'NONE'),
+          client.from('initiatives').delete().neq('id', 'NONE'),
+          client.from('features').delete().neq('id', 'NONE'),
+          client.from('tasks').delete().neq('id', 'NONE'),
+          client.from('requests').delete().neq('id', 'NONE'),
+          client.from('releases').delete().neq('id', 'NONE'),
+          client.from('pm_audits').delete().neq('id', -1),
+          client.from('clients').delete().neq('id', 'NONE'),
+          client.from('activity_kinds').delete().neq('id', 'NONE'),
+          client.from('products').delete().neq('id', 'NONE'),
+          client.from('modules').delete().neq('id', 'NONE'),
+          client.from('project_groups').delete().neq('id', 'NONE'),
+          client.from('projects').delete().neq('id', 'NONE'),
+          client.from('task_kinds').delete().neq('id', 'NONE'),
+          client.from('task_types').delete().neq('id', 'NONE'),
+          client.from('project_stages').delete().neq('id', 'NONE'),
+          client.from('users').delete().neq('id', 'NONE'),
+          client.from('sources').delete().neq('id', 'NONE'),
+        ]);
+      } catch (err) {
+        console.error('Supabase state reset error:', err);
+      }
+    }
   };
 
-  // Expose both subsystems and modules referencing the same array for full backwards compatibility
   const subsystems = modules;
 
   return {
@@ -1378,7 +2232,7 @@ export function useProductState() {
     projectStages,
     users,
     sources,
-    subsystems, // compatibility getter
+    subsystems,
     addEpic,
     deleteEpic,
     addClient,

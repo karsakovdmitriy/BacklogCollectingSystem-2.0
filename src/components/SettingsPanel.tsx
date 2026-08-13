@@ -230,8 +230,8 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 <h3 className="text-sm font-semibold text-white">1. Справочник клиентов</h3>
                 <button
                   type="button"
-                  onClick={() => {
-                    const imported = store.importClientsFromGitLab();
+                  onClick={async () => {
+                    const imported = await store.importClientsFromGitLab();
                     alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
@@ -297,8 +297,8 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 <h3 className="text-sm font-semibold text-white">2. Виды деятельности</h3>
                 <button
                   type="button"
-                  onClick={() => {
-                    const imported = store.importActivityKindsFromGitLab();
+                  onClick={async () => {
+                    const imported = await store.importActivityKindsFromGitLab();
                     alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
@@ -341,8 +341,8 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 <h3 className="text-sm font-semibold text-white">3. Проекты развития (с автоконструктором)</h3>
                 <button
                   type="button"
-                  onClick={() => {
-                    const imported = store.importProjectsFromGitLab();
+                  onClick={async () => {
+                    const imported = await store.importProjectsFromGitLab();
                     alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
@@ -441,8 +441,8 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 <h3 className="text-sm font-semibold text-white">4. Продукты</h3>
                 <button
                   type="button"
-                  onClick={() => {
-                    const imported = store.importProductsFromGitLab();
+                  onClick={async () => {
+                    const imported = await store.importProductsFromGitLab();
                     alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
@@ -485,8 +485,8 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 <h3 className="text-sm font-semibold text-white">5. Модули системы</h3>
                 <button
                   type="button"
-                  onClick={() => {
-                    const imported = store.importModulesFromGitLab();
+                  onClick={async () => {
+                    const imported = await store.importModulesFromGitLab();
                     alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
@@ -544,8 +544,8 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 <h3 className="text-sm font-semibold text-white">6. Группы проектов</h3>
                 <button
                   type="button"
-                  onClick={() => {
-                    const imported = store.importProjectGroupsFromGitLab();
+                  onClick={async () => {
+                    const imported = await store.importProjectGroupsFromGitLab();
                     alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
@@ -603,8 +603,8 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 <h3 className="text-sm font-semibold text-white">7. Виды задач</h3>
                 <button
                   type="button"
-                  onClick={() => {
-                    const imported = store.importTaskKindsFromGitLab();
+                  onClick={async () => {
+                    const imported = await store.importTaskKindsFromGitLab();
                     alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
@@ -669,8 +669,8 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 <h3 className="text-sm font-semibold text-white">8. Типы задач</h3>
                 <button
                   type="button"
-                  onClick={() => {
-                    const imported = store.importTaskTypesFromGitLab();
+                  onClick={async () => {
+                    const imported = await store.importTaskTypesFromGitLab();
                     alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
@@ -728,8 +728,8 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 <h3 className="text-sm font-semibold text-white">9. Этапы проектов</h3>
                 <button
                   type="button"
-                  onClick={() => {
-                    const imported = store.importProjectStagesFromGitLab();
+                  onClick={async () => {
+                    const imported = await store.importProjectStagesFromGitLab();
                     alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
@@ -787,8 +787,8 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 <h3 className="text-sm font-semibold text-white">11. Пользователи</h3>
                 <button
                   type="button"
-                  onClick={() => {
-                    const imported = store.importUsersFromGitLab();
+                  onClick={async () => {
+                    const imported = await store.importUsersFromGitLab();
                     alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"

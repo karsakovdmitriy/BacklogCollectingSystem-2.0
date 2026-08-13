@@ -125,22 +125,27 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
     resetForm();
   };
 
-  const handleGitlabBulkImport = () => {
-    const result = store.importGitLabIssues();
-    if (result.success) {
-      const issueDetails = result.issues.map((i: any) =>
-        `• ${i.gitlabId}: ${i.title.slice(0, 45)}...\n  [Маппинг]: Вид: "${i.kind || 'Не сопоставлен'}", Тип: "${i.type || 'Не сопоставлен'}"`
-      ).join('\n\n');
+  const handleGitlabBulkImport = async () => {
+    try {
+      const result = await store.importGitLabIssues();
+      if (result.success) {
+        const issueDetails = result.issues.map((i: any) =>
+          `• ${i.gitlabId}: ${i.title.slice(0, 45)}...\n  [Маппинг]: Вид: "${i.kind || 'Не сопоставлен'}", Тип: "${i.type || 'Не сопоставлен'}"`
+        ).join('\n\n');
 
-      alert(
-        `Успешный импорт из GitLab!\n\n` +
-        `Путь к репозиторию: "${result.projectPath}"\n` +
-        `Сопоставлен с проектом: "${result.projectName}"\n` +
-        `Импортировано сигналов: ${result.count} шт.\n\n` +
-        `Результаты сопоставления ярлыков (Labels Mapping):\n\n${issueDetails}\n\n` +
-        `Все сигналы импортированы в статусе "Неразобранные" и добавлены в таблицу.`
-      );
-    } else {
+        alert(
+          `Успешный импорт из GitLab!\n\n` +
+          `Путь к репозиторию: "${result.projectPath}"\n` +
+          `Сопоставлен с проектом: "${result.projectName}"\n` +
+          `Импортировано сигналов: ${result.count} шт.\n\n` +
+          `Результаты сопоставления ярлыков (Labels Mapping):\n\n${issueDetails}\n\n` +
+          `Все сигналы импортированы в статусе "Неразобранные" и добавлены в таблицу.`
+        );
+      } else {
+        alert('Произошла ошибка при импорте задач из GitLab.');
+      }
+    } catch (err) {
+      console.error(err);
       alert('Произошла ошибка при импорте задач из GitLab.');
     }
   };

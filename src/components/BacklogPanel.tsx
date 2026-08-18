@@ -60,8 +60,6 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
   const [newFeatDesc, setNewFeatDesc] = useState('');
   const [newFeatInitId, setNewFeatInitId] = useState('');
   const [newFeatHours, setNewFeatHours] = useState(40);
-  const [newFeatSalesImpact, setNewFeatSalesImpact] = useState<1|2|3|4|5>(3);
-  const [newFeatItsPriority, setNewFeatItsPriority] = useState<1|2|3|4|5>(3);
   const [newFeatSubsystem, setNewFeatSubsystem] = useState('');
   const [newFeatTaskKind, setNewFeatTaskKind] = useState('');
 
@@ -115,8 +113,6 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
       effortHours: Number(newFeatHours),
 
       repeatabilityCount: 1,
-      salesImpact: newFeatSalesImpact,
-      itsPriority: newFeatItsPriority,
       releaseId: null,
       subsystem: newFeatSubsystem || undefined,
       taskKind: newFeatTaskKind || undefined,
@@ -332,12 +328,12 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="bg-transparent border-none text-white focus:outline-none focus:ring-0 text-xs w-full cursor-pointer font-medium"
+                className="bg-[#161b22] border border-[#30363d] text-[#c9d1d9] focus:outline-none focus:border-[#58a6ff] text-xs w-full cursor-pointer font-medium rounded p-1"
               >
-                <option value="priority">По приоритету (Итог) [Max ➔ Min]</option>
-                <option value="autoScore">По авто-оценке (Auto Score) [Max ➔ Min]</option>
-                <option value="sp">По трудоемкости (в часах) [Max ➔ Min]</option>
-                <option value="alphabetical">По алфавиту [А ➔ Я]</option>
+                <option className="bg-[#161b22] text-[#c9d1d9]" value="priority">По приоритету (Итог) [Max ➔ Min]</option>
+                <option className="bg-[#161b22] text-[#c9d1d9]" value="autoScore">По авто-оценке (Auto Score) [Max ➔ Min]</option>
+                <option className="bg-[#161b22] text-[#c9d1d9]" value="sp">По трудоемкости (в часах) [Max ➔ Min]</option>
+                <option className="bg-[#161b22] text-[#c9d1d9]" value="alphabetical">По алфавиту [А ➔ Я]</option>
               </select>
             </div>
           </div>
@@ -817,37 +813,6 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
 
               </div>
 
-              <div className="grid grid-cols-2 gap-4 bg-[#0d1117] p-3 rounded border border-[#30363d]">
-                <div>
-                  <label className="block text-[#8b949e] mb-1 font-medium">Влияние на продажи (sales):</label>
-                  <select
-                    value={newFeatSalesImpact}
-                    onChange={(e) => setNewFeatSalesImpact(Number(e.target.value) as any)}
-                    className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  >
-                    <option value={1}>1 - Низкое влияние</option>
-                    <option value={2}>2 - Посредственное</option>
-                    <option value={3}>3 - Заметный вклад</option>
-                    <option value={4}>4 - Высокая маржа</option>
-                    <option value={5}>5 - Критически важно</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[#8b949e] mb-1 font-medium">Приоритет ИТС поддержки:</label>
-                  <select
-                    value={newFeatItsPriority}
-                    onChange={(e) => setNewFeatItsPriority(Number(e.target.value) as any)}
-                    className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  >
-                    <option value={1}>1 - Низкий</option>
-                    <option value={2}>2 - Средний</option>
-                    <option value={3}>3 - Повышенный</option>
-                    <option value={4}>4 - Высокий (SLA)</option>
-                    <option value={5}>5 - Сверхкритичный блок</option>
-                  </select>
-                </div>
-              </div>
 
               <div className="flex justify-end gap-2 pt-2">
                 <button

@@ -173,8 +173,6 @@ CREATE TABLE features (
 
     -- Метрики для авторасчета системного приоритета:
     repeatability_count INT DEFAULT 1 NOT NULL, -- Кол-во сигналов (Demand)
-    sales_impact INT DEFAULT 3 NOT NULL CHECK (sales_impact BETWEEN 1 AND 5), -- Влияние на продажи (sales)
-    its_priority INT DEFAULT 3 NOT NULL CHECK (its_priority BETWEEN 1 AND 5), -- Приоритет ИТС поддержки
 
     -- Ссылка на сложность переноса:
     release_effort_id VARCHAR(50) REFERENCES release_effort_options(id) ON DELETE SET NULL,

@@ -48,27 +48,41 @@ export default function Home() {
       <aside className={`${isSidebarCollapsed ? 'w-16' : 'w-80'} bg-[#161b22] border-r border-[#30363d] flex flex-col justify-between shrink-0 transition-all duration-300 relative`}>
         <div>
           {/* Brand Logo & Product Name */}
-          <div className="p-4 border-b border-[#30363d] flex items-center justify-between gap-3 overflow-hidden">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-[#21262d] rounded-lg border border-[#30363d] text-[#58a6ff]">
-                <Cpu size={22} className="animate-pulse" />
-              </div>
-              {!isSidebarCollapsed && (
-                <div>
-                  <h1 className="font-semibold text-white tracking-wide leading-tight text-xs sm:text-sm">Backlog Collecting System 2.0</h1>
-                  <p className="text-[10px] sm:text-xs text-[#8b949e]">BCS 2.0 & Сквозная Аналитика</p>
+          <div className={`${isSidebarCollapsed ? 'p-2 flex-col items-center' : 'p-4 justify-between'} border-b border-[#30363d] flex gap-2 overflow-hidden transition-all`}>
+            {!isSidebarCollapsed ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-[#21262d] rounded-lg border border-[#30363d] text-[#58a6ff]">
+                    <Cpu size={22} className="animate-pulse" />
+                  </div>
+                  <div>
+                    <h1 className="font-semibold text-white tracking-wide leading-tight text-xs sm:text-sm">Backlog Collecting System 2.0</h1>
+                    <p className="text-[10px] sm:text-xs text-[#8b949e]">BCS 2.0 & Сквозная Аналитика</p>
+                  </div>
                 </div>
-              )}
-            </div>
 
-            {/* Collapse Toggle Button */}
-            <button
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="p-1 rounded hover:bg-[#21262d] border border-[#30363d] text-[#8b949e] hover:text-white"
-              title={isSidebarCollapsed ? 'Развернуть' : 'Свернуть'}
-            >
-              {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-            </button>
+                <button
+                  onClick={() => setIsSidebarCollapsed(true)}
+                  className="p-1 rounded hover:bg-[#21262d] border border-[#30363d] text-[#8b949e] hover:text-white shrink-0"
+                  title="Свернуть панель"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-2 w-full py-1">
+                <div className="p-1.5 bg-[#21262d] rounded-lg border border-[#30363d] text-[#58a6ff]">
+                  <Cpu size={20} />
+                </div>
+                <button
+                  onClick={() => setIsSidebarCollapsed(false)}
+                  className="p-1.5 rounded bg-[#21262d] hover:bg-[#30363d] border border-[#30363d] text-[#58a6ff] hover:text-white transition-all shadow"
+                  title="Развернуть панель"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Quick Metrics KPI Bar */}
@@ -202,35 +216,11 @@ export default function Home() {
             </button>
           </nav>
 
-          {/* Quick Stats & System Config */}
-          {!isSidebarCollapsed && (
-            <div className="px-4 py-2">
-              <div className="bg-[#21262d] p-3 rounded-lg border border-[#30363d]">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-white">Интеграции</span>
-                  <span className="inline-flex items-center gap-1 text-[10px] text-green-400 bg-green-900/30 px-1.5 py-0.2 rounded border border-green-800">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                    Активно
-                  </span>
-                </div>
-                <div className="space-y-1.5 text-xs text-[#8b949e]">
-                  <div className="flex justify-between">
-                    <span>GitLab Webhooks</span>
-                    <span className="text-[#c9d1d9] font-mono">200 OK</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>ИТС / CRM Синхронизатор</span>
-                    <span className="text-[#c9d1d9]">В сети</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Audit Logs Quick View in Sidebar Drawer */}
         <div className="p-3 border-t border-[#30363d] space-y-2 bg-[#0d1117]/30">
-          {!isSidebarCollapsed ? (
+          {!isSidebarCollapsed && (
             <>
               <button
                 onClick={() => setShowLogs(!showLogs)}
@@ -256,35 +246,7 @@ export default function Home() {
                   ))}
                 </div>
               )}
-
-              {/* Developer / Admin Options */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    if (confirm('Вы уверены, что хотите сбросить все данные к исходным демонстрационным значениям?')) {
-                      store.resetAllState();
-                    }
-                  }}
-                  className="flex-1 py-1 px-2 rounded bg-red-950/20 hover:bg-red-950/40 border border-red-900 text-red-400 text-xs text-center transition-all"
-                >
-                  Сброс демо-данных
-                </button>
-              </div>
             </>
-          ) : (
-            <div className="flex justify-center">
-              <button
-                onClick={() => {
-                  if (confirm('Вы уверены, что хотите сбросить все данные?')) {
-                    store.resetAllState();
-                  }
-                }}
-                className="p-1.5 rounded bg-red-950/20 hover:bg-red-950/40 border border-red-900 text-red-400"
-                title="Сброс демо-данных"
-              >
-                <Database size={14} />
-              </button>
-            </div>
           )}
         </div>
       </aside>

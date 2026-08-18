@@ -23,8 +23,6 @@ export interface Feature {
 
   // For automatic score weighting:
   repeatabilityCount: number; // Number of matching requests / signals
-  salesImpact: 1 | 2 | 3 | 4 | 5; // 1: Low, 5: Critical/High
-  itsPriority: 1 | 2 | 3 | 4 | 5; // 1: low, 5: Critical
 
   // New Scoring Logic fields
   releaseEffortId?: string; // ID сложности переноса в релиз (Сложность переноса в релиз)

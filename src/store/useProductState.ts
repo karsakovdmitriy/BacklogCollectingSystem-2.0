@@ -299,8 +299,6 @@ export function useProductState() {
               description: f.description || '',
               effortHours: f.effort_hours,
               repeatabilityCount: f.repeatability_count,
-              salesImpact: f.sales_impact,
-              itsPriority: f.its_priority,
               autoScore: Number(f.auto_score),
               overrideScore: f.override_score !== null ? Number(f.override_score) : undefined,
               overrideReason: f.override_reason || undefined,
@@ -535,7 +533,7 @@ export function useProductState() {
 
   // Recalculate autoScore for a Feature
   const recalculateAutoScore = (feat: Feature): number => {
-    return (feat.repeatabilityCount * 3) + (feat.salesImpact * 10) + (feat.itsPriority * 10);
+    return feat.repeatabilityCount * 10;
   };
 
   // Log Audit Action
@@ -1159,7 +1157,7 @@ export function useProductState() {
       revenueGenerated: 0,
       developmentCost: feat.effortHours * 2000,
     };
-    const autoScore = (feat.repeatabilityCount * 3) + (feat.salesImpact * 10) + (feat.itsPriority * 10);
+    const autoScore = feat.repeatabilityCount * 10;
     const newFeat: Feature = {
       ...baseFeat,
       id: `fe-${Date.now()}`,
@@ -1180,8 +1178,6 @@ export function useProductState() {
           description: newFeat.description,
           effort_hours: newFeat.effortHours,
           repeatability_count: newFeat.repeatabilityCount,
-          sales_impact: newFeat.salesImpact,
-          its_priority: newFeat.itsPriority,
           auto_score: newFeat.autoScore,
           status: newFeat.status,
           subsystem: newFeat.subsystem,
@@ -1220,8 +1216,6 @@ export function useProductState() {
           description: finalFeat.description,
           effort_hours: finalFeat.effortHours,
           repeatability_count: finalFeat.repeatabilityCount,
-          sales_impact: finalFeat.salesImpact,
-          its_priority: finalFeat.itsPriority,
           auto_score: finalFeat.autoScore,
           override_score: finalFeat.overrideScore,
           override_reason: finalFeat.overrideReason,
@@ -1562,8 +1556,6 @@ export function useProductState() {
       description: req.description || 'Создано автоматически из сигнала ' + req.code,
       effortHours: 40,
       repeatabilityCount: 1,
-      salesImpact: 3,
-      itsPriority: 3,
       releaseId: null,
       subsystem: req.subsystem,
       taskKind: req.taskKind || 'Фича (Feature)'
@@ -2202,72 +2194,6 @@ export function useProductState() {
     return createdItems.map(p => p.name);
   };
 
-  const resetAllState = async () => {
-    localStorage.removeItem('ep_data');
-    localStorage.removeItem('init_data');
-    localStorage.removeItem('feat_data');
-    localStorage.removeItem('task_data');
-    localStorage.removeItem('req_data');
-    localStorage.removeItem('rel_data');
-    localStorage.removeItem('audit_data');
-    localStorage.removeItem('dict_activity_kinds');
-    localStorage.removeItem('dict_clients');
-    localStorage.removeItem('dict_products');
-    localStorage.removeItem('dict_modules');
-    localStorage.removeItem('dict_project_groups');
-    localStorage.removeItem('dict_projects');
-    localStorage.removeItem('dict_task_kinds');
-    localStorage.removeItem('dict_project_stages');
-    localStorage.removeItem('dict_users');
-    localStorage.removeItem('dict_sources');
-    localStorage.removeItem('gitlab_settings');
-
-    setEpics(initialEpics);
-    setInitiatives(initialInitiatives);
-    setFeatures(initialFeatures);
-    setRequests(initialRequests);
-    setReleases(initialReleases);
-    setAuditLogs(initialAuditLogs);
-    setActivityKinds(initialActivityKinds);
-    setClients(initialClients);
-    setProducts(initialProducts);
-    setModules(initialModules);
-    setProjectGroups(initialProjectGroups);
-    setProjects(initialProjects);
-    setTaskKinds(initialTaskKinds);
-    setProjectStages(initialProjectStages);
-    setUsers(initialUsers);
-    setGitLabSettings(initialGitLabSettings);
-
-    logAction('RESET_ALL', 'Сброс всех настроек системы и восстановление демонстрационных данных по умолчанию.');
-
-    const client = supabase;
-    if (isSupabaseConfigured && client) {
-      try {
-        await Promise.all([
-          client.from('epics').delete().neq('id', 'NONE'),
-          client.from('initiatives').delete().neq('id', 'NONE'),
-          client.from('features').delete().neq('id', 'NONE'),
-          client.from('requests').delete().neq('id', 'NONE'),
-          client.from('releases').delete().neq('id', 'NONE'),
-          client.from('pm_audits').delete().neq('id', -1),
-          client.from('clients').delete().neq('id', 'NONE'),
-          client.from('activity_kinds').delete().neq('id', 'NONE'),
-          client.from('products').delete().neq('id', 'NONE'),
-          client.from('modules').delete().neq('id', 'NONE'),
-          client.from('project_groups').delete().neq('id', 'NONE'),
-          client.from('projects').delete().neq('id', 'NONE'),
-          client.from('task_kinds').delete().neq('id', 'NONE'),
-          client.from('project_stages').delete().neq('id', 'NONE'),
-          client.from('users').delete().neq('id', 'NONE'),
-          client.from('sources').delete().neq('id', 'NONE'),
-        ]);
-      } catch (err) {
-        console.error('Supabase state reset error:', err);
-      }
-    }
-  };
-
   const subsystems = modules;
 
   return {
@@ -2349,7 +2275,6 @@ export function useProductState() {
     importGitLabIssues,
     importProjectGroupsFromGitLab,
     importProjectsFromGitLab,
-    addImportedProjects,
-    resetAllState
+    addImportedProjects
   };
 }

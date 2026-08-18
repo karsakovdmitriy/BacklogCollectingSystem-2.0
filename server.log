@@ -2,6 +2,5 @@ $ next start
 ▲ Next.js 16.3.0
 - Local:         http://localhost:3000
 - Network:       http://192.168.0.2:3000
-✓ Ready in 185ms
+✓ Ready in 195ms
 ✓ Running next.config.ts took 42ms
-error: script "start" was terminated by signal SIGKILL (Forced quit)

@@ -18,7 +18,9 @@ import {
   ShieldAlert,
   UserCheck,
   Check,
-  X
+  X,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 
 interface SettingsPanelProps {
@@ -27,11 +29,18 @@ interface SettingsPanelProps {
 
 export default function SettingsPanel({ store }: SettingsPanelProps) {
   const [activeSubTab, setActiveSubTab] = useState<
-    'gitlab' | 'gitlab_labels' | 'epics' | 'products' | 'modules' | 'project_groups' | 'projects' | 'kinds' | 'stages' | 'sources' | 'activity_kinds' | 'clients' | 'users' | 'roles' | 'priority_formula'
-  >('gitlab');
+    'clients' | 'products' | 'project_groups' | 'projects' | 'stages' | 'activity_kinds' | 'kinds' | 'epics' | 'modules' | 'sources' | 'users' | 'roles' | 'priority_formula' | 'gitlab' | 'gitlab_labels'
+  >('clients');
 
   // Generic Edit Modal State
   const [editItem, setEditingItem] = useState<{ subtab: string; data: any } | null>(null);
+
+  // Collapsible state for sidebar groups
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  const toggleGroupCollapse = (groupTitle: string) => {
+    setCollapsedGroups(prev => ({ ...prev, [groupTitle]: !prev[groupTitle] }));
+  };
 
   // Epic Inputs
   const [epicTitle, setEpicTitle] = useState('');
@@ -113,46 +122,46 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
     alert('Настройки интеграции с GitLab успешно сохранены!');
   };
 
-  // Grouped Navigation Definition
+  // User specified 5 SubTab Groups Sequence & Structure
   const subTabGroups = [
     {
-      title: 'Интеграция с GitLab',
+      title: 'Проекты и продукты',
       items: [
-        { id: 'gitlab', label: 'Настройки GitLab', icon: <GitBranch size={14} /> },
-        { id: 'gitlab_labels', label: 'Лейблы GitLab', icon: <Tag size={14} /> },
-      ]
-    },
-    {
-      title: 'Продукты и Проекты',
-      items: [
-        { id: 'epics', label: 'Эпики', icon: <Layers size={14} /> },
+        { id: 'clients', label: 'Клиенты', icon: <Users size={14} /> },
         { id: 'products', label: 'Продукты', icon: <Settings size={14} /> },
-        { id: 'modules', label: 'Модули', icon: <Code size={14} /> },
         { id: 'project_groups', label: 'Группы проектов', icon: <FolderOpen size={14} /> },
         { id: 'projects', label: 'Проекты', icon: <Briefcase size={14} /> },
+        { id: 'stages', label: 'Этапы проектов', icon: <Layers size={14} /> },
+        { id: 'activity_kinds', label: 'Виды деятельности', icon: <FolderOpen size={14} /> },
       ]
     },
     {
-      title: 'Классификаторы процессов',
+      title: 'Классификаторы',
       items: [
         { id: 'kinds', label: 'Виды задач', icon: <Tag size={14} /> },
-        { id: 'stages', label: 'Этапы проектов', icon: <Layers size={14} /> },
+        { id: 'epics', label: 'Эпики', icon: <Layers size={14} /> },
+        { id: 'modules', label: 'Модули', icon: <Code size={14} /> },
         { id: 'sources', label: 'Источники сигналов', icon: <FolderOpen size={14} /> },
-        { id: 'activity_kinds', label: 'Виды деятельности', icon: <FolderOpen size={14} /> },
-        { id: 'clients', label: 'Клиенты', icon: <Users size={14} /> },
       ]
     },
     {
-      title: 'Пользователи и Доступ',
+      title: 'Пользователи и доступ',
       items: [
         { id: 'users', label: 'Пользователи', icon: <UserCheck size={14} /> },
         { id: 'roles', label: 'Роли', icon: <ShieldAlert size={14} /> },
       ]
     },
     {
-      title: 'Авто-оценка',
+      title: 'Авто оценка',
       items: [
         { id: 'priority_formula', label: '⚙️ Настройка приоритетов', icon: <Settings size={14} /> },
+      ]
+    },
+    {
+      title: 'Интеграция с ГитЛаб',
+      items: [
+        { id: 'gitlab', label: 'Настройки интеграции', icon: <GitBranch size={14} /> },
+        { id: 'gitlab_labels', label: 'Лейблы', icon: <Tag size={14} /> },
       ]
     }
   ];
@@ -170,29 +179,41 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
       </div>
 
       <div className="flex flex-col xl:flex-row gap-6">
-        {/* SUBTAB BAR WITH LOGICAL GROUPS */}
-        <aside className="w-full xl:w-72 shrink-0 space-y-4">
-          {subTabGroups.map((group, idx) => (
-            <div key={idx} className="space-y-1 bg-[#161b22]/50 p-2 rounded-xl border border-[#30363d]/60">
-              <span className="text-[10px] font-bold text-[#8b949e] uppercase tracking-wider px-2 py-1 block">
-                {group.title}
-              </span>
-              {group.items.map((subTab) => (
+        {/* SUBTAB BAR WITH COLLAPSIBLE GROUPS */}
+        <aside className="w-full xl:w-72 shrink-0 space-y-3">
+          {subTabGroups.map((group, idx) => {
+            const isCollapsed = collapsedGroups[group.title];
+            return (
+              <div key={idx} className="space-y-1 bg-[#161b22]/50 p-2 rounded-xl border border-[#30363d]/60">
                 <button
-                  key={subTab.id}
-                  onClick={() => setActiveSubTab(subTab.id as any)}
-                  className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    activeSubTab === subTab.id
-                      ? 'bg-[#21262d] text-white border border-[#30363d]'
-                      : 'text-[#8b949e] hover:text-white hover:bg-[#161b22]'
-                  }`}
+                  onClick={() => toggleGroupCollapse(group.title)}
+                  className="w-full flex items-center justify-between text-[10px] font-bold text-[#8b949e] hover:text-white uppercase tracking-wider px-2 py-1 transition-colors text-left"
                 >
-                  {subTab.icon}
-                  <span>{subTab.label}</span>
+                  <span>{group.title}</span>
+                  {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
                 </button>
-              ))}
-            </div>
-          ))}
+
+                {!isCollapsed && (
+                  <div className="space-y-1 pt-0.5">
+                    {group.items.map((subTab) => (
+                      <button
+                        key={subTab.id}
+                        onClick={() => setActiveSubTab(subTab.id as any)}
+                        className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                          activeSubTab === subTab.id
+                            ? 'bg-[#21262d] text-white border border-[#30363d]'
+                            : 'text-[#8b949e] hover:text-white hover:bg-[#161b22]'
+                        }`}
+                      >
+                        {subTab.icon}
+                        <span>{subTab.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </aside>
 
         {/* DETAILS PANEL WITH CRUD */}
@@ -267,7 +288,7 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
           {activeSubTab === 'gitlab_labels' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
-                <h3 className="text-sm font-semibold text-white">Лейблы GitLab</h3>
+                <h3 className="text-sm font-semibold text-white">Лейблы ГитЛаб</h3>
                 <button
                   type="button"
                   onClick={async () => {

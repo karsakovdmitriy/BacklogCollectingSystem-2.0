@@ -1,6 +1,14 @@
 import { test, expect } from '@playwright/test';
 
 test('Verify Backlog Dashboard View, Grouping, and 3-Stage Release Planner Funnel', async ({ page }) => {
+  page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+  page.on('pageerror', err => console.log('PAGE ERROR:', err.message));
+  page.on('response', resp => {
+    if (resp.status() >= 400) {
+      console.log('BAD RESPONSE:', resp.status(), resp.url());
+    }
+  });
+
   // Dismiss all alerts automatically
   page.on('dialog', async dialog => {
     await dialog.accept();
@@ -45,7 +53,16 @@ test('Verify Backlog Dashboard View, Grouping, and 3-Stage Release Planner Funne
   await page.screenshot({ path: '/home/jules/verification/screenshots/incoming_task_analysis_landing.png', fullPage: true });
 
   // 2. Select tab "Бэклог и Приоритизация"
+  console.log('Clicking Backlog tab...');
   await page.locator('aside button').filter({ hasText: 'Бэклог' }).click();
+  await page.waitForTimeout(1000);
+  console.log('Current URL / state after click. Checking for button...');
+  const btnVisible = await page.isVisible('button:has-text("Создать Фичу")');
+  console.log('Is "Создать Фичу" visible?', btnVisible);
+  if (!btnVisible) {
+    const html = await page.content();
+    console.log('Page HTML snippet:', html.slice(0, 1000));
+  }
   await page.waitForSelector('button:has-text("Создать Фичу")');
 
   // Take screenshot of default dashboard-only backlog

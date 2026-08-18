@@ -1,20 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Request, Project, Product, Module, TaskKind, TaskType, ProjectStage, User } from '@/store/index';
+import { Request, Project, Product, Module, TaskKind, ProjectStage, User } from '@/store/index';
 import {
   CheckCircle2,
-  HelpCircle,
   XCircle,
   Plus,
   GitBranch,
   Search,
   Check,
   AlertTriangle,
-  Info,
-  Layers,
-  UserCheck,
-  Clock
+  Info
 } from 'lucide-react';
 
 interface IncomingAnalysisProps {
@@ -32,13 +28,12 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
   const [source, setSource] = useState('');
   const [description, setDescription] = useState('');
 
-  // 9 core required parameters for classification validation
+  // 8 core required parameters for classification validation
   const [gitlabIssueId, setGitlabIssueId] = useState('');
   const [projectId, setProjectId] = useState('');
   const [productId, setProductId] = useState('');
   const [moduleId, setModuleId] = useState('');
   const [taskKindId, setTaskKindId] = useState('');
-  const [taskTypeId, setTaskTypeId] = useState('');
   const [projectStageId, setProjectStageId] = useState('');
   const [authorId, setAuthorId] = useState('');
   const [executorId, setExecutorId] = useState('');
@@ -54,7 +49,6 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
     setProductId('');
     setModuleId('');
     setTaskKindId('');
-    setTaskTypeId('');
     setProjectStageId('');
     setAuthorId('');
     setExecutorId('');
@@ -78,7 +72,6 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
     setProductId(req.productId || '');
     setModuleId(req.moduleId || '');
     setTaskKindId(req.taskKindId || '');
-    setTaskTypeId(req.taskTypeId || '');
     setProjectStageId(req.projectStageId || '');
     setAuthorId(req.authorId || '');
     setExecutorId(req.executorId || '');
@@ -101,7 +94,6 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
       productId: productId || undefined,
       moduleId: moduleId || undefined,
       taskKindId: taskKindId || undefined,
-      taskTypeId: taskTypeId || undefined,
       projectStageId: projectStageId || undefined,
       authorId: authorId || undefined,
       executorId: executorId || undefined,
@@ -132,7 +124,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
         let issueDetails = '';
         if (result.issues.length > 0) {
           issueDetails = result.issues.map((i: any) =>
-            `• ${i.gitlabId}: ${i.title.slice(0, 45)}...\n  [Маппинг]: Вид: "${i.kind || 'Не сопоставлен'}", Тип: "${i.type || 'Не сопоставлен'}"`
+            `• ${i.gitlabId}: ${i.title.slice(0, 45)}...\n  [Маппинг]: Вид: "${i.kind || 'Не сопоставлен'}"`
           ).join('\n\n');
         } else {
           issueDetails = 'Задачи не найдены в указанной группе репозиториев.';
@@ -180,7 +172,6 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
     if (!req.productId) missing.push('Продукт');
     if (!req.moduleId) missing.push('Модуль');
     if (!req.taskKindId) missing.push('Вид задачи');
-    if (!req.taskTypeId) missing.push('Тип задачи');
     if (!req.projectStageId) missing.push('Этап проекта');
     if (!req.authorId) missing.push('Автор');
     if (!req.executorId) missing.push('Исполнитель');
@@ -194,7 +185,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
         <div className="space-y-1">
           <h2 className="text-base font-semibold text-white">Анализ входящих задач и сигналов</h2>
           <p className="text-xs text-[#8b949e]">
-            Панель первичного сбора требований. Влияние на классификацию: статус (Принят, Отклонен, В проработку) можно назначить только при заполнении всех 9 обязательных атрибутов (без привязки к Эпику и Фиче).
+            Панель первичного сбора требований. Влияние на классификацию: статус (Принят, Отклонен, В проработку) можно назначить только при заполнении всех 8 обязательных атрибутов (без привязки к Эпику и Фиче).
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -380,7 +371,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
         </div>
       </div>
 
-      {/* MODAL: ADD / EDIT DIALOG WITH ALL 9 PARAMETERS */}
+      {/* MODAL: ADD / EDIT DIALOG WITH 8 MANDATORY PARAMETERS */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs overflow-y-auto">
           <div className="bg-[#161b22] border border-[#30363d] rounded-xl max-w-2xl w-full p-6 space-y-4 my-8 shadow-2xl">
@@ -430,11 +421,11 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                 </div>
               </div>
 
-              {/* 9 OBLIGATORY ENTERPRISE DICTIONARY FIELDS SECTION */}
+              {/* 8 OBLIGATORY ENTERPRISE DICTIONARY FIELDS SECTION */}
               <div className="p-4 bg-[#0d1117] border border-[#30363d] rounded-lg space-y-3">
                 <div className="flex items-center gap-1.5 text-yellow-500 font-semibold mb-1">
                   <Info size={14} />
-                  <span>Продуктовая классификация (Обязательные 9 параметров)</span>
+                  <span>Продуктовая классификация (Обязательные 8 параметров)</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -510,24 +501,9 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                     </select>
                   </div>
 
-                  {/* 6. Task Type */}
+                  {/* 6. Project Stage */}
                   <div>
-                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">6. ТИП ЗАДАЧИ:</label>
-                    <select
-                      value={taskTypeId}
-                      onChange={(e) => setTaskTypeId(e.target.value)}
-                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                    >
-                      <option value="">-- Выберите тип задачи --</option>
-                      {store.taskTypes.map((t: TaskType) => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* 7. Project Stage */}
-                  <div>
-                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">7. ЭТАП ПРОЕКТА:</label>
+                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">6. ЭТАП ПРОЕКТА:</label>
                     <select
                       value={projectStageId}
                       onChange={(e) => setProjectStageId(e.target.value)}
@@ -540,9 +516,9 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                     </select>
                   </div>
 
-                  {/* 8. Author */}
+                  {/* 7. Author */}
                   <div>
-                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">8. АВТОР:</label>
+                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">7. АВТОР:</label>
                     <select
                       value={authorId}
                       onChange={(e) => setAuthorId(e.target.value)}
@@ -555,9 +531,9 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                     </select>
                   </div>
 
-                  {/* 9. Executor */}
+                  {/* 8. Executor */}
                   <div>
-                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">9. ИСПОЛНИТЕЛЬ:</label>
+                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">8. ИСПОЛНИТЕЛЬ:</label>
                     <select
                       value={executorId}
                       onChange={(e) => setExecutorId(e.target.value)}

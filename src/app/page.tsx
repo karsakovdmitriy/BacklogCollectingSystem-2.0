@@ -55,8 +55,8 @@ export default function Home() {
               </div>
               {!isSidebarCollapsed && (
                 <div>
-                  <h1 className="font-semibold text-white tracking-wide leading-tight text-xs sm:text-sm">PM-COCKPIT v1.2</h1>
-                  <p className="text-[10px] sm:text-xs text-[#8b949e]">Сквозная Аналитика & Релизы</p>
+                  <h1 className="font-semibold text-white tracking-wide leading-tight text-xs sm:text-sm">Backlog Collecting System 2.0</h1>
+                  <p className="text-[10px] sm:text-xs text-[#8b949e]">BCS 2.0 & Сквозная Аналитика</p>
                 </div>
               )}
             </div>

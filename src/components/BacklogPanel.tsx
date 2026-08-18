@@ -489,7 +489,6 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                   </div>
 
                   {sortedGroupFeats.map((feat) => {
-                    const featureTasks = store.tasks.filter((t: Task) => t.featureId === feat.id);
                     const currentScore = feat.overrideScore !== undefined ? feat.overrideScore : feat.autoScore;
                     const isOverridden = feat.overrideScore !== undefined;
 
@@ -577,8 +576,7 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                         )}
 
                         {/* Actions Inside card */}
-                        <div className="flex items-center justify-between pt-1 border-t border-[#30363d]/40">
-                          <span className="text-[10px] text-[#8b949e]">Задач: {featureTasks.length} шт</span>
+                        <div className="flex items-center justify-end pt-1 border-t border-[#30363d]/40">
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => {

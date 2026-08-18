@@ -226,10 +226,18 @@ export interface GitLabSettings {
   projectGroup: string; // Группа проектов в GitLab
 }
 
+export interface GitLabLabel {
+  id: string;
+  name: string;
+  color?: string;
+  description?: string;
+}
+
 // Initial Mock Data
 export const initialEpics: Epic[] = [];
 export const initialInitiatives: Initiative[] = [];
 export const initialFeatures: Feature[] = [];
+export const initialGitLabLabels: GitLabLabel[] = [];
 export const initialTasks: Task[] = [];
 export const initialRequests: Request[] = [];
 

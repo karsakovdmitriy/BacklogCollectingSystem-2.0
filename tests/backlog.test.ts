@@ -1,15 +1,16 @@
 import { test, expect } from '@playwright/test';
 
 test('Verify Backlog Dashboard View, Grouping, and 3-Stage Release Planner Funnel', async ({ page }) => {
-  // 1. Visit main page
-  await page.goto('http://localhost:3000');
-  await page.waitForTimeout(500);
+  // Dismiss all alerts automatically
+  page.on('dialog', async dialog => {
+    await dialog.accept();
+  });
 
-  // Self-seed testing state into local storage
-  await page.evaluate(() => {
+  // Self-seed testing state into local storage before navigation
+  await page.addInitScript(() => {
     localStorage.setItem('dict_clients', JSON.stringify([{ id: 'cl-1', name: 'ПАО "Сбербанк"' }]));
     localStorage.setItem('dict_projects', JSON.stringify([{ id: 'pr-1', name: 'Платежный шлюз B2B' }]));
-    localStorage.setItem('dict_subsystems', JSON.stringify([{ id: 'sub-1', name: 'Модуль Клиент-Банк' }]));
+    localStorage.setItem('dict_modules', JSON.stringify([{ id: 'sub-1', name: 'Модуль Клиент-Банк' }]));
     localStorage.setItem('ep_data', JSON.stringify([{ id: 'ep-1', code: 'EPIC-001', title: 'Единое платежное ядро', description: 'Тест', owner: 'Александр Воронов' }]));
     localStorage.setItem('init_data', JSON.stringify([{ id: 'in-1', epicId: 'ep-1', code: 'INIT-101', title: 'Автоматический СБП-Биллинг', description: 'Тест', status: 'In Progress' }]));
     localStorage.setItem('feat_data', JSON.stringify([{
@@ -36,22 +37,22 @@ test('Verify Backlog Dashboard View, Grouping, and 3-Stage Release Planner Funne
     }]));
   });
 
-  // Reload to apply the local storage values
-  await page.reload();
+  // 1. Visit main page
+  await page.goto('http://localhost:3000');
   await page.waitForTimeout(500);
 
   // Landing tab is "Анализ входящих задач" (Incoming Task Analysis) by default
   await page.screenshot({ path: '/home/jules/verification/screenshots/incoming_task_analysis_landing.png', fullPage: true });
 
-  // 2. Select first tab "Бэклог и Приоритизация" to verify
-  await page.click('button:has-text("Бэклог и Приоритизация")');
-  await page.waitForTimeout(500);
+  // 2. Select tab "Бэклог и Приоритизация"
+  await page.locator('aside button').filter({ hasText: 'Бэклог' }).click();
+  await page.waitForSelector('button:has-text("Создать Фичу")');
 
   // Take screenshot of default dashboard-only backlog
   await page.screenshot({ path: '/home/jules/verification/screenshots/backlog_dashboard_default.png', fullPage: true });
 
-  // Verify that "Входящие сигналы (Inbox)" is visible (Dashboard view is now the only view)
-  const inboxHeader = page.locator('h3:has-text("Входящие сигналы (Inbox)")');
+  // Verify that Inbox is visible
+  const inboxHeader = page.locator('text=Входящие сигналы').first();
   await expect(inboxHeader).toBeVisible();
 
   // Try grouping by Subsystem
@@ -74,8 +75,8 @@ test('Verify Backlog Dashboard View, Grouping, and 3-Stage Release Planner Funne
   await page.waitForTimeout(200);
 
   // 3. Move to Constructor Reliza panel to test 3-Stage Funnel
-  await page.click('button:has-text("Конструктор Релиза")');
-  await page.waitForTimeout(500);
+  await page.locator('aside button').filter({ hasText: 'Релиза' }).click();
+  await page.waitForSelector('button:has-text("Заполнить трудоемкость")');
 
   // Verify the three columns / headers are present
   const col1 = page.locator('span:has-text("Доступно в Бэклоге")');

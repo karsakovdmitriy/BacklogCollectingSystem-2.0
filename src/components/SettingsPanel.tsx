@@ -25,7 +25,7 @@ interface SettingsPanelProps {
 
 export default function SettingsPanel({ store }: SettingsPanelProps) {
   const [activeSubTab, setActiveSubTab] = useState<
-    'epics' | 'clients' | 'activity_kinds' | 'projects' | 'products' | 'modules' | 'project_groups' | 'kinds' | 'types' | 'stages' | 'users' | 'roles' | 'sources' | 'gitlab' | 'priority_formula'
+    'epics' | 'clients' | 'activity_kinds' | 'projects' | 'products' | 'modules' | 'project_groups' | 'kinds' | 'gitlab_labels' | 'stages' | 'users' | 'roles' | 'sources' | 'gitlab' | 'priority_formula'
   >('epics');
 
   // Epic Inputs
@@ -136,7 +136,7 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
             { id: 'modules', label: '5. Модули', icon: <Code size={14} /> },
             { id: 'project_groups', label: '6. Группы проектов', icon: <FolderOpen size={14} /> },
             { id: 'kinds', label: '7. Виды задач', icon: <Tag size={14} /> },
-            { id: 'types', label: '8. Типы задач', icon: <Settings size={14} /> },
+            { id: 'gitlab_labels', label: '10. Лейблы GitLab', icon: <Tag size={14} /> },
             { id: 'stages', label: '9. Этапы проектов', icon: <Layers size={14} /> },
             { id: 'users', label: '11. Пользователи', icon: <UserCheck size={14} /> },
             { id: 'roles', label: '12. Роли', icon: <ShieldAlert size={14} /> },
@@ -634,65 +634,49 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
             </div>
           )}
 
-          {/* 8. TASK TYPES */}
-          {activeSubTab === 'types' && (
+          {/* 10. GITLAB LABELS */}
+          {activeSubTab === 'gitlab_labels' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
-                <h3 className="text-sm font-semibold text-white">8. Типы задач</h3>
+                <h3 className="text-sm font-semibold text-white">10. Лейблы GitLab</h3>
                 <button
                   type="button"
                   onClick={async () => {
                     try {
-                      const imported = await store.importTaskTypesFromGitLab();
-                      alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
+                      const imported = await store.importGitLabLabels();
+                      alert(`Импорт лейблов из GitLab успешно завершен!\nЗагружено лейблов: ${imported.length} шт.`);
                     } catch (err: any) {
                       alert(err.message || err);
                     }
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
                 >
-                  <GitBranch size={13} /> Импортировать из GitLab
+                  <GitBranch size={13} /> Импортировать лейблы из GitLab
                 </button>
               </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!typeName.trim() || !typeLabel.trim()) return;
-                  store.addTaskType(typeName, typeLabel);
-                  setTypeName(''); setTypeLabel('');
-                }}
-                className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
-              >
-                <div>
-                  <label className="block text-[#8b949e] mb-1">Наименование:</label>
-                  <input
-                    type="text" required value={typeName} onChange={(e) => setTypeName(e.target.value)}
-                    placeholder="Интеграционный сбой" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#8b949e] mb-1">GitLab Label:</label>
-                  <input
-                    type="text" required value={typeLabel} onChange={(e) => setTypeLabel(e.target.value)}
-                    placeholder="type::integration" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  />
-                </div>
-                <div className="md:col-span-2 flex justify-end">
-                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white">
-                    <Plus size={14} /> Добавить тип задач
-                  </button>
-                </div>
-              </form>
-              <div className="space-y-2">
-                {store.taskTypes.map((t: TaskType) => (
-                  <div key={t.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between text-xs font-mono">
-                    <div>
-                      <strong className="text-white">{t.name}</strong>
-                      <span className="text-[10px] text-[#58a6ff] block">GitLab Label: {t.gitlabLabel}</span>
-                    </div>
-                    <button onClick={() => store.deleteTaskType(t.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs font-mono">
+                {!store.gitLabLabels || store.gitLabLabels.length === 0 ? (
+                  <div className="col-span-full p-6 text-center text-[#8b949e] italic bg-[#0d1117] rounded-lg border border-[#30363d]">
+                    Лейблы еще не загружены. Нажмите кнопку "Импортировать лейблы из GitLab", чтобы загрузить ярлыки из выбранной группы проектов.
                   </div>
-                ))}
+                ) : (
+                  store.gitLabLabels.map((l: any) => (
+                    <div key={l.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between">
+                      <div className="space-y-1">
+                        <span
+                          className="px-2 py-0.5 rounded text-[11px] font-bold text-white inline-block"
+                          style={{ backgroundColor: l.color || '#1f6feb' }}
+                        >
+                          {l.name}
+                        </span>
+                        {l.description && (
+                          <p className="text-[10px] text-[#8b949e] font-sans truncate max-w-[200px]">{l.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -938,7 +922,21 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-3 border-t border-[#30363d]">
+                <div className="flex items-center justify-between pt-3 border-t border-[#30363d]">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const info = await store.testGitLabConnection();
+                        alert(`Успешно! Подключение к GitLab API установлено.\n\nГруппа: "${info.name}"\nПуть: "${info.fullPath}"\nURL: ${info.webUrl}`);
+                      } catch (err: any) {
+                        alert(err.message || err);
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-2 bg-[#21262d] hover:bg-[#30363d] text-[#58a6ff] border border-[#30363d] font-semibold rounded-lg transition-all"
+                  >
+                    <GitBranch size={15} /> Проверить подключение
+                  </button>
                   <button type="submit" className="flex items-center gap-1.5 px-4 py-2 bg-[#238636] hover:bg-[#2ea043] text-white font-bold rounded-lg shadow-md transition-all">
                     <Save size={15} /> Сохранить настройки GitLab
                   </button>

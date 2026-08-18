@@ -2,8 +2,6 @@ export interface Epic {
   id: string;
   code: string;
   title: string;
-  description: string;
-  owner: string;
 }
 
 export interface Initiative {
@@ -85,11 +83,10 @@ export interface ActivityKind {
 // 3. Проекты
 export interface Project {
   id: string;
-  name: string; // (если пусто то конструктор "Клиент + Модуль")
+  name: string;
   projectGroupId: string; // ссылка
   clientId: string; // ссылка
   productId: string; // ссылка
-  moduleId: string; // ссылка
   gitlabUrl: string; // ссылка Gitlab
 }
 
@@ -309,7 +306,6 @@ export const initialProjects: Project[] = [
     projectGroupId: 'grp-1',
     clientId: 'cl-1',
     productId: 'prod-2',
-    moduleId: 'mod-1',
     gitlabUrl: 'https://gitlab.corp.ru/sbp/gateway'
   }
 ];

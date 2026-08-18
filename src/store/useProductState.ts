@@ -4,7 +4,6 @@ import {
   Epic,
   Initiative,
   Feature,
-  Task,
   Request,
   Release,
   AuditLog,
@@ -17,13 +16,13 @@ import {
   Module,
   ProjectGroup,
   TaskKind,
-  TaskType,
   ProjectStage,
   User,
+  GitLabLabel,
   initialEpics,
   initialInitiatives,
   initialFeatures,
-  initialTasks,
+  initialGitLabLabels,
   initialRequests,
   initialReleases,
   initialAuditLogs,
@@ -34,7 +33,6 @@ import {
   initialProjectGroups,
   initialProjects,
   initialTaskKinds,
-  initialTaskTypes,
   initialProjectStages,
   initialUsers,
   initialSources,
@@ -66,13 +64,6 @@ export function useProductState() {
     return initialFeatures;
   });
 
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('task_data');
-      return saved ? JSON.parse(saved) : initialTasks;
-    }
-    return initialTasks;
-  });
 
   const [requests, setRequests] = useState<Request[]>(() => {
     if (typeof window !== 'undefined') {
@@ -211,24 +202,6 @@ export function useProductState() {
     return initialTaskKinds;
   });
 
-  const [taskTypes, setTaskTypes] = useState<TaskType[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('dict_task_types');
-      if (saved) {
-        try {
-          const list = JSON.parse(saved);
-          return list.map((t: any) => ({
-            id: t.id,
-            name: t.name,
-            gitlabLabel: t.gitlabLabel || 'custom-type-label'
-          }));
-        } catch {
-          return initialTaskTypes;
-        }
-      }
-    }
-    return initialTaskTypes;
-  });
 
   const [projectStages, setProjectStages] = useState<ProjectStage[]>(() => {
     if (typeof window !== 'undefined') {
@@ -254,6 +227,14 @@ export function useProductState() {
     return initialSources;
   });
 
+  const [gitLabLabels, setGitLabLabels] = useState<GitLabLabel[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dict_gitlab_labels');
+      return saved ? JSON.parse(saved) : initialGitLabLabels;
+    }
+    return initialGitLabLabels;
+  });
+
   const [gitLabSettings, setGitLabSettings] = useState<GitLabSettings>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('gitlab_settings');
@@ -273,7 +254,6 @@ export function useProductState() {
           { data: epDb },
           { data: initDb },
           { data: featDb },
-          { data: taskDb },
           { data: reqDb },
           { data: relDb },
           { data: auditDb },
@@ -284,7 +264,6 @@ export function useProductState() {
           { data: grpDb },
           { data: projDb },
           { data: kindDb },
-          { data: typeDb },
           { data: stageDb },
           { data: userDb },
           { data: srcDb }
@@ -292,7 +271,6 @@ export function useProductState() {
           client.from('epics').select('*'),
           client.from('initiatives').select('*'),
           client.from('features').select('*'),
-          client.from('tasks').select('*'),
           client.from('requests').select('*'),
           client.from('releases').select('*'),
           client.from('pm_audits').select('*'),
@@ -303,7 +281,6 @@ export function useProductState() {
           client.from('project_groups').select('*'),
           client.from('projects').select('*'),
           client.from('task_kinds').select('*'),
-          client.from('task_types').select('*'),
           client.from('project_stages').select('*'),
           client.from('users').select('*'),
           client.from('sources').select('*')
@@ -336,19 +313,6 @@ export function useProductState() {
               segmentAdoption: f.segment_adoption,
               revenueGenerated: Number(f.revenue_generated),
               developmentCost: Number(f.development_cost),
-            }))
-          );
-        }
-        if (taskDb) {
-          setTasks(
-            (taskDb as any[]).map((t) => ({
-              id: t.id,
-              featureId: t.feature_id,
-              code: t.code,
-              title: t.title,
-              status: t.status,
-              developer: t.developer,
-              gitlabUrl: t.gitlab_url || undefined,
             }))
           );
         }
@@ -459,15 +423,6 @@ export function useProductState() {
             }))
           );
         }
-        if (typeDb) {
-          setTaskTypes(
-            (typeDb as any[]).map((t) => ({
-              id: t.id,
-              name: t.name,
-              gitlabLabel: t.gitlab_label,
-            }))
-          );
-        }
         if (stageDb) {
           setProjectStages(
             (stageDb as any[]).map((s) => ({
@@ -511,9 +466,6 @@ export function useProductState() {
     localStorage.setItem('feat_data', JSON.stringify(features));
   }, [features]);
 
-  useEffect(() => {
-    localStorage.setItem('task_data', JSON.stringify(tasks));
-  }, [tasks]);
 
   useEffect(() => {
     localStorage.setItem('req_data', JSON.stringify(requests));
@@ -556,9 +508,6 @@ export function useProductState() {
     localStorage.setItem('dict_task_kinds', JSON.stringify(taskKinds));
   }, [taskKinds]);
 
-  useEffect(() => {
-    localStorage.setItem('dict_task_types', JSON.stringify(taskTypes));
-  }, [taskTypes]);
 
   useEffect(() => {
     localStorage.setItem('dict_project_stages', JSON.stringify(projectStages));
@@ -862,37 +811,6 @@ export function useProductState() {
     deleteTaskKindNew(id);
   };
 
-  // 8. Task Types
-  const addTaskTypeNew = async (name: string, gitlabLabel?: string) => {
-    const newItem: TaskType = { id: `type-${Date.now()}`, name, gitlabLabel: gitlabLabel || 'custom-type-label' };
-    setTaskTypes((prev) => [...prev, newItem]);
-    logAction('ADD_DICTIONARY', `Справочник: Добавлен тип задачи ${name}`);
-
-    const client = supabase;
-    if (isSupabaseConfigured && client) {
-      await client.from('task_types').insert({
-        id: newItem.id,
-        name: newItem.name,
-        gitlab_label: newItem.gitlabLabel,
-      });
-    }
-  };
-  const deleteTaskTypeNew = async (id: string) => {
-    setTaskTypes((prev) => prev.filter(i => i.id !== id));
-    logAction('DELETE_DICTIONARY', `Справочник: Удален тип задачи ${id}`);
-
-    const client = supabase;
-    if (isSupabaseConfigured && client) {
-      await client.from('task_types').delete().eq('id', id);
-    }
-  };
-
-  const addTaskType = (name: string, gitlabLabel?: string) => {
-    addTaskTypeNew(name, gitlabLabel || 'custom-type-label');
-  };
-  const deleteTaskType = (id: string) => {
-    deleteTaskTypeNew(id);
-  };
 
   // 9. Project Stages
   const addProjectStage = async (name: string, gitlabLabel: string) => {
@@ -1222,26 +1140,6 @@ export function useProductState() {
     );
   };
 
-  // Add Task
-  const addTask = async (task: Omit<Task, 'id' | 'code'>) => {
-    const code = `TASK-${1000 + tasks.length + 1}`;
-    const newTask: Task = { ...task, id: `t-${Date.now()}`, code };
-    setTasks((prev) => [...prev, newTask]);
-    logAction('CREATE_TASK', `Добавлена задача ${code}: ${task.title} к фиче ${task.featureId}`);
-
-    const client = supabase;
-    if (isSupabaseConfigured && client) {
-      await client.from('tasks').insert({
-        id: newTask.id,
-        feature_id: newTask.featureId,
-        code: newTask.code,
-        title: newTask.title,
-        status: newTask.status,
-        developer: newTask.developer,
-        gitlab_url: newTask.gitlabUrl,
-      });
-    }
-  };
 
   const getProjectName = (proj: Project): string => {
     if (proj.name && proj.name.trim() !== '') {
@@ -1290,10 +1188,6 @@ export function useProductState() {
       const k = taskKinds.find((item) => item.id === req.taskKindId);
       if (k) legacyKind = k.name;
     }
-    if (req.taskTypeId) {
-      const t = taskTypes.find((item) => item.id === req.taskTypeId);
-      if (t) legacyType = t.name;
-    }
 
     const payload = {
       ...req,
@@ -1301,7 +1195,6 @@ export function useProductState() {
       project: legacyProject || undefined,
       subsystem: legacySubsystem || undefined,
       taskKind: legacyKind || undefined,
-      taskType: legacyType || undefined,
     };
 
     let validatedStatus = payload.status;
@@ -1383,10 +1276,6 @@ export function useProductState() {
       const k = taskKinds.find((item) => item.id === updatedReq.taskKindId);
       if (k) legacyKind = k.name;
     }
-    if (updatedReq.taskTypeId) {
-      const t = taskTypes.find((item) => item.id === updatedReq.taskTypeId);
-      if (t) legacyType = t.name;
-    }
 
     const payload = {
       ...updatedReq,
@@ -1394,7 +1283,6 @@ export function useProductState() {
       project: legacyProject || undefined,
       subsystem: legacySubsystem || undefined,
       taskKind: legacyKind || undefined,
-      taskType: legacyType || undefined,
     };
 
     setRequests((prev) => prev.map((r) => (r.id === updatedReq.id ? payload : r)));
@@ -1818,6 +1706,56 @@ export function useProductState() {
     }
   };
 
+  const testGitLabConnection = async () => {
+    checkGitLabConfig();
+    const { serverUrl, personalAccessToken, projectGroup } = gitLabSettings;
+
+    const res = await fetch(`${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}`, {
+      headers: { 'Private-Token': personalAccessToken }
+    });
+
+    if (!res.ok) {
+      throw new Error(`Ошибка подключения к GitLab API (Статус: ${res.status} ${res.statusText}). Проверьте URL сервера, Токен и Название группы.`);
+    }
+
+    const groupData = await res.json();
+    return {
+      success: true,
+      name: groupData.name || projectGroup,
+      fullPath: groupData.full_path || projectGroup,
+      webUrl: groupData.web_url || `${serverUrl}/${projectGroup}`
+    };
+  };
+
+  const importGitLabLabels = async () => {
+    checkGitLabConfig();
+    const { serverUrl, personalAccessToken, projectGroup } = gitLabSettings;
+
+    const res = await fetch(`${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/labels`, {
+      headers: { 'Private-Token': personalAccessToken }
+    });
+
+    if (!res.ok) {
+      throw new Error(`Не удалось загрузить ярлыки из GitLab (Статус: ${res.status} ${res.statusText})`);
+    }
+
+    const labelsData = await res.json();
+    if (!Array.isArray(labelsData)) {
+      throw new Error('Некорректный ответ от GitLab API при запросе меток.');
+    }
+
+    const newItems: GitLabLabel[] = labelsData.map((l: any) => ({
+      id: String(l.id),
+      name: l.name,
+      color: l.color,
+      description: l.description || ''
+    }));
+
+    setGitLabLabels(newItems);
+    logAction('IMPORT_GITLAB_LABELS', `Импортировано ${newItems.length} ярлыков из группы проектов ${projectGroup}`);
+    return newItems.map(i => i.name);
+  };
+
   const importGitLabIssues = async () => {
     checkGitLabConfig();
 
@@ -1860,11 +1798,6 @@ export function useProductState() {
         k.gitlabLabel && issueLabels.some((l) => l.toLowerCase() === k.gitlabLabel.toLowerCase())
       );
 
-      // Match local TaskType by gitlabLabel
-      const matchedType = taskTypes.find((t) =>
-        t.gitlabLabel && issueLabels.some((l) => l.toLowerCase() === t.gitlabLabel.toLowerCase())
-      );
-
       // Match local ProjectStage by gitlabLabel
       const matchedStage = projectStages.find((s) =>
         s.gitlabLabel && issueLabels.some((l) => l.toLowerCase() === s.gitlabLabel.toLowerCase())
@@ -1898,7 +1831,6 @@ export function useProductState() {
         productId: matchedProj?.productId,
         moduleId: matchedProj?.moduleId,
         taskKindId: matchedKind?.id,
-        taskTypeId: matchedType?.id,
         projectStageId: matchedStage?.id,
         authorId: matchedAuthor?.id,
         executorId: matchedExecutor?.id,
@@ -1908,7 +1840,6 @@ export function useProductState() {
         project: matchedProj ? getProjectName(matchedProj) : undefined,
         subsystem: matchedProj ? modules.find(m => m.id === matchedProj.moduleId)?.name : undefined,
         taskKind: matchedKind?.name,
-        taskType: matchedType?.name,
 
         estimate: typeof issue.time_stats?.time_estimate === 'number' ? Math.round(issue.time_stats.time_estimate / 3600) : 0,
         spent: typeof issue.time_stats?.total_time_spent === 'number' ? Math.round(issue.time_stats.total_time_spent / 3600) : 0,
@@ -1972,7 +1903,6 @@ export function useProductState() {
         gitlabId: r.gitlabIssueId,
         title: r.title,
         kind: r.taskKindId ? taskKinds.find(k => k.id === r.taskKindId)?.name : undefined,
-        type: r.taskTypeId ? taskTypes.find(t => t.id === r.taskTypeId)?.name : undefined
       }))
     };
   };
@@ -2030,25 +1960,15 @@ export function useProductState() {
   };
 
   const importModulesFromGitLab = async () => {
-    checkGitLabConfig();
-    const { serverUrl, personalAccessToken, projectGroup } = gitLabSettings;
-
-    const res = await fetch(`${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/labels`, {
-      headers: { 'Private-Token': personalAccessToken }
-    });
-
-    if (!res.ok) {
-      throw new Error(`Не удалось загрузить ярлыки модулей из GitLab (Статус: ${res.status} ${res.statusText})`);
+    let sourceLabels = gitLabLabels;
+    if (sourceLabels.length === 0) {
+      await importGitLabLabels();
+      sourceLabels = gitLabLabels;
     }
 
-    const labelsData = await res.json();
-    if (!Array.isArray(labelsData)) {
-      throw new Error('Некорректный ответ от GitLab API при запросе меток.');
-    }
-
-    const newItems: Module[] = labelsData
-      .filter((l: any) => l.name.startsWith('module::'))
-      .map((l: any) => ({
+    const newItems: Module[] = sourceLabels
+      .filter((l) => l.name.startsWith('module::'))
+      .map((l) => ({
         id: `mod-gl-${l.id}`,
         name: l.name.replace('module::', '').toUpperCase(),
         gitlabLabel: l.name
@@ -2067,30 +1987,20 @@ export function useProductState() {
 
       return [...prev, ...filtered];
     });
-    logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано модулей из группы проектов ${projectGroup}`);
+    logAction('MATCH_GITLAB_LABELS', `Сопоставлено модулей из загруженных лейблов GitLab`);
     return newItems.map(i => i.name);
   };
 
   const importTaskKindsFromGitLab = async () => {
-    checkGitLabConfig();
-    const { serverUrl, personalAccessToken, projectGroup } = gitLabSettings;
-
-    const res = await fetch(`${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/labels`, {
-      headers: { 'Private-Token': personalAccessToken }
-    });
-
-    if (!res.ok) {
-      throw new Error(`Не удалось загрузить ярлыки видов задач из GitLab (Статус: ${res.status} ${res.statusText})`);
+    let sourceLabels = gitLabLabels;
+    if (sourceLabels.length === 0) {
+      await importGitLabLabels();
+      sourceLabels = gitLabLabels;
     }
 
-    const labelsData = await res.json();
-    if (!Array.isArray(labelsData)) {
-      throw new Error('Некорректный ответ от GitLab API при запросе меток.');
-    }
-
-    const newItems: TaskKind[] = labelsData
-      .filter((l: any) => !l.name.includes('::') && ['bug', 'feature', 'enhancement', 'tech-debt', 'improvement'].includes(l.name.toLowerCase()))
-      .map((l: any) => ({
+    const newItems: TaskKind[] = sourceLabels
+      .filter((l) => !l.name.includes('::') && ['bug', 'feature', 'enhancement', 'tech-debt', 'improvement'].includes(l.name.toLowerCase()))
+      .map((l) => ({
         id: `kind-gl-${l.id}`,
         name: l.name.toUpperCase(),
         gitlabLabel: l.name,
@@ -2115,72 +2025,20 @@ export function useProductState() {
 
       return [...prev, ...filtered];
     });
-    logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано видов задач из группы проектов ${projectGroup}`);
-    return newItems.map(i => i.name);
-  };
-
-  const importTaskTypesFromGitLab = async () => {
-    checkGitLabConfig();
-    const { serverUrl, personalAccessToken, projectGroup } = gitLabSettings;
-
-    const res = await fetch(`${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/labels`, {
-      headers: { 'Private-Token': personalAccessToken }
-    });
-
-    if (!res.ok) {
-      throw new Error(`Не удалось загрузить ярлыки типов задач из GitLab (Статус: ${res.status} ${res.statusText})`);
-    }
-
-    const labelsData = await res.json();
-    if (!Array.isArray(labelsData)) {
-      throw new Error('Некорректный ответ от GitLab API при запросе меток.');
-    }
-
-    const newItems: TaskType[] = labelsData
-      .filter((l: any) => l.name.startsWith('type::'))
-      .map((l: any) => ({
-        id: `type-gl-${l.id}`,
-        name: l.name.replace('type::', '').toUpperCase(),
-        gitlabLabel: l.name
-      }));
-
-    setTaskTypes((prev) => {
-      const existingNames = prev.map(i => i.name);
-      const filtered = newItems.filter(i => !existingNames.includes(i.name));
-
-      const client = supabase;
-      if (isSupabaseConfigured && client) {
-        filtered.forEach(t => {
-          client.from('task_types').insert({ id: t.id, name: t.name, gitlab_label: t.gitlabLabel }).then();
-        });
-      }
-
-      return [...prev, ...filtered];
-    });
-    logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано типов задач из группы проектов ${projectGroup}`);
+    logAction('MATCH_GITLAB_LABELS', `Сопоставлено видов задач из загруженных лейблов GitLab`);
     return newItems.map(i => i.name);
   };
 
   const importProjectStagesFromGitLab = async () => {
-    checkGitLabConfig();
-    const { serverUrl, personalAccessToken, projectGroup } = gitLabSettings;
-
-    const res = await fetch(`${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/labels`, {
-      headers: { 'Private-Token': personalAccessToken }
-    });
-
-    if (!res.ok) {
-      throw new Error(`Не удалось загрузить ярлыки этапов проектов из GitLab (Статус: ${res.status} ${res.statusText})`);
+    let sourceLabels = gitLabLabels;
+    if (sourceLabels.length === 0) {
+      await importGitLabLabels();
+      sourceLabels = gitLabLabels;
     }
 
-    const labelsData = await res.json();
-    if (!Array.isArray(labelsData)) {
-      throw new Error('Некорректный ответ от GitLab API при запросе меток.');
-    }
-
-    const newItems: ProjectStage[] = labelsData
-      .filter((l: any) => l.name.startsWith('stage::'))
-      .map((l: any) => ({
+    const newItems: ProjectStage[] = sourceLabels
+      .filter((l) => l.name.startsWith('stage::'))
+      .map((l) => ({
         id: `stg-gl-${l.id}`,
         name: l.name.replace('stage::', '').toUpperCase(),
         gitlabLabel: l.name
@@ -2199,7 +2057,7 @@ export function useProductState() {
 
       return [...prev, ...filtered];
     });
-    logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано этапов проектов из группы проектов ${projectGroup}`);
+    logAction('MATCH_GITLAB_LABELS', `Сопоставлено этапов проектов из загруженных лейблов GitLab`);
     return newItems.map(i => i.name);
   };
 
@@ -2268,7 +2126,6 @@ export function useProductState() {
     localStorage.removeItem('dict_project_groups');
     localStorage.removeItem('dict_projects');
     localStorage.removeItem('dict_task_kinds');
-    localStorage.removeItem('dict_task_types');
     localStorage.removeItem('dict_project_stages');
     localStorage.removeItem('dict_users');
     localStorage.removeItem('dict_sources');
@@ -2277,7 +2134,6 @@ export function useProductState() {
     setEpics(initialEpics);
     setInitiatives(initialInitiatives);
     setFeatures(initialFeatures);
-    setTasks(initialTasks);
     setRequests(initialRequests);
     setReleases(initialReleases);
     setAuditLogs(initialAuditLogs);
@@ -2288,7 +2144,6 @@ export function useProductState() {
     setProjectGroups(initialProjectGroups);
     setProjects(initialProjects);
     setTaskKinds(initialTaskKinds);
-    setTaskTypes(initialTaskTypes);
     setProjectStages(initialProjectStages);
     setUsers(initialUsers);
     setGitLabSettings(initialGitLabSettings);
@@ -2302,7 +2157,6 @@ export function useProductState() {
           client.from('epics').delete().neq('id', 'NONE'),
           client.from('initiatives').delete().neq('id', 'NONE'),
           client.from('features').delete().neq('id', 'NONE'),
-          client.from('tasks').delete().neq('id', 'NONE'),
           client.from('requests').delete().neq('id', 'NONE'),
           client.from('releases').delete().neq('id', 'NONE'),
           client.from('pm_audits').delete().neq('id', -1),
@@ -2313,7 +2167,6 @@ export function useProductState() {
           client.from('project_groups').delete().neq('id', 'NONE'),
           client.from('projects').delete().neq('id', 'NONE'),
           client.from('task_kinds').delete().neq('id', 'NONE'),
-          client.from('task_types').delete().neq('id', 'NONE'),
           client.from('project_stages').delete().neq('id', 'NONE'),
           client.from('users').delete().neq('id', 'NONE'),
           client.from('sources').delete().neq('id', 'NONE'),
@@ -2330,7 +2183,6 @@ export function useProductState() {
     epics,
     initiatives,
     features,
-    tasks,
     requests,
     releases,
     auditLogs,
@@ -2341,7 +2193,6 @@ export function useProductState() {
     projectGroups,
     projects,
     taskKinds,
-    taskTypes,
     projectStages,
     users,
     sources,
@@ -2362,8 +2213,6 @@ export function useProductState() {
     deleteProjectGroup,
     addTaskKind: addTaskKindNew,
     deleteTaskKind: deleteTaskKindNew,
-    addTaskType: addTaskTypeNew,
-    deleteTaskType: deleteTaskTypeNew,
     addProjectStage,
     deleteProjectStage,
     addUser,
@@ -2376,7 +2225,6 @@ export function useProductState() {
     updateFeature,
     overrideFeatureScore,
     resetFeatureOverride,
-    addTask,
     addRequest,
     updateRequestDetails,
     classifyRequest,
@@ -2392,12 +2240,14 @@ export function useProductState() {
     fillFeatureEffort,
     batchFillFeatureEfforts,
     gitLabSettings,
+    gitLabLabels,
     updateGitLabSettings,
+    testGitLabConnection,
+    importGitLabLabels,
     importGitLabIssues,
     importProjectsFromGitLab,
     importModulesFromGitLab,
     importTaskKindsFromGitLab,
-    importTaskTypesFromGitLab,
     importProjectStagesFromGitLab,
     importUsersFromGitLab,
     resetAllState

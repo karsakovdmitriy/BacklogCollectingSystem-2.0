@@ -64,7 +64,6 @@ export function useProductState() {
     return initialFeatures;
   });
 
-
   const [requests, setRequests] = useState<Request[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('req_data');
@@ -137,17 +136,6 @@ export function useProductState() {
           }));
         } catch {}
       }
-      const savedSubs = localStorage.getItem('dict_subsystems');
-      if (savedSubs) {
-        try {
-          const list = JSON.parse(savedSubs);
-          return list.map((s: any) => ({
-            id: s.id,
-            name: s.name,
-            gitlabLabel: 'module::custom'
-          }));
-        } catch {}
-      }
     }
     return initialModules;
   });
@@ -172,7 +160,6 @@ export function useProductState() {
             projectGroupId: p.projectGroupId || 'grp-1',
             clientId: p.clientId || 'cl-1',
             productId: p.productId || 'prod-2',
-            moduleId: p.moduleId || 'mod-1',
             gitlabUrl: p.gitlabUrl || 'https://gitlab.corp.ru'
           }));
         } catch {
@@ -192,7 +179,8 @@ export function useProductState() {
           return list.map((k: any) => ({
             id: k.id,
             name: k.name,
-            gitlabLabel: k.gitlabLabel || 'custom-label'
+            gitlabLabel: k.gitlabLabel || 'custom-label',
+            priorityPoints: k.priorityPoints || 3
           }));
         } catch {
           return initialTaskKinds;
@@ -201,7 +189,6 @@ export function useProductState() {
     }
     return initialTaskKinds;
   });
-
 
   const [projectStages, setProjectStages] = useState<ProjectStage[]>(() => {
     if (typeof window !== 'undefined') {
@@ -222,7 +209,15 @@ export function useProductState() {
   const [sources, setSources] = useState<DictionaryItem[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('dict_sources');
-      return saved ? JSON.parse(saved) : initialSources;
+      if (saved) {
+        try {
+          const list = JSON.parse(saved);
+          if (!list.some((s: any) => s.name === 'GitLab')) {
+            list.unshift({ id: 'src-gl', name: 'GitLab' });
+          }
+          return list;
+        } catch {}
+      }
     }
     return initialSources;
   });
@@ -286,7 +281,13 @@ export function useProductState() {
           client.from('sources').select('*')
         ]);
 
-        if (epDb) setEpics(epDb as Epic[]);
+        if (epDb) {
+          setEpics((epDb as any[]).map((e) => ({
+            id: e.id,
+            code: e.code,
+            title: e.title,
+          })));
+        }
         if (initDb) setInitiatives(initDb as Initiative[]);
         if (featDb) {
           setFeatures(
@@ -408,7 +409,6 @@ export function useProductState() {
               projectGroupId: p.project_group_id,
               clientId: p.client_id,
               productId: p.product_id,
-              moduleId: p.module_id,
               gitlabUrl: p.gitlab_url,
             }))
           );
@@ -444,7 +444,13 @@ export function useProductState() {
             }))
           );
         }
-        if (srcDb) setSources(srcDb as DictionaryItem[]);
+        if (srcDb) {
+          const loadedSrcs = srcDb as DictionaryItem[];
+          if (!loadedSrcs.some((s) => s.name === 'GitLab')) {
+            loadedSrcs.unshift({ id: 'src-gl', name: 'GitLab' });
+          }
+          setSources(loadedSrcs);
+        }
       } catch (err) {
         console.error('Supabase Hydration error:', err);
       }
@@ -465,7 +471,6 @@ export function useProductState() {
   useEffect(() => {
     localStorage.setItem('feat_data', JSON.stringify(features));
   }, [features]);
-
 
   useEffect(() => {
     localStorage.setItem('req_data', JSON.stringify(requests));
@@ -508,7 +513,6 @@ export function useProductState() {
     localStorage.setItem('dict_task_kinds', JSON.stringify(taskKinds));
   }, [taskKinds]);
 
-
   useEffect(() => {
     localStorage.setItem('dict_project_stages', JSON.stringify(projectStages));
   }, [projectStages]);
@@ -520,6 +524,10 @@ export function useProductState() {
   useEffect(() => {
     localStorage.setItem('dict_sources', JSON.stringify(sources));
   }, [sources]);
+
+  useEffect(() => {
+    localStorage.setItem('dict_gitlab_labels', JSON.stringify(gitLabLabels));
+  }, [gitLabLabels]);
 
   useEffect(() => {
     localStorage.setItem('gitlab_settings', JSON.stringify(gitLabSettings));
@@ -542,10 +550,10 @@ export function useProductState() {
     setAuditLogs((prev) => [newLog, ...prev]);
   };
 
-  // Add / Delete Epic
+  // Add / Edit / Delete Epic
   const addEpic = async (epic: Omit<Epic, 'id' | 'code'>) => {
     const code = `EPIC-${String(epics.length + 1).padStart(3, '0')}`;
-    const newEpic: Epic = { ...epic, id: `ep-${Date.now()}`, code };
+    const newEpic: Epic = { title: epic.title, id: `ep-${Date.now()}`, code };
     setEpics((prev) => [...prev, newEpic]);
     logAction('CREATE_EPIC', `Создан эпик ${code}: ${epic.title}`);
 
@@ -556,12 +564,25 @@ export function useProductState() {
           id: newEpic.id,
           code: newEpic.code,
           title: newEpic.title,
-          description: newEpic.description,
-          owner: newEpic.owner,
         });
         if (error) console.error('Error adding Epic to Supabase:', error);
       } catch (err) {
         console.error('Exception adding Epic to Supabase:', err);
+      }
+    }
+  };
+
+  const updateEpic = async (updated: Epic) => {
+    setEpics((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    logAction('UPDATE_EPIC', `Обновлен эпик ${updated.code}: ${updated.title}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      try {
+        const { error } = await client.from('epics').update({ title: updated.title }).eq('id', updated.id);
+        if (error) console.error('Error updating Epic in Supabase:', error);
+      } catch (err) {
+        console.error('Exception updating Epic in Supabase:', err);
       }
     }
   };
@@ -602,6 +623,24 @@ export function useProductState() {
       }
     }
   };
+
+  const updateClient = async (updated: Client) => {
+    setClients((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    logAction('UPDATE_DICTIONARY', `Справочник: Обновлен клиент ${updated.name}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      try {
+        await client.from('clients').update({
+          name: updated.name,
+          activity_kind_id: updated.activityKindId,
+        }).eq('id', updated.id);
+      } catch (err) {
+        console.error('Exception updating Client in Supabase:', err);
+      }
+    }
+  };
+
   const deleteClient = async (id: string) => {
     setClients((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален клиент ${id}`);
@@ -636,6 +675,21 @@ export function useProductState() {
       }
     }
   };
+
+  const updateActivityKind = async (updated: ActivityKind) => {
+    setActivityKinds((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    logAction('UPDATE_DICTIONARY', `Справочник: Обновлен вид деятельности ${updated.name}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      try {
+        await client.from('activity_kinds').update({ name: updated.name }).eq('id', updated.id);
+      } catch (err) {
+        console.error('Exception updating ActivityKind in Supabase:', err);
+      }
+    }
+  };
+
   const deleteActivityKind = async (id: string) => {
     setActivityKinds((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален вид деятельности ${id}`);
@@ -655,7 +709,7 @@ export function useProductState() {
   const addProjectNew = async (projectData: Omit<Project, 'id'>) => {
     const newItem: Project = { id: `pr-${Date.now()}`, ...projectData };
     setProjects((prev) => [...prev, newItem]);
-    logAction('ADD_DICTIONARY', `Справочник: Добавлен проект ${projectData.name || '(Клиент + Модуль)'}`);
+    logAction('ADD_DICTIONARY', `Справочник: Добавлен проект ${projectData.name || '(Клиент)'}`);
 
     const client = supabase;
     if (isSupabaseConfigured && client) {
@@ -666,7 +720,6 @@ export function useProductState() {
           project_group_id: newItem.projectGroupId,
           client_id: newItem.clientId,
           product_id: newItem.productId,
-          module_id: newItem.moduleId,
           gitlab_url: newItem.gitlabUrl,
         });
         if (error) console.error('Error adding Project to Supabase:', error);
@@ -675,6 +728,27 @@ export function useProductState() {
       }
     }
   };
+
+  const updateProject = async (updated: Project) => {
+    setProjects((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    logAction('UPDATE_DICTIONARY', `Справочник: Обновлен проект ${updated.name || '(Клиент)'}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      try {
+        await client.from('projects').update({
+          name: updated.name,
+          project_group_id: updated.projectGroupId,
+          client_id: updated.clientId,
+          product_id: updated.productId,
+          gitlab_url: updated.gitlabUrl,
+        }).eq('id', updated.id);
+      } catch (err) {
+        console.error('Exception updating Project in Supabase:', err);
+      }
+    }
+  };
+
   const deleteProjectNew = async (id: string) => {
     setProjects((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален проект ${id}`);
@@ -696,10 +770,10 @@ export function useProductState() {
       projectGroupId: projectGroups[0]?.id || 'grp-1',
       clientId: clients[0]?.id || 'cl-1',
       productId: products[0]?.id || 'prod-2',
-      moduleId: modules[0]?.id || 'mod-1',
       gitlabUrl: 'https://gitlab.corp.ru'
     });
   };
+
   const deleteProject = (id: string) => {
     deleteProjectNew(id);
   };
@@ -718,6 +792,17 @@ export function useProductState() {
       });
     }
   };
+
+  const updateProduct = async (updated: Product) => {
+    setProducts((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    logAction('UPDATE_DICTIONARY', `Справочник: Обновлен продукт ${updated.name}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('products').update({ name: updated.name }).eq('id', updated.id);
+    }
+  };
+
   const deleteProduct = async (id: string) => {
     setProducts((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален продукт ${id}`);
@@ -743,6 +828,20 @@ export function useProductState() {
       });
     }
   };
+
+  const updateModule = async (updated: Module) => {
+    setModules((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    logAction('UPDATE_DICTIONARY', `Справочник: Обновлен модуль ${updated.name}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('modules').update({
+        name: updated.name,
+        gitlab_label: updated.gitlabLabel,
+      }).eq('id', updated.id);
+    }
+  };
+
   const deleteModule = async (id: string) => {
     setModules((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален модуль ${id}`);
@@ -768,6 +867,20 @@ export function useProductState() {
       });
     }
   };
+
+  const updateProjectGroup = async (updated: ProjectGroup) => {
+    setProjectGroups((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    logAction('UPDATE_DICTIONARY', `Справочник: Обновлена группа проектов ${updated.name}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('project_groups').update({
+        name: updated.name,
+        gitlab_url: updated.gitlabUrl,
+      }).eq('id', updated.id);
+    }
+  };
+
   const deleteProjectGroup = async (id: string) => {
     setProjectGroups((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удалена группа проектов ${id}`);
@@ -779,8 +892,8 @@ export function useProductState() {
   };
 
   // 7. Task Kinds
-  const addTaskKindNew = async (name: string, gitlabLabel?: string) => {
-    const newItem: TaskKind = { id: `kind-${Date.now()}`, name, gitlabLabel: gitlabLabel || 'custom-label', priorityPoints: 3 };
+  const addTaskKindNew = async (name: string, gitlabLabel?: string, priorityPoints?: number) => {
+    const newItem: TaskKind = { id: `kind-${Date.now()}`, name, gitlabLabel: gitlabLabel || 'custom-label', priorityPoints: priorityPoints || 3 };
     setTaskKinds((prev) => [...prev, newItem]);
     logAction('ADD_DICTIONARY', `Справочник: Добавлен вид задачи ${name}`);
 
@@ -794,6 +907,21 @@ export function useProductState() {
       });
     }
   };
+
+  const updateTaskKind = async (updated: TaskKind) => {
+    setTaskKinds((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    logAction('UPDATE_DICTIONARY', `Справочник: Обновлен вид задачи ${updated.name}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('task_kinds').update({
+        name: updated.name,
+        gitlab_label: updated.gitlabLabel,
+        priority_points: updated.priorityPoints,
+      }).eq('id', updated.id);
+    }
+  };
+
   const deleteTaskKindNew = async (id: string) => {
     setTaskKinds((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален вид задачи ${id}`);
@@ -804,13 +932,12 @@ export function useProductState() {
     }
   };
 
-  const addTaskKind = (name: string, gitlabLabel?: string) => {
-    addTaskKindNew(name, gitlabLabel || 'custom-label');
+  const addTaskKind = (name: string, gitlabLabel?: string, priorityPoints?: number) => {
+    addTaskKindNew(name, gitlabLabel || 'custom-label', priorityPoints);
   };
   const deleteTaskKind = (id: string) => {
     deleteTaskKindNew(id);
   };
-
 
   // 9. Project Stages
   const addProjectStage = async (name: string, gitlabLabel: string) => {
@@ -827,6 +954,20 @@ export function useProductState() {
       });
     }
   };
+
+  const updateProjectStage = async (updated: ProjectStage) => {
+    setProjectStages((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    logAction('UPDATE_DICTIONARY', `Справочник: Обновлен этап проекта ${updated.name}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('project_stages').update({
+        name: updated.name,
+        gitlab_label: updated.gitlabLabel,
+      }).eq('id', updated.id);
+    }
+  };
+
   const deleteProjectStage = async (id: string) => {
     setProjectStages((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален этап проекта ${id}`);
@@ -855,6 +996,23 @@ export function useProductState() {
       });
     }
   };
+
+  const updateUser = async (updated: User) => {
+    setUsers((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    logAction('UPDATE_DICTIONARY', `Справочник: Обновлен пользователь ${updated.fullName}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('users').update({
+        full_name: updated.fullName,
+        is_enabled: updated.isEnabled,
+        email: updated.email,
+        gitlab_user: updated.gitlabUser,
+        role: updated.role,
+      }).eq('id', updated.id);
+    }
+  };
+
   const deleteUser = async (id: string) => {
     setUsers((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален пользователь ${id}`);
@@ -878,6 +1036,17 @@ export function useProductState() {
       });
     }
   };
+
+  const updateSource = async (updated: DictionaryItem) => {
+    setSources((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    logAction('UPDATE_DICTIONARY', `Справочник: Обновлен источник ${updated.name}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await client.from('sources').update({ name: updated.name }).eq('id', updated.id);
+    }
+  };
+
   const deleteSource = async (id: string) => {
     setSources((prev) => prev.filter(i => i.id !== id));
     logAction('DELETE_DICTIONARY', `Справочник: Удален источник ${id}`);
@@ -988,7 +1157,7 @@ export function useProductState() {
       retentionRate: 0,
       segmentAdoption: { enterprise: 0, sme: 0, retail: 0 },
       revenueGenerated: 0,
-      developmentCost: feat.effortHours * 2000, // mock dev cost formula: 2000 RUB per hour
+      developmentCost: feat.effortHours * 2000,
     };
     const autoScore = (feat.repeatabilityCount * 3) + (feat.salesImpact * 10) + (feat.itsPriority * 10);
     const newFeat: Feature = {
@@ -1140,14 +1309,12 @@ export function useProductState() {
     );
   };
 
-
   const getProjectName = (proj: Project): string => {
     if (proj.name && proj.name.trim() !== '') {
       return proj.name;
     }
     const c = clients.find((item) => item.id === proj.clientId);
-    const m = modules.find((item) => item.id === proj.moduleId);
-    return `${c ? c.name : 'Unknown Client'} + ${m ? m.name : 'Unknown Module'}`;
+    return c ? c.name : 'Unknown Client';
   };
 
   const isRequestFullyConfigured = (req: Partial<Request>): boolean => {
@@ -1172,7 +1339,6 @@ export function useProductState() {
     let legacyProject = '';
     let legacySubsystem = '';
     let legacyKind = '';
-    let legacyType = '';
 
     if (req.projectId) {
       const proj = projects.find((p) => p.id === req.projectId);
@@ -1180,9 +1346,11 @@ export function useProductState() {
         legacyProject = getProjectName(proj);
         const cl = clients.find((c) => c.id === proj.clientId);
         if (cl) legacyClient = cl.name;
-        const md = modules.find((m) => m.id === proj.moduleId);
-        if (md) legacySubsystem = md.name;
       }
+    }
+    if (req.moduleId) {
+      const md = modules.find((m) => m.id === req.moduleId);
+      if (md) legacySubsystem = md.name;
     }
     if (req.taskKindId) {
       const k = taskKinds.find((item) => item.id === req.taskKindId);
@@ -1248,7 +1416,6 @@ export function useProductState() {
       }
     }
 
-    // If fully configured, accepted, and bound, update repeatability
     if (validatedStatus === 'Принят' && req.associatedFeatureId) {
       incrementFeatureRepeatability(req.associatedFeatureId, code);
     }
@@ -1260,7 +1427,6 @@ export function useProductState() {
     let legacyProject = '';
     let legacySubsystem = '';
     let legacyKind = '';
-    let legacyType = '';
 
     if (updatedReq.projectId) {
       const proj = projects.find((p) => p.id === updatedReq.projectId);
@@ -1268,9 +1434,11 @@ export function useProductState() {
         legacyProject = getProjectName(proj);
         const cl = clients.find((c) => c.id === proj.clientId);
         if (cl) legacyClient = cl.name;
-        const md = modules.find((m) => m.id === proj.moduleId);
-        if (md) legacySubsystem = md.name;
       }
+    }
+    if (updatedReq.moduleId) {
+      const md = modules.find((m) => m.id === updatedReq.moduleId);
+      if (md) legacySubsystem = md.name;
     }
     if (updatedReq.taskKindId) {
       const k = taskKinds.find((item) => item.id === updatedReq.taskKindId);
@@ -1322,7 +1490,6 @@ export function useProductState() {
     }
   };
 
-  // Drag-and-drop helpers to update Request's Epic
   const updateRequestEpic = async (requestId: string, epicId: string) => {
     setRequests((prev) =>
       prev.map((r) => {
@@ -1339,7 +1506,6 @@ export function useProductState() {
     );
   };
 
-  // Drag-and-drop helpers to bind request to a feature
   const associateRequestWithFeature = async (requestId: string, featureId: string) => {
     let targetEpicId: string | undefined = undefined;
 
@@ -1384,7 +1550,6 @@ export function useProductState() {
     incrementFeatureRepeatability(featureId, requestId);
   };
 
-  // Convert a request directly to a duplicate Feature and link them together
   const convertRequestToFeature = async (requestId: string) => {
     const req = requests.find(r => r.id === requestId);
     if (!req) return;
@@ -1426,7 +1591,6 @@ export function useProductState() {
     );
   };
 
-  // Classify Request
   const classifyRequest = (requestId: string, status: 'Отклонен' | 'В проработку' | 'Принят' | 'Неразобранные', associatedFeatureId?: string | null) => {
     let errorOccurred = false;
     setRequests((prev) =>
@@ -1483,7 +1647,6 @@ export function useProductState() {
     );
   };
 
-  // Release Planner actions
   const updateDraftCapacity = async (capacity: number) => {
     setReleases((prev) =>
       prev.map((r) => {
@@ -1516,7 +1679,6 @@ export function useProductState() {
     );
   };
 
-  // Clear draft features
   const clearDraftFeatures = async () => {
     setFeatures((prev) =>
       prev.map((f) => {
@@ -1533,7 +1695,6 @@ export function useProductState() {
     logAction('RELEASE_CLEAR_DRAFT', `Все фичи удалены из черновика релиза.`);
   };
 
-  // Auto-allocate Features to draft release
   const autoAllocateDraftFeatures = async (capacityLimit: number) => {
     const candidates = features.filter(f => f.releaseId !== 'rel-1');
     const sorted = [...candidates].sort((a, b) => {
@@ -1576,7 +1737,6 @@ export function useProductState() {
     );
   };
 
-  // Approve Release
   const approveDraftRelease = async () => {
     const draftRelease = releases.find(r => r.id === 'rel-draft');
     if (!draftRelease) return;
@@ -1727,24 +1887,32 @@ export function useProductState() {
     };
   };
 
+  // Requirement 12: Load all GitLab labels using pagination
   const importGitLabLabels = async () => {
     checkGitLabConfig();
     const { serverUrl, personalAccessToken, projectGroup } = gitLabSettings;
 
-    const res = await fetch(`${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/labels`, {
-      headers: { 'Private-Token': personalAccessToken }
-    });
+    let page = 1;
+    let allLabels: any[] = [];
+    while (true) {
+      const res = await fetch(`${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/labels?per_page=100&page=${page}`, {
+        headers: { 'Private-Token': personalAccessToken }
+      });
 
-    if (!res.ok) {
-      throw new Error(`Не удалось загрузить ярлыки из GitLab (Статус: ${res.status} ${res.statusText})`);
+      if (!res.ok) {
+        if (page === 1) throw new Error(`Не удалось загрузить ярлыки из GitLab (Статус: ${res.status} ${res.statusText})`);
+        break;
+      }
+
+      const labelsData = await res.json();
+      if (!Array.isArray(labelsData) || labelsData.length === 0) break;
+      allLabels = [...allLabels, ...labelsData];
+      const nextPage = res.headers.get('x-next-page');
+      if (!nextPage || !nextPage.trim()) break;
+      page++;
     }
 
-    const labelsData = await res.json();
-    if (!Array.isArray(labelsData)) {
-      throw new Error('Некорректный ответ от GitLab API при запросе меток.');
-    }
-
-    const newItems: GitLabLabel[] = labelsData.map((l: any) => ({
+    const newItems: GitLabLabel[] = allLabels.map((l: any) => ({
       id: String(l.id),
       name: l.name,
       color: l.color,
@@ -1779,7 +1947,6 @@ export function useProductState() {
     issuesData.forEach((issue: any, idx: number) => {
       const gitlabId = `#${issue.iid || issue.id}`;
 
-      // Mapping Project: compare issue.web_url with project.gitlabUrl
       let matchedProj: Project | undefined = undefined;
       if (issue.web_url) {
         matchedProj = projects.find((p) => {
@@ -1790,20 +1957,16 @@ export function useProductState() {
         });
       }
 
-      // Mapping Labels
       const issueLabels: string[] = Array.isArray(issue.labels) ? issue.labels : [];
 
-      // Match local TaskKind by gitlabLabel
       const matchedKind = taskKinds.find((k) =>
         k.gitlabLabel && issueLabels.some((l) => l.toLowerCase() === k.gitlabLabel.toLowerCase())
       );
 
-      // Match local ProjectStage by gitlabLabel
       const matchedStage = projectStages.find((s) =>
         s.gitlabLabel && issueLabels.some((l) => l.toLowerCase() === s.gitlabLabel.toLowerCase())
       );
 
-      // Mapping Users (Author & Assignee)
       const issueAuthorUsername = issue.author?.username;
       const matchedAuthor = users.find((u) =>
         u.gitlabUser && issueAuthorUsername && u.gitlabUser.toLowerCase() === issueAuthorUsername.toLowerCase()
@@ -1826,19 +1989,15 @@ export function useProductState() {
         gitlabIssueId: gitlabId,
         associatedFeatureId: null,
 
-        // Strict mapping relations
         projectId: matchedProj?.id,
         productId: matchedProj?.productId,
-        moduleId: matchedProj?.moduleId,
         taskKindId: matchedKind?.id,
         projectStageId: matchedStage?.id,
         authorId: matchedAuthor?.id,
         executorId: matchedExecutor?.id,
 
-        // Legacy string values populated dynamically if matched
         client: matchedProj ? clients.find(c => c.id === matchedProj.clientId)?.name : undefined,
         project: matchedProj ? getProjectName(matchedProj) : undefined,
-        subsystem: matchedProj ? modules.find(m => m.id === matchedProj.moduleId)?.name : undefined,
         taskKind: matchedKind?.name,
 
         estimate: typeof issue.time_stats?.time_estimate === 'number' ? Math.round(issue.time_stats.time_estimate / 3600) : 0,
@@ -1907,11 +2066,79 @@ export function useProductState() {
     };
   };
 
+  // Requirement 8 & 9: Import Project Groups recursively from GitLab up to projectGroup
+  const importProjectGroupsFromGitLab = async () => {
+    checkGitLabConfig();
+    const { serverUrl, personalAccessToken, projectGroup } = gitLabSettings;
+
+    const res = await fetch(`${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/subgroups?all_available=true&per_page=100`, {
+      headers: { 'Private-Token': personalAccessToken }
+    });
+
+    let rawSubgroups: any[] = [];
+    if (res.ok) {
+      rawSubgroups = await res.json();
+    }
+
+    // Also fetch root group
+    const rootRes = await fetch(`${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}`, {
+      headers: { 'Private-Token': personalAccessToken }
+    });
+    let rootData: any = null;
+    if (rootRes.ok) {
+      rootData = await rootRes.json();
+    }
+
+    const fetchedGroups: ProjectGroup[] = [];
+    if (rootData) {
+      fetchedGroups.push({
+        id: `grp-gl-${rootData.id}`,
+        name: rootData.name || projectGroup,
+        gitlabUrl: rootData.web_url || `${serverUrl}/${projectGroup}`
+      });
+    }
+
+    if (Array.isArray(rawSubgroups)) {
+      rawSubgroups.forEach((g: any) => {
+        fetchedGroups.push({
+          id: `grp-gl-${g.id}`,
+          name: g.name || g.full_path,
+          gitlabUrl: g.web_url
+        });
+      });
+    }
+
+    setProjectGroups((prev) => {
+      const existingUrls = prev.map(i => i.gitlabUrl);
+      const filtered = fetchedGroups.filter(i => !existingUrls.includes(i.gitlabUrl));
+
+      const client = supabase;
+      if (isSupabaseConfigured && client) {
+        filtered.forEach(g => {
+          client.from('project_groups').insert({
+            id: g.id,
+            name: g.name,
+            gitlab_url: g.gitlabUrl,
+          }).then();
+        });
+      }
+
+      return [...prev, ...filtered];
+    });
+
+    logAction('IMPORT_GITLAB_GROUPS', `Импортировано ${fetchedGroups.length} групп проектов из GitLab.`);
+    return fetchedGroups.map(g => g.name);
+  };
+
+  // Requirement 5, 8, 9: Import Projects from GitLab and return candidate list for modal completion
   const importProjectsFromGitLab = async () => {
     checkGitLabConfig();
     const { serverUrl, personalAccessToken, projectGroup } = gitLabSettings;
 
-    const res = await fetch(`${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/projects`, {
+    // Recursively fetch parent project groups
+    await importProjectGroupsFromGitLab();
+
+    const res = await fetch(`${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/projects?include_subgroups=true&per_page=100`, {
       headers: { 'Private-Token': personalAccessToken }
     });
 
@@ -1924,191 +2151,55 @@ export function useProductState() {
       throw new Error('Некорректный ответ от GitLab API при запросе проектов.');
     }
 
-    const newItems: Project[] = projectsData.map((p: any) => ({
-      id: `pr-gl-${p.id}`,
+    // Filter out already existing projects by gitlabUrl
+    const existingUrls = projects.map(p => p.gitlabUrl.toLowerCase().replace(/\/$/, ''));
+    const unimported = projectsData.filter((p: any) => !existingUrls.includes(p.web_url.toLowerCase().replace(/\/$/, '')));
+
+    return unimported.map((p: any) => ({
       name: p.name,
-      projectGroupId: projectGroups[0]?.id || 'grp-1',
-      clientId: clients[0]?.id || 'cl-1',
-      productId: products[0]?.id || 'prod-2',
-      moduleId: modules[0]?.id || 'mod-1',
-      gitlabUrl: p.web_url
+      gitlabUrl: p.web_url,
+      suggestedGroupId: projectGroups[0]?.id || 'grp-1',
+      suggestedClientId: clients[0]?.id || 'cl-1',
+      suggestedProductId: products[0]?.id || 'prod-1'
     }));
+  };
 
-    setProjects((prev) => {
-      const existingNames = prev.map(i => i.name);
-      const filtered = newItems.filter(i => !existingNames.includes(i.name));
+  const addImportedProjects = async (newProjectsList: Omit<Project, 'id'>[]) => {
+    const createdItems: Project[] = [];
+    for (const p of newProjectsList) {
+      const newItem: Project = {
+        id: `pr-gl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        name: p.name,
+        projectGroupId: p.projectGroupId,
+        clientId: p.clientId,
+        productId: p.productId,
+        gitlabUrl: p.gitlabUrl
+      };
+      createdItems.push(newItem);
+    }
 
-      const client = supabase;
-      if (isSupabaseConfigured && client) {
-        filtered.forEach(p => {
-          client.from('projects').insert({
+    setProjects((prev) => [...prev, ...createdItems]);
+    logAction('ADD_IMPORTED_PROJECTS', `Добавлено ${createdItems.length} проектов из импорта GitLab с заполненными реквизитами.`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      for (const p of createdItems) {
+        try {
+          await client.from('projects').insert({
             id: p.id,
             name: p.name,
             project_group_id: p.projectGroupId,
             client_id: p.clientId,
             product_id: p.productId,
-            module_id: p.moduleId,
             gitlab_url: p.gitlabUrl,
-          }).then();
-        });
+          });
+        } catch (err) {
+          console.error('Error inserting imported project to Supabase:', err);
+        }
       }
-
-      return [...prev, ...filtered];
-    });
-    logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано проектов из группы проектов ${projectGroup}`);
-    return newItems.map(i => i.name || 'Unknown Project');
-  };
-
-  const importModulesFromGitLab = async () => {
-    let sourceLabels = gitLabLabels;
-    if (sourceLabels.length === 0) {
-      await importGitLabLabels();
-      sourceLabels = gitLabLabels;
     }
 
-    const newItems: Module[] = sourceLabels
-      .filter((l) => l.name.startsWith('module::'))
-      .map((l) => ({
-        id: `mod-gl-${l.id}`,
-        name: l.name.replace('module::', '').toUpperCase(),
-        gitlabLabel: l.name
-      }));
-
-    setModules((prev) => {
-      const existingNames = prev.map(i => i.name);
-      const filtered = newItems.filter(i => !existingNames.includes(i.name));
-
-      const client = supabase;
-      if (isSupabaseConfigured && client) {
-        filtered.forEach(m => {
-          client.from('modules').insert({ id: m.id, name: m.name, gitlab_label: m.gitlabLabel }).then();
-        });
-      }
-
-      return [...prev, ...filtered];
-    });
-    logAction('MATCH_GITLAB_LABELS', `Сопоставлено модулей из загруженных лейблов GitLab`);
-    return newItems.map(i => i.name);
-  };
-
-  const importTaskKindsFromGitLab = async () => {
-    let sourceLabels = gitLabLabels;
-    if (sourceLabels.length === 0) {
-      await importGitLabLabels();
-      sourceLabels = gitLabLabels;
-    }
-
-    const newItems: TaskKind[] = sourceLabels
-      .filter((l) => !l.name.includes('::') && ['bug', 'feature', 'enhancement', 'tech-debt', 'improvement'].includes(l.name.toLowerCase()))
-      .map((l) => ({
-        id: `kind-gl-${l.id}`,
-        name: l.name.toUpperCase(),
-        gitlabLabel: l.name,
-        priorityPoints: 3
-      }));
-
-    setTaskKinds((prev) => {
-      const existingNames = prev.map(i => i.name);
-      const filtered = newItems.filter(i => !existingNames.includes(i.name));
-
-      const client = supabase;
-      if (isSupabaseConfigured && client) {
-        filtered.forEach(k => {
-          client.from('task_kinds').insert({
-            id: k.id,
-            name: k.name,
-            gitlab_label: k.gitlabLabel,
-            priority_points: k.priorityPoints,
-          }).then();
-        });
-      }
-
-      return [...prev, ...filtered];
-    });
-    logAction('MATCH_GITLAB_LABELS', `Сопоставлено видов задач из загруженных лейблов GitLab`);
-    return newItems.map(i => i.name);
-  };
-
-  const importProjectStagesFromGitLab = async () => {
-    let sourceLabels = gitLabLabels;
-    if (sourceLabels.length === 0) {
-      await importGitLabLabels();
-      sourceLabels = gitLabLabels;
-    }
-
-    const newItems: ProjectStage[] = sourceLabels
-      .filter((l) => l.name.startsWith('stage::'))
-      .map((l) => ({
-        id: `stg-gl-${l.id}`,
-        name: l.name.replace('stage::', '').toUpperCase(),
-        gitlabLabel: l.name
-      }));
-
-    setProjectStages((prev) => {
-      const existingNames = prev.map(i => i.name);
-      const filtered = newItems.filter(i => !existingNames.includes(i.name));
-
-      const client = supabase;
-      if (isSupabaseConfigured && client) {
-        filtered.forEach(s => {
-          client.from('project_stages').insert({ id: s.id, name: s.name, gitlab_label: s.gitlabLabel }).then();
-        });
-      }
-
-      return [...prev, ...filtered];
-    });
-    logAction('MATCH_GITLAB_LABELS', `Сопоставлено этапов проектов из загруженных лейблов GitLab`);
-    return newItems.map(i => i.name);
-  };
-
-  const importUsersFromGitLab = async () => {
-    checkGitLabConfig();
-    const { serverUrl, personalAccessToken, projectGroup } = gitLabSettings;
-
-    const res = await fetch(`${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/members`, {
-      headers: { 'Private-Token': personalAccessToken }
-    });
-
-    if (!res.ok) {
-      throw new Error(`Не удалось загрузить участников из GitLab (Статус: ${res.status} ${res.statusText})`);
-    }
-
-    const membersData = await res.json();
-    if (!Array.isArray(membersData)) {
-      throw new Error('Некорректный ответ от GitLab API при запросе участников.');
-    }
-
-    const newItems: User[] = membersData.map((m: any) => ({
-      id: `usr-gl-${m.id}`,
-      fullName: m.name,
-      isEnabled: true,
-      email: `${m.username}@corp.ru`,
-      gitlabUser: m.username,
-      role: 'Администратор'
-    }));
-
-    setUsers((prev) => {
-      const existingNames = prev.map(i => i.fullName);
-      const filtered = newItems.filter(i => !existingNames.includes(i.fullName));
-
-      const client = supabase;
-      if (isSupabaseConfigured && client) {
-        filtered.forEach(u => {
-          client.from('users').insert({
-            id: u.id,
-            full_name: u.fullName,
-            is_enabled: u.isEnabled,
-            email: u.email,
-            gitlab_user: u.gitlabUser,
-            role: u.role,
-          }).then();
-        });
-      }
-
-      return [...prev, ...filtered];
-    });
-    logAction('IMPORT_GITLAB_ENTITY', `Справочник: Импортировано пользователей из группы проектов ${projectGroup}`);
-    return newItems.map(i => i.fullName);
+    return createdItems.map(p => p.name);
   };
 
   const resetAllState = async () => {
@@ -2198,27 +2289,38 @@ export function useProductState() {
     sources,
     subsystems,
     addEpic,
+    updateEpic,
     deleteEpic,
     addClient,
+    updateClient,
     deleteClient,
     addActivityKind,
+    updateActivityKind,
     deleteActivityKind,
     addProject: addProjectNew,
+    updateProject,
     deleteProject: deleteProjectNew,
     addProduct,
+    updateProduct,
     deleteProduct,
     addModule,
+    updateModule,
     deleteModule,
     addProjectGroup,
+    updateProjectGroup,
     deleteProjectGroup,
     addTaskKind: addTaskKindNew,
+    updateTaskKind,
     deleteTaskKind: deleteTaskKindNew,
     addProjectStage,
+    updateProjectStage,
     deleteProjectStage,
     addUser,
+    updateUser,
     deleteUser,
     getProjectName,
     addSource,
+    updateSource,
     deleteSource,
     addInitiative,
     addFeature,
@@ -2245,11 +2347,9 @@ export function useProductState() {
     testGitLabConnection,
     importGitLabLabels,
     importGitLabIssues,
+    importProjectGroupsFromGitLab,
     importProjectsFromGitLab,
-    importModulesFromGitLab,
-    importTaskKindsFromGitLab,
-    importProjectStagesFromGitLab,
-    importUsersFromGitLab,
+    addImportedProjects,
     resetAllState
   };
 }

@@ -162,7 +162,6 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
       id: ep.id,
       name: ep.title,
       code: ep.code,
-      description: ep.description,
     }));
     // Plus "Unclassified" column if some features don't resolve to an epic
     groups.push({

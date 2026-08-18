@@ -15,7 +15,22 @@ test('Verify GitLab Integration Settings, Test Connection, GitLab Labels, and en
     });
   });
 
-  await page.route('**/api/v4/groups/custom-payment-group/labels', async route => {
+  await page.route('**/api/v4/groups/custom-payment-group/subgroups*', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: 100,
+          name: 'SBP Subgroup',
+          full_path: 'custom-payment-group/sbp',
+          web_url: 'https://gitlab.corp.ru/custom-payment-group/sbp'
+        }
+      ])
+    });
+  });
+
+  await page.route('**/api/v4/groups/custom-payment-group/labels*', async route => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -27,17 +42,18 @@ test('Verify GitLab Integration Settings, Test Connection, GitLab Labels, and en
     });
   });
 
-  await page.route('**/api/v4/groups/custom-payment-group/projects', async route => {
+  await page.route('**/api/v4/groups/custom-payment-group/projects*', async route => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify([
-        { id: 101, name: 'B2B Gateway Project', web_url: 'https://gitlab.corp.ru/custom-payment-group/gateway' }
+        { id: 101, name: 'B2B Gateway Project', web_url: 'https://gitlab.corp.ru/custom-payment-group/gateway' },
+        { id: 102, name: 'New Gateway Project', web_url: 'https://gitlab.corp.ru/custom-payment-group/new-gateway' }
       ])
     });
   });
 
-  await page.route('**/api/v4/groups/custom-payment-group/issues', async route => {
+  await page.route('**/api/v4/groups/custom-payment-group/issues*', async route => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -78,8 +94,8 @@ test('Verify GitLab Integration Settings, Test Connection, GitLab Labels, and en
   await page.click('button[title="Настройки"]');
   await page.waitForTimeout(500);
 
-  // 3. Select "Интеграция с GitLab" subtab
-  await page.click('button:has-text("Интеграция с GitLab")');
+  // 3. Select "Настройки GitLab" subtab
+  await page.click('button:has-text("Настройки GitLab")');
   await page.waitForTimeout(500);
 
   await page.screenshot({ path: '/home/jules/verification/screenshots/settings_gitlab_panel.png', fullPage: true });
@@ -105,17 +121,21 @@ test('Verify GitLab Integration Settings, Test Connection, GitLab Labels, and en
   await page.waitForTimeout(500);
 
   // 5. Test importing GitLab Labels subtab
-  await page.click('button:has-text("10. Лейблы GitLab")');
+  await page.click('button:has-text("Лейблы GitLab")');
   await page.waitForTimeout(500);
 
-  await page.click('button:has-text("Импортировать лейблы из GitLab")');
+  await page.click('button:has-text("Импортировать все лейблы из GitLab")');
   await page.waitForTimeout(500);
 
   // 6. Test importing Projects from GitLab
-  await page.click('button:has-text("3. Проекты")');
+  await page.click('button:has-text("Проекты")');
   await page.waitForTimeout(500);
 
   await page.click('button:has-text("Импортировать из GitLab")');
+  await page.waitForTimeout(500);
+
+  // Requirement 5: Complete imported projects in modal
+  await page.click('button:has-text("Сохранить импортированные проекты")');
   await page.waitForTimeout(500);
 
   // Take screenshot of imported projects

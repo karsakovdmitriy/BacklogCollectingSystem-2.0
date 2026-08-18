@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Epic, Client, ActivityKind, Project, Product, Module, ProjectGroup, TaskKind, TaskType, ProjectStage, User } from '@/store/index';
+import { Epic, Client, ActivityKind, Project, Product, Module, ProjectGroup, TaskKind, ProjectStage, User, DictionaryItem } from '@/store/index';
 import {
   Plus,
   Trash2,
+  Edit2,
   FolderOpen,
   Users,
   Briefcase,
@@ -14,9 +15,10 @@ import {
   Code,
   GitBranch,
   Save,
-  HelpCircle,
   ShieldAlert,
-  UserCheck
+  UserCheck,
+  Check,
+  X
 } from 'lucide-react';
 
 interface SettingsPanelProps {
@@ -25,13 +27,14 @@ interface SettingsPanelProps {
 
 export default function SettingsPanel({ store }: SettingsPanelProps) {
   const [activeSubTab, setActiveSubTab] = useState<
-    'epics' | 'clients' | 'activity_kinds' | 'projects' | 'products' | 'modules' | 'project_groups' | 'kinds' | 'gitlab_labels' | 'stages' | 'users' | 'roles' | 'sources' | 'gitlab' | 'priority_formula'
-  >('epics');
+    'gitlab' | 'gitlab_labels' | 'epics' | 'products' | 'modules' | 'project_groups' | 'projects' | 'kinds' | 'stages' | 'sources' | 'activity_kinds' | 'clients' | 'users' | 'roles' | 'priority_formula'
+  >('gitlab');
+
+  // Generic Edit Modal State
+  const [editItem, setEditingItem] = useState<{ subtab: string; data: any } | null>(null);
 
   // Epic Inputs
   const [epicTitle, setEpicTitle] = useState('');
-  const [epicDesc, setEpicDesc] = useState('');
-  const [epicOwner, setEpicOwner] = useState('');
 
   // Clients Inputs
   const [clientName, setClientName] = useState('');
@@ -45,8 +48,11 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
   const [projGroupId, setProjGroupId] = useState('');
   const [projClientId, setProjClientId] = useState('');
   const [projProdId, setProjProdId] = useState('');
-  const [projModId, setProjModId] = useState('');
   const [projGitlabUrl, setProjGitlabUrl] = useState('');
+
+  // GitLab Projects Import Modal State
+  const [isProjectImportModalOpen, setIsProjectImportModalOpen] = useState(false);
+  const [importedProjectCandidates, setImportedProjectCandidates] = useState<any[]>([]);
 
   // Products Inputs
   const [prodName, setProdName] = useState('');
@@ -75,10 +81,6 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
   // Release Effort states
   const [effName, setEffName] = useState('');
   const [effPoints, setEffPoints] = useState(3);
-
-  // Task Types Inputs
-  const [typeName, setTypeName] = useState('');
-  const [typeLabel, setTypeLabel] = useState('');
 
   // Stages Inputs
   const [stageName, setStageName] = useState('');
@@ -111,6 +113,49 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
     alert('Настройки интеграции с GitLab успешно сохранены!');
   };
 
+  // Grouped Navigation Definition
+  const subTabGroups = [
+    {
+      title: 'Интеграция с GitLab',
+      items: [
+        { id: 'gitlab', label: 'Настройки GitLab', icon: <GitBranch size={14} /> },
+        { id: 'gitlab_labels', label: 'Лейблы GitLab', icon: <Tag size={14} /> },
+      ]
+    },
+    {
+      title: 'Продукты и Проекты',
+      items: [
+        { id: 'epics', label: 'Эпики', icon: <Layers size={14} /> },
+        { id: 'products', label: 'Продукты', icon: <Settings size={14} /> },
+        { id: 'modules', label: 'Модули', icon: <Code size={14} /> },
+        { id: 'project_groups', label: 'Группы проектов', icon: <FolderOpen size={14} /> },
+        { id: 'projects', label: 'Проекты', icon: <Briefcase size={14} /> },
+      ]
+    },
+    {
+      title: 'Классификаторы процессов',
+      items: [
+        { id: 'kinds', label: 'Виды задач', icon: <Tag size={14} /> },
+        { id: 'stages', label: 'Этапы проектов', icon: <Layers size={14} /> },
+        { id: 'sources', label: 'Источники сигналов', icon: <FolderOpen size={14} /> },
+        { id: 'activity_kinds', label: 'Виды деятельности', icon: <FolderOpen size={14} /> },
+        { id: 'clients', label: 'Клиенты', icon: <Users size={14} /> },
+      ]
+    },
+    {
+      title: 'Пользователи и Доступ',
+      items: [
+        { id: 'users', label: 'Пользователи', icon: <UserCheck size={14} /> },
+        { id: 'roles', label: 'Роли', icon: <ShieldAlert size={14} /> },
+      ]
+    },
+    {
+      title: 'Авто-оценка',
+      items: [
+        { id: 'priority_formula', label: '⚙️ Настройка приоритетов', icon: <Settings size={14} /> },
+      ]
+    }
+  ];
 
   return (
     <div className="space-y-6">
@@ -119,766 +164,39 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
         <div className="space-y-1">
           <h2 className="text-base font-semibold text-white">Панель администрирования справочников</h2>
           <p className="text-xs text-[#8b949e]">
-            Полное администрирование 12 ключевых архитектурных сущностей для обеспечения сквозной фильтрации и связности данных.
+            Администрирование ключевых архитектурных сущностей для обеспечения сквозной продуктовой аналитики.
           </p>
         </div>
       </div>
 
       <div className="flex flex-col xl:flex-row gap-6">
-        {/* SUBTAB BAR */}
-        <aside className="w-full xl:w-72 shrink-0 space-y-1">
-          {[
-            { id: 'epics', label: 'Эпики (Модули)', icon: <Layers size={14} /> },
-            { id: 'clients', label: '1. Клиенты', icon: <Users size={14} /> },
-            { id: 'activity_kinds', label: '2. Виды деятельности', icon: <FolderOpen size={14} /> },
-            { id: 'projects', label: '3. Проекты', icon: <Briefcase size={14} /> },
-            { id: 'products', label: '4. Продукты', icon: <Settings size={14} /> },
-            { id: 'modules', label: '5. Модули', icon: <Code size={14} /> },
-            { id: 'project_groups', label: '6. Группы проектов', icon: <FolderOpen size={14} /> },
-            { id: 'kinds', label: '7. Виды задач', icon: <Tag size={14} /> },
-            { id: 'gitlab_labels', label: '10. Лейблы GitLab', icon: <Tag size={14} /> },
-            { id: 'stages', label: '9. Этапы проектов', icon: <Layers size={14} /> },
-            { id: 'users', label: '11. Пользователи', icon: <UserCheck size={14} /> },
-            { id: 'roles', label: '12. Роли', icon: <ShieldAlert size={14} /> },
-            { id: 'sources', label: 'Источники сигналов', icon: <FolderOpen size={14} /> },
-            { id: 'gitlab', label: 'Интеграция с GitLab', icon: <GitBranch size={14} /> },
-            { id: 'priority_formula', label: '⚙️ Настройка приоритетов', icon: <Settings size={14} /> },
-          ].map((subTab) => (
-            <button
-              key={subTab.id}
-              onClick={() => setActiveSubTab(subTab.id as any)}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeSubTab === subTab.id
-                  ? 'bg-[#21262d] text-white border border-[#30363d]'
-                  : 'text-[#8b949e] hover:text-white hover:bg-[#161b22]'
-              }`}
-            >
-              {subTab.icon}
-              <span>{subTab.label}</span>
-            </button>
+        {/* SUBTAB BAR WITH LOGICAL GROUPS */}
+        <aside className="w-full xl:w-72 shrink-0 space-y-4">
+          {subTabGroups.map((group, idx) => (
+            <div key={idx} className="space-y-1 bg-[#161b22]/50 p-2 rounded-xl border border-[#30363d]/60">
+              <span className="text-[10px] font-bold text-[#8b949e] uppercase tracking-wider px-2 py-1 block">
+                {group.title}
+              </span>
+              {group.items.map((subTab) => (
+                <button
+                  key={subTab.id}
+                  onClick={() => setActiveSubTab(subTab.id as any)}
+                  className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    activeSubTab === subTab.id
+                      ? 'bg-[#21262d] text-white border border-[#30363d]'
+                      : 'text-[#8b949e] hover:text-white hover:bg-[#161b22]'
+                  }`}
+                >
+                  {subTab.icon}
+                  <span>{subTab.label}</span>
+                </button>
+              ))}
+            </div>
           ))}
         </aside>
 
         {/* DETAILS PANEL WITH CRUD */}
         <div className="flex-1 bg-[#161b22] border border-[#30363d] rounded-xl p-6 overflow-hidden">
-
-          {/* EPICS LIST */}
-          {activeSubTab === 'epics' && (
-            <div className="space-y-6">
-              <h3 className="text-sm font-semibold text-white">Список Эпиков (Strategic Epics)</h3>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!epicTitle.trim()) return;
-                  store.addEpic({ title: epicTitle, description: epicDesc, owner: epicOwner || 'Не назначен' });
-                  setEpicTitle(''); setEpicDesc(''); setEpicOwner('');
-                }}
-                className="grid grid-cols-1 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
-              >
-                <span className="font-semibold text-white block mb-1">Добавить новый Эпик</span>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[#8b949e] mb-1">Название Эпика:</label>
-                    <input
-                      type="text" required value={epicTitle} onChange={(e) => setEpicTitle(e.target.value)}
-                      placeholder="Личный Кабинет 2.0" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[#8b949e] mb-1">Lead Product Manager:</label>
-                    <input
-                      type="text" value={epicOwner} onChange={(e) => setEpicOwner(e.target.value)}
-                      placeholder="Светлана Савина" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-[#8b949e] mb-1">Описание стратегического модуля:</label>
-                    <input
-                      type="text" value={epicDesc} onChange={(e) => setEpicDesc(e.target.value)}
-                      placeholder="Опишите цель модуля..." className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end pt-2">
-                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white">
-                    <Plus size={14} /> Создать Эпик
-                  </button>
-                </div>
-              </form>
-              <div className="space-y-2">
-                {store.epics.map((e: Epic) => (
-                  <div key={e.id} className="p-3 rounded-lg bg-[#0d1117] border border-[#30363d] flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#388bfd]/10 text-[#58a6ff]">{e.code}</span>
-                        <strong className="text-white text-xs">{e.title}</strong>
-                      </div>
-                      <p className="text-[11px] text-[#8b949e] mt-1">{e.description}</p>
-                      <span className="text-[10px] text-[#8b949e] block mt-1">PM: {e.owner}</span>
-                    </div>
-                    <button onClick={() => store.deleteEpic(e.id)} className="p-1.5 text-[#8b949e] hover:text-red-400 hover:bg-[#21262d] rounded"><Trash2 size={14} /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 1. CLIENTS */}
-          {activeSubTab === 'clients' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
-                <h3 className="text-sm font-semibold text-white">1. Справочник клиентов</h3>
-              </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!clientName.trim() || !clientActivityId) return;
-                  store.addClient(clientName, clientActivityId);
-                  setClientName(''); setClientActivityId('');
-                }}
-                className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
-              >
-                <div>
-                  <label className="block text-[#8b949e] mb-1">Наименование клиента:</label>
-                  <input
-                    type="text" required value={clientName} onChange={(e) => setClientName(e.target.value)}
-                    placeholder="ПАО Сбербанк" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#8b949e] mb-1">Вид деятельности:</label>
-                  <select
-                    required value={clientActivityId} onChange={(e) => setClientActivityId(e.target.value)}
-                    className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  >
-                    <option value="">-- Выберите вид --</option>
-                    {store.activityKinds.map((ak: ActivityKind) => (
-                      <option key={ak.id} value={ak.id}>{ak.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="md:col-span-2 flex justify-end">
-                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white">
-                    <Plus size={14} /> Добавить клиента
-                  </button>
-                </div>
-              </form>
-              <div className="space-y-2">
-                {store.clients.map((c: Client) => {
-                  const ak = store.activityKinds.find((a: ActivityKind) => a.id === c.activityKindId);
-                  return (
-                    <div key={c.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between text-xs">
-                      <div>
-                        <strong className="text-white">{c.name}</strong>
-                        <span className="text-[10px] text-[#8b949e] block">Деятельность: {ak ? ak.name : 'Unknown'}</span>
-                      </div>
-                      <button onClick={() => store.deleteClient(c.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* 2. ACTIVITY KINDS */}
-          {activeSubTab === 'activity_kinds' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
-                <h3 className="text-sm font-semibold text-white">2. Виды деятельности</h3>
-              </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!actKindName.trim()) return;
-                  store.addActivityKind(actKindName);
-                  setActKindName('');
-                }}
-                className="flex gap-2 text-xs"
-              >
-                <input
-                  type="text" required value={actKindName} onChange={(e) => setActKindName(e.target.value)}
-                  placeholder="Добавить новый вид деятельности..." className="flex-1 bg-[#0d1117] border border-[#30363d] rounded px-3 py-1.5 text-white focus:outline-none"
-                />
-                <button type="submit" className="flex items-center gap-1 px-3 py-1.5 bg-[#238636] hover:bg-[#2ea043] text-white rounded">
-                  <Plus size={14} /> Добавить
-                </button>
-              </form>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
-                {store.activityKinds.map((ak: ActivityKind) => (
-                  <div key={ak.id} className="p-2 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between">
-                    <span className="text-white">{ak.name}</span>
-                    <button onClick={() => store.deleteActivityKind(ak.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 3. PROJECTS */}
-          {activeSubTab === 'projects' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
-                <h3 className="text-sm font-semibold text-white">3. Проекты развития (с автоконструктором)</h3>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      const imported = await store.importProjectsFromGitLab();
-                      alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
-                    } catch (err: any) {
-                      alert(err.message || err);
-                    }
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
-                >
-                  <GitBranch size={13} /> Импортировать из GitLab
-                </button>
-              </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!projGroupId || !projClientId || !projProdId || !projModId || !projGitlabUrl.trim()) return;
-                  store.addProject({
-                    name: projName.trim(),
-                    projectGroupId: projGroupId,
-                    clientId: projClientId,
-                    productId: projProdId,
-                    moduleId: projModId,
-                    gitlabUrl: projGitlabUrl.trim()
-                  });
-                  setProjName(''); setProjGroupId(''); setProjClientId(''); setProjProdId(''); setProjModId(''); setProjGitlabUrl('');
-                }}
-                className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
-              >
-                <div>
-                  <label className="block text-[#8b949e] mb-1">Наименование (необязательно, если пусто то "Клиент + Модуль"):</label>
-                  <input
-                    type="text" value={projName} onChange={(e) => setProjName(e.target.value)}
-                    placeholder="Напр. Личный кабинет Альфа" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#8b949e] mb-1">Ссылка Gitlab:</label>
-                  <input
-                    type="text" required value={projGitlabUrl} onChange={(e) => setProjGitlabUrl(e.target.value)}
-                    placeholder="https://gitlab.corp.ru/..." className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#8b949e] mb-1">Группа проектов:</label>
-                  <select required value={projGroupId} onChange={(e) => setProjGroupId(e.target.value)} className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white">
-                    <option value="">-- Выберите группу --</option>
-                    {store.projectGroups.map((g: ProjectGroup) => <option key={g.id} value={g.id}>{g.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[#8b949e] mb-1">Клиент:</label>
-                  <select required value={projClientId} onChange={(e) => setProjClientId(e.target.value)} className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white">
-                    <option value="">-- Выберите клиента --</option>
-                    {store.clients.map((c: Client) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[#8b949e] mb-1">Продукт:</label>
-                  <select required value={projProdId} onChange={(e) => setProjProdId(e.target.value)} className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white">
-                    <option value="">-- Выберите продукт --</option>
-                    {store.products.map((p: Product) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[#8b949e] mb-1">Модуль:</label>
-                  <select required value={projModId} onChange={(e) => setProjModId(e.target.value)} className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white">
-                    <option value="">-- Выберите модуль --</option>
-                    {store.modules.map((m: Module) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                  </select>
-                </div>
-                <div className="md:col-span-2 flex justify-end">
-                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white">
-                    <Plus size={14} /> Создать проект
-                  </button>
-                </div>
-              </form>
-              <div className="space-y-2">
-                {store.projects.map((p: Project) => {
-                  const constructedName = store.getProjectName(p);
-                  return (
-                    <div key={p.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between text-xs">
-                      <div>
-                        <strong className="text-white">{constructedName}</strong>
-                        {p.name === '' && <span className="text-[10px] text-amber-500 ml-2">(Авто-конструктор)</span>}
-                        <div className="text-[10px] text-[#8b949e] mt-1 font-mono">
-                          GitLab: {p.gitlabUrl}
-                        </div>
-                      </div>
-                      <button onClick={() => store.deleteProject(p.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* 4. PRODUCTS */}
-          {activeSubTab === 'products' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
-                <h3 className="text-sm font-semibold text-white">4. Продукты</h3>
-              </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!prodName.trim()) return;
-                  store.addProduct(prodName);
-                  setProdName('');
-                }}
-                className="flex gap-2 text-xs"
-              >
-                <input
-                  type="text" required value={prodName} onChange={(e) => setProdName(e.target.value)}
-                  placeholder="Добавить новый продукт..." className="flex-1 bg-[#0d1117] border border-[#30363d] rounded px-3 py-1.5 text-white focus:outline-none"
-                />
-                <button type="submit" className="flex items-center gap-1 px-3 py-1.5 bg-[#238636] hover:bg-[#2ea043] text-white rounded">
-                  <Plus size={14} /> Добавить
-                </button>
-              </form>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
-                {store.products.map((p: Product) => (
-                  <div key={p.id} className="p-2 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between">
-                    <span className="text-white">{p.name}</span>
-                    <button onClick={() => store.deleteProduct(p.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 5. MODULES */}
-          {activeSubTab === 'modules' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
-                <h3 className="text-sm font-semibold text-white">5. Модули системы</h3>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      const imported = await store.importModulesFromGitLab();
-                      alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
-                    } catch (err: any) {
-                      alert(err.message || err);
-                    }
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
-                >
-                  <GitBranch size={13} /> Импортировать из GitLab
-                </button>
-              </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!modName.trim() || !modLabel.trim()) return;
-                  store.addModule(modName, modLabel);
-                  setModName(''); setModLabel('');
-                }}
-                className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
-              >
-                <div>
-                  <label className="block text-[#8b949e] mb-1">Наименование модуля:</label>
-                  <input
-                    type="text" required value={modName} onChange={(e) => setModName(e.target.value)}
-                    placeholder="Модуль Клиент-Банк" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#8b949e] mb-1">GitLab Label:</label>
-                  <input
-                    type="text" required value={modLabel} onChange={(e) => setModLabel(e.target.value)}
-                    placeholder="module::client-bank" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  />
-                </div>
-                <div className="md:col-span-2 flex justify-end">
-                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white">
-                    <Plus size={14} /> Добавить модуль
-                  </button>
-                </div>
-              </form>
-              <div className="space-y-2">
-                {store.modules.map((m: Module) => (
-                  <div key={m.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between text-xs font-mono">
-                    <div>
-                      <strong className="text-white">{m.name}</strong>
-                      <span className="text-[10px] text-[#58a6ff] block">GitLab Label: {m.gitlabLabel}</span>
-                    </div>
-                    <button onClick={() => store.deleteModule(m.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 6. PROJECT GROUPS */}
-          {activeSubTab === 'project_groups' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
-                <h3 className="text-sm font-semibold text-white">6. Группы проектов</h3>
-              </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!grpName.trim() || !grpGitlab.trim()) return;
-                  store.addProjectGroup(grpName, grpGitlab);
-                  setGrpName(''); setGrpGitlab('');
-                }}
-                className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
-              >
-                <div>
-                  <label className="block text-[#8b949e] mb-1">Наименование группы:</label>
-                  <input
-                    type="text" required value={grpName} onChange={(e) => setGrpName(e.target.value)}
-                    placeholder="Группа СБП Проектов" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#8b949e] mb-1">GitLab URL группы:</label>
-                  <input
-                    type="text" required value={grpGitlab} onChange={(e) => setGrpGitlab(e.target.value)}
-                    placeholder="https://gitlab.corp.ru/groups/sbp" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  />
-                </div>
-                <div className="md:col-span-2 flex justify-end">
-                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white">
-                    <Plus size={14} /> Добавить группу
-                  </button>
-                </div>
-              </form>
-              <div className="space-y-2">
-                {store.projectGroups.map((g: ProjectGroup) => (
-                  <div key={g.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between text-xs font-mono">
-                    <div>
-                      <strong className="text-white">{g.name}</strong>
-                      <span className="text-[10px] text-[#58a6ff] block">GitLab URL: {g.gitlabUrl}</span>
-                    </div>
-                    <button onClick={() => store.deleteProjectGroup(g.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 7. TASK KINDS */}
-          {activeSubTab === 'kinds' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
-                <h3 className="text-sm font-semibold text-white">7. Виды задач</h3>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      const imported = await store.importTaskKindsFromGitLab();
-                      alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
-                    } catch (err: any) {
-                      alert(err.message || err);
-                    }
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
-                >
-                  <GitBranch size={13} /> Импортировать из GitLab
-                </button>
-              </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!kindName.trim() || !kindLabel.trim()) return;
-                  store.addTaskKind(kindName, kindLabel, kindPoints);
-                  setKindName(''); setKindLabel(''); setKindPoints(3);
-                }}
-                className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
-              >
-                <div>
-                  <label className="block text-[#8b949e] mb-1">Наименование:</label>
-                  <input
-                    type="text" required value={kindName} onChange={(e) => setKindName(e.target.value)}
-                    placeholder="Ошибка (Bug)" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#8b949e] mb-1">GitLab Label:</label>
-                  <input
-                    type="text" required value={kindLabel} onChange={(e) => setKindLabel(e.target.value)}
-                    placeholder="bug" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#8b949e] mb-1">Баллы приоритета (1-5):</label>
-                  <input
-                    type="number" required min={1} max={5} value={kindPoints} onChange={(e) => setKindPoints(Number(e.target.value))}
-                    className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  />
-                </div>
-                <div className="md:col-span-3 flex justify-end">
-                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white font-semibold">
-                    <Plus size={14} /> Добавить вид задач
-                  </button>
-                </div>
-              </form>
-              <div className="space-y-2">
-                {store.taskKinds.map((k: TaskKind) => (
-                  <div key={k.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between text-xs font-mono">
-                    <div>
-                      <strong className="text-white">{k.name}</strong>
-                      <span className="text-[10px] text-[#58a6ff] block">GitLab Label: {k.gitlabLabel} | Баллы: <strong className="text-yellow-400 font-bold">{k.priorityPoints || 3}</strong></span>
-                    </div>
-                    <button onClick={() => store.deleteTaskKind(k.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 10. GITLAB LABELS */}
-          {activeSubTab === 'gitlab_labels' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
-                <h3 className="text-sm font-semibold text-white">10. Лейблы GitLab</h3>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      const imported = await store.importGitLabLabels();
-                      alert(`Импорт лейблов из GitLab успешно завершен!\nЗагружено лейблов: ${imported.length} шт.`);
-                    } catch (err: any) {
-                      alert(err.message || err);
-                    }
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
-                >
-                  <GitBranch size={13} /> Импортировать лейблы из GitLab
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs font-mono">
-                {!store.gitLabLabels || store.gitLabLabels.length === 0 ? (
-                  <div className="col-span-full p-6 text-center text-[#8b949e] italic bg-[#0d1117] rounded-lg border border-[#30363d]">
-                    Лейблы еще не загружены. Нажмите кнопку "Импортировать лейблы из GitLab", чтобы загрузить ярлыки из выбранной группы проектов.
-                  </div>
-                ) : (
-                  store.gitLabLabels.map((l: any) => (
-                    <div key={l.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between">
-                      <div className="space-y-1">
-                        <span
-                          className="px-2 py-0.5 rounded text-[11px] font-bold text-white inline-block"
-                          style={{ backgroundColor: l.color || '#1f6feb' }}
-                        >
-                          {l.name}
-                        </span>
-                        {l.description && (
-                          <p className="text-[10px] text-[#8b949e] font-sans truncate max-w-[200px]">{l.description}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* 9. PROJECT STAGES */}
-          {activeSubTab === 'stages' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
-                <h3 className="text-sm font-semibold text-white">9. Этапы проектов</h3>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      const imported = await store.importProjectStagesFromGitLab();
-                      alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
-                    } catch (err: any) {
-                      alert(err.message || err);
-                    }
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
-                >
-                  <GitBranch size={13} /> Импортировать из GitLab
-                </button>
-              </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!stageName.trim() || !stageLabel.trim()) return;
-                  store.addProjectStage(stageName, stageLabel);
-                  setStageName(''); setStageLabel('');
-                }}
-                className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
-              >
-                <div>
-                  <label className="block text-[#8b949e] mb-1">Наименование этапа:</label>
-                  <input
-                    type="text" required value={stageName} onChange={(e) => setStageName(e.target.value)}
-                    placeholder="Аналитика" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#8b949e] mb-1">GitLab Label:</label>
-                  <input
-                    type="text" required value={stageLabel} onChange={(e) => setStageLabel(e.target.value)}
-                    placeholder="stage::analysis" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  />
-                </div>
-                <div className="md:col-span-2 flex justify-end">
-                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white">
-                    <Plus size={14} /> Добавить этап
-                  </button>
-                </div>
-              </form>
-              <div className="space-y-2">
-                {store.projectStages.map((s: ProjectStage) => (
-                  <div key={s.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between text-xs font-mono">
-                    <div>
-                      <strong className="text-white">{s.name}</strong>
-                      <span className="text-[10px] text-[#58a6ff] block">GitLab Label: {s.gitlabLabel}</span>
-                    </div>
-                    <button onClick={() => store.deleteProjectStage(s.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 11. USERS */}
-          {activeSubTab === 'users' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
-                <h3 className="text-sm font-semibold text-white">11. Пользователи</h3>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      const imported = await store.importUsersFromGitLab();
-                      alert(`Импорт из GitLab успешно завершен!\nИмпортировано:\n${imported.join('\n')}`);
-                    } catch (err: any) {
-                      alert(err.message || err);
-                    }
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
-                >
-                  <GitBranch size={13} /> Импортировать из GitLab
-                </button>
-              </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!usrFullName.trim() || !usrEmail.trim() || !usrGitlab.trim()) return;
-                  store.addUser({
-                    fullName: usrFullName.trim(),
-                    isEnabled: usrEnabled,
-                    email: usrEmail.trim(),
-                    gitlabUser: usrGitlab.trim(),
-                    role: 'Администратор'
-                  });
-                  setUsrFullName(''); setUsrEmail(''); setUsrGitlab(''); setUsrEnabled(true);
-                }}
-                className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
-              >
-                <div>
-                  <label className="block text-[#8b949e] mb-1">ФИО пользователя:</label>
-                  <input
-                    type="text" required value={usrFullName} onChange={(e) => setUsrFullName(e.target.value)}
-                    placeholder="Иван Иванов" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#8b949e] mb-1">Email:</label>
-                  <input
-                    type="email" required value={usrEmail} onChange={(e) => setUsrEmail(e.target.value)}
-                    placeholder="ivanov@corp.ru" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#8b949e] mb-1">Пользователь Gitlab:</label>
-                  <input
-                    type="text" required value={usrGitlab} onChange={(e) => setUsrGitlab(e.target.value)}
-                    placeholder="ivanov_git" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
-                  />
-                </div>
-                <div className="flex items-center gap-2 pt-5">
-                  <input
-                    type="checkbox" checked={usrEnabled} onChange={(e) => setUsrEnabled(e.target.checked)}
-                    className="rounded bg-[#161b22] border-[#30363d] text-blue-600 focus:ring-0 focus:ring-offset-0"
-                  />
-                  <label className="text-white">Вход разрешен</label>
-                </div>
-                <div className="md:col-span-2 flex justify-end">
-                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white">
-                    <Plus size={14} /> Добавить пользователя
-                  </button>
-                </div>
-              </form>
-              <div className="space-y-2">
-                {store.users.map((u: User) => (
-                  <div key={u.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between text-xs">
-                    <div>
-                      <strong className="text-white">{u.fullName}</strong>
-                      <span className="text-[10px] text-[#8b949e] block">Email: {u.email} | GitLab: {u.gitlabUser} | Роль: {u.role}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`px-1.5 py-0.2 rounded text-[10px] ${u.isEnabled ? 'bg-green-900/30 text-green-400 border border-green-800' : 'bg-red-900/30 text-red-400 border border-red-800'}`}>
-                        {u.isEnabled ? 'Активен' : 'Заблокирован'}
-                      </span>
-                      <button onClick={() => store.deleteUser(u.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 12. ROLES (READ ONLY) */}
-          {activeSubTab === 'roles' && (
-            <div className="space-y-6">
-              <div className="space-y-1">
-                <h3 className="text-sm font-semibold text-white">12. Роли в системе</h3>
-                <p className="text-xs text-[#8b949e]">Статический список ролей (перечисление без возможности добавления).</p>
-              </div>
-              <div className="p-4 bg-[#0d1117] border border-[#30363d] rounded-lg">
-                <div className="flex items-center justify-between text-xs p-2 bg-[#161b22] rounded border border-[#30363d]">
-                  <span className="font-mono text-[#58a6ff] font-bold">Администратор</span>
-                  <span className="text-[10px] text-yellow-500 bg-yellow-500/10 px-1.5 py-0.2 rounded border border-yellow-500/20">Системная роль</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* SOURCES */}
-          {activeSubTab === 'sources' && (
-            <div className="space-y-6">
-              <h3 className="text-sm font-semibold text-white">Справочник источников поступления</h3>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!sourceName.trim()) return;
-                  store.addSource(sourceName);
-                  setSourceName('');
-                }}
-                className="flex gap-2 text-xs"
-              >
-                <input
-                  type="text" required value={sourceName} onChange={(e) => setSourceName(e.target.value)}
-                  placeholder="Добавить новый источник..." className="flex-1 bg-[#0d1117] border border-[#30363d] rounded px-3 py-1.5 text-white focus:outline-none"
-                />
-                <button type="submit" className="flex items-center gap-1 px-3 py-1.5 bg-[#238636] hover:bg-[#2ea043] text-white rounded">
-                  <Plus size={14} /> Добавить
-                </button>
-              </form>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
-                {store.sources.map((s: any) => (
-                  <div key={s.id} className="p-2 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between">
-                    <span className="text-white">{s.name}</span>
-                    <button onClick={() => store.deleteSource(s.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* GITLAB INTEGRATION */}
           {activeSubTab === 'gitlab' && (
@@ -942,6 +260,794 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                   </button>
                 </div>
               </form>
+            </div>
+          )}
+
+          {/* GITLAB LABELS */}
+          {activeSubTab === 'gitlab_labels' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">Лейблы GitLab</h3>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const imported = await store.importGitLabLabels();
+                      alert(`Импорт лейблов из GitLab успешно завершен!\nЗагружено лейблов: ${imported.length} шт.`);
+                    } catch (err: any) {
+                      alert(err.message || err);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
+                >
+                  <GitBranch size={13} /> Импортировать все лейблы из GitLab
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs font-mono">
+                {!store.gitLabLabels || store.gitLabLabels.length === 0 ? (
+                  <div className="col-span-full p-6 text-center text-[#8b949e] italic bg-[#0d1117] rounded-lg border border-[#30363d]">
+                    Лейблы еще не загружены. Нажмите кнопку "Импортировать все лейблы из GitLab", чтобы загрузить ярлыки.
+                  </div>
+                ) : (
+                  store.gitLabLabels.map((l: any) => (
+                    <div key={l.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between">
+                      <div className="space-y-1">
+                        <span
+                          className="px-2 py-0.5 rounded text-[11px] font-bold text-white inline-block"
+                          style={{ backgroundColor: l.color || '#1f6feb' }}
+                        >
+                          {l.name}
+                        </span>
+                        {l.description && (
+                          <p className="text-[10px] text-[#8b949e] font-sans truncate max-w-[200px]">{l.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* EPICS LIST (Title only) */}
+          {activeSubTab === 'epics' && (
+            <div className="space-y-6">
+              <h3 className="text-sm font-semibold text-white">Список Эпиков</h3>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!epicTitle.trim()) return;
+                  store.addEpic({ title: epicTitle.trim() });
+                  setEpicTitle('');
+                }}
+                className="grid grid-cols-1 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
+              >
+                <span className="font-semibold text-white block">Добавить новый Эпик</span>
+                <div className="flex gap-2">
+                  <input
+                    type="text" required value={epicTitle} onChange={(e) => setEpicTitle(e.target.value)}
+                    placeholder="Наименование Эпика..." className="flex-1 bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                  />
+                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white shrink-0">
+                    <Plus size={14} /> Создать Эпик
+                  </button>
+                </div>
+              </form>
+              <div className="space-y-2">
+                {store.epics.map((e: Epic) => (
+                  <div key={e.id} className="p-3 rounded-lg bg-[#0d1117] border border-[#30363d] flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#388bfd]/10 text-[#58a6ff]">{e.code}</span>
+                      <strong className="text-white text-xs">{e.title}</strong>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEditingItem({ subtab: 'epics', data: { ...e } })}
+                        className="p-1.5 text-[#8b949e] hover:text-white hover:bg-[#21262d] rounded"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                      <button onClick={() => store.deleteEpic(e.id)} className="p-1.5 text-[#8b949e] hover:text-red-400 hover:bg-[#21262d] rounded">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* PRODUCTS */}
+          {activeSubTab === 'products' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">Продукты</h3>
+              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!prodName.trim()) return;
+                  store.addProduct(prodName);
+                  setProdName('');
+                }}
+                className="flex gap-2 text-xs"
+              >
+                <input
+                  type="text" required value={prodName} onChange={(e) => setProdName(e.target.value)}
+                  placeholder="Добавить новый продукт..." className="flex-1 bg-[#0d1117] border border-[#30363d] rounded px-3 py-1.5 text-white focus:outline-none"
+                />
+                <button type="submit" className="flex items-center gap-1 px-3 py-1.5 bg-[#238636] hover:bg-[#2ea043] text-white rounded">
+                  <Plus size={14} /> Добавить
+                </button>
+              </form>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                {store.products.map((p: Product) => (
+                  <div key={p.id} className="p-2 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between">
+                    <span className="text-white">{p.name}</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEditingItem({ subtab: 'products', data: { ...p } })}
+                        className="text-[#8b949e] hover:text-white"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                      <button onClick={() => store.deleteProduct(p.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* MODULES (Select from gitLabLabels, No import button) */}
+          {activeSubTab === 'modules' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">Модули системы</h3>
+              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!modName.trim() || !modLabel.trim()) return;
+                  store.addModule(modName, modLabel);
+                  setModName(''); setModLabel('');
+                }}
+                className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Наименование модуля:</label>
+                  <input
+                    type="text" required value={modName} onChange={(e) => setModName(e.target.value)}
+                    placeholder="Модуль Клиент-Банк" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">GitLab Label (из справочника Лейблы Гитлаб):</label>
+                  {store.gitLabLabels && store.gitLabLabels.length > 0 ? (
+                    <select
+                      required
+                      value={modLabel}
+                      onChange={(e) => setModLabel(e.target.value)}
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                    >
+                      <option value="">-- Выберите Лейбл --</option>
+                      {store.gitLabLabels.map((l: any) => (
+                        <option key={l.id} value={l.name}>{l.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text" required value={modLabel} onChange={(e) => setModLabel(e.target.value)}
+                      placeholder="module::client-bank" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                    />
+                  )}
+                </div>
+                <div className="md:col-span-2 flex justify-end">
+                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white">
+                    <Plus size={14} /> Добавить модуль
+                  </button>
+                </div>
+              </form>
+              <div className="space-y-2">
+                {store.modules.map((m: Module) => (
+                  <div key={m.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between text-xs font-mono">
+                    <div>
+                      <strong className="text-white">{m.name}</strong>
+                      <span className="text-[10px] text-[#58a6ff] block">GitLab Label: {m.gitlabLabel}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEditingItem({ subtab: 'modules', data: { ...m } })}
+                        className="text-[#8b949e] hover:text-white"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                      <button onClick={() => store.deleteModule(m.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* PROJECT GROUPS (With import from GitLab) */}
+          {activeSubTab === 'project_groups' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">Группы проектов</h3>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const imported = await store.importProjectGroupsFromGitLab();
+                      alert(`Импорт групп проектов из GitLab успешно завершен!\nЗагружено: ${imported.length} шт.`);
+                    } catch (err: any) {
+                      alert(err.message || err);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
+                >
+                  <GitBranch size={13} /> Импортировать из GitLab
+                </button>
+              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!grpName.trim() || !grpGitlab.trim()) return;
+                  store.addProjectGroup(grpName, grpGitlab);
+                  setGrpName(''); setGrpGitlab('');
+                }}
+                className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Наименование группы:</label>
+                  <input
+                    type="text" required value={grpName} onChange={(e) => setGrpName(e.target.value)}
+                    placeholder="Группа СБП Проектов" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">GitLab URL группы:</label>
+                  <input
+                    type="text" required value={grpGitlab} onChange={(e) => setGrpGitlab(e.target.value)}
+                    placeholder="https://gitlab.corp.ru/groups/sbp" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                  />
+                </div>
+                <div className="md:col-span-2 flex justify-end">
+                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white">
+                    <Plus size={14} /> Добавить группу
+                  </button>
+                </div>
+              </form>
+              <div className="space-y-2">
+                {store.projectGroups.map((g: ProjectGroup) => (
+                  <div key={g.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between text-xs font-mono">
+                    <div>
+                      <strong className="text-white">{g.name}</strong>
+                      <span className="text-[10px] text-[#58a6ff] block">GitLab URL: {g.gitlabUrl}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEditingItem({ subtab: 'project_groups', data: { ...g } })}
+                        className="text-[#8b949e] hover:text-white"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                      <button onClick={() => store.deleteProjectGroup(g.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* PROJECTS (No Module attribute, Modal completion on import) */}
+          {activeSubTab === 'projects' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">Проекты развития</h3>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const candidates = await store.importProjectsFromGitLab();
+                      if (candidates.length === 0) {
+                        alert('Новых неимпортированных проектов в GitLab не найдено.');
+                      } else {
+                        setImportedProjectCandidates(candidates);
+                        setIsProjectImportModalOpen(true);
+                      }
+                    } catch (err: any) {
+                      alert(err.message || err);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
+                >
+                  <GitBranch size={13} /> Импортировать из GitLab
+                </button>
+              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!projGroupId || !projClientId || !projProdId || !projGitlabUrl.trim()) return;
+                  store.addProject({
+                    name: projName.trim(),
+                    projectGroupId: projGroupId,
+                    clientId: projClientId,
+                    productId: projProdId,
+                    gitlabUrl: projGitlabUrl.trim()
+                  });
+                  setProjName(''); setProjGroupId(''); setProjClientId(''); setProjProdId(''); setProjGitlabUrl('');
+                }}
+                className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Наименование (если пусто то наименование Клиента):</label>
+                  <input
+                    type="text" value={projName} onChange={(e) => setProjName(e.target.value)}
+                    placeholder="Напр. Личный кабинет Альфа" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Ссылка Gitlab:</label>
+                  <input
+                    type="text" required value={projGitlabUrl} onChange={(e) => setProjGitlabUrl(e.target.value)}
+                    placeholder="https://gitlab.corp.ru/..." className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Группа проектов:</label>
+                  <select required value={projGroupId} onChange={(e) => setProjGroupId(e.target.value)} className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white">
+                    <option value="">-- Выберите группу --</option>
+                    {store.projectGroups.map((g: ProjectGroup) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Клиент:</label>
+                  <select required value={projClientId} onChange={(e) => setProjClientId(e.target.value)} className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white">
+                    <option value="">-- Выберите клиента --</option>
+                    {store.clients.map((c: Client) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Продукт:</label>
+                  <select required value={projProdId} onChange={(e) => setProjProdId(e.target.value)} className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white">
+                    <option value="">-- Выберите продукт --</option>
+                    {store.products.map((p: Product) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div className="flex justify-end items-end">
+                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white">
+                    <Plus size={14} /> Создать проект
+                  </button>
+                </div>
+              </form>
+              <div className="space-y-2">
+                {store.projects.map((p: Project) => {
+                  const constructedName = store.getProjectName(p);
+                  const grp = store.projectGroups.find((g: any) => g.id === p.projectGroupId);
+                  const cl = store.clients.find((c: any) => c.id === p.clientId);
+                  const prod = store.products.find((prodItem: any) => prodItem.id === p.productId);
+
+                  return (
+                    <div key={p.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between text-xs">
+                      <div>
+                        <strong className="text-white">{constructedName}</strong>
+                        <div className="text-[10px] text-[#8b949e] mt-1 space-x-2">
+                          <span>Группа: {grp?.name || '—'}</span>
+                          <span>| Клиент: {cl?.name || '—'}</span>
+                          <span>| Продукт: {prod?.name || '—'}</span>
+                        </div>
+                        <div className="text-[10px] text-[#58a6ff] font-mono mt-0.5">
+                          GitLab: {p.gitlabUrl}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setEditingItem({ subtab: 'projects', data: { ...p } })}
+                          className="text-[#8b949e] hover:text-white p-1"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <button onClick={() => store.deleteProject(p.id)} className="text-[#8b949e] hover:text-red-400 p-1"><Trash2 size={13} /></button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* TASK KINDS (Select gitLabLabels, No import button) */}
+          {activeSubTab === 'kinds' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">Виды задач</h3>
+              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!kindName.trim() || !kindLabel.trim()) return;
+                  store.addTaskKind(kindName, kindLabel, kindPoints);
+                  setKindName(''); setKindLabel(''); setKindPoints(3);
+                }}
+                className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Наименование:</label>
+                  <input
+                    type="text" required value={kindName} onChange={(e) => setKindName(e.target.value)}
+                    placeholder="Ошибка (Bug)" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">GitLab Label (из справочника):</label>
+                  {store.gitLabLabels && store.gitLabLabels.length > 0 ? (
+                    <select
+                      required
+                      value={kindLabel}
+                      onChange={(e) => setKindLabel(e.target.value)}
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                    >
+                      <option value="">-- Выберите Лейбл --</option>
+                      {store.gitLabLabels.map((l: any) => (
+                        <option key={l.id} value={l.name}>{l.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text" required value={kindLabel} onChange={(e) => setKindLabel(e.target.value)}
+                      placeholder="bug" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Баллы приоритета (1-5):</label>
+                  <input
+                    type="number" required min={1} max={5} value={kindPoints} onChange={(e) => setKindPoints(Number(e.target.value))}
+                    className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                  />
+                </div>
+                <div className="md:col-span-3 flex justify-end">
+                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white font-semibold">
+                    <Plus size={14} /> Добавить вид задач
+                  </button>
+                </div>
+              </form>
+              <div className="space-y-2">
+                {store.taskKinds.map((k: TaskKind) => (
+                  <div key={k.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between text-xs font-mono">
+                    <div>
+                      <strong className="text-white">{k.name}</strong>
+                      <span className="text-[10px] text-[#58a6ff] block">GitLab Label: {k.gitlabLabel} | Баллы: <strong className="text-yellow-400 font-bold">{k.priorityPoints || 3}</strong></span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEditingItem({ subtab: 'kinds', data: { ...k } })}
+                        className="text-[#8b949e] hover:text-white"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                      <button onClick={() => store.deleteTaskKind(k.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* PROJECT STAGES (Select gitLabLabels, No import button) */}
+          {activeSubTab === 'stages' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">Этапы проектов</h3>
+              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!stageName.trim() || !stageLabel.trim()) return;
+                  store.addProjectStage(stageName, stageLabel);
+                  setStageName(''); setStageLabel('');
+                }}
+                className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Наименование этапа:</label>
+                  <input
+                    type="text" required value={stageName} onChange={(e) => setStageName(e.target.value)}
+                    placeholder="Аналитика" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">GitLab Label (из справочника):</label>
+                  {store.gitLabLabels && store.gitLabLabels.length > 0 ? (
+                    <select
+                      required
+                      value={stageLabel}
+                      onChange={(e) => setStageLabel(e.target.value)}
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                    >
+                      <option value="">-- Выберите Лейбл --</option>
+                      {store.gitLabLabels.map((l: any) => (
+                        <option key={l.id} value={l.name}>{l.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text" required value={stageLabel} onChange={(e) => setStageLabel(e.target.value)}
+                      placeholder="stage::analysis" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                    />
+                  )}
+                </div>
+                <div className="md:col-span-2 flex justify-end">
+                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white">
+                    <Plus size={14} /> Добавить этап
+                  </button>
+                </div>
+              </form>
+              <div className="space-y-2">
+                {store.projectStages.map((s: ProjectStage) => (
+                  <div key={s.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between text-xs font-mono">
+                    <div>
+                      <strong className="text-white">{s.name}</strong>
+                      <span className="text-[10px] text-[#58a6ff] block">GitLab Label: {s.gitlabLabel}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEditingItem({ subtab: 'stages', data: { ...s } })}
+                        className="text-[#8b949e] hover:text-white"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                      <button onClick={() => store.deleteProjectStage(s.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* SOURCES */}
+          {activeSubTab === 'sources' && (
+            <div className="space-y-6">
+              <h3 className="text-sm font-semibold text-white">Источники сигналов</h3>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!sourceName.trim()) return;
+                  store.addSource(sourceName);
+                  setSourceName('');
+                }}
+                className="flex gap-2 text-xs"
+              >
+                <input
+                  type="text" required value={sourceName} onChange={(e) => setSourceName(e.target.value)}
+                  placeholder="Добавить новый источник..." className="flex-1 bg-[#0d1117] border border-[#30363d] rounded px-3 py-1.5 text-white focus:outline-none"
+                />
+                <button type="submit" className="flex items-center gap-1 px-3 py-1.5 bg-[#238636] hover:bg-[#2ea043] text-white rounded">
+                  <Plus size={14} /> Добавить
+                </button>
+              </form>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                {store.sources.map((s: any) => (
+                  <div key={s.id} className="p-2 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between">
+                    <span className="text-white">{s.name}</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEditingItem({ subtab: 'sources', data: { ...s } })}
+                        className="text-[#8b949e] hover:text-white"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                      <button onClick={() => store.deleteSource(s.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ACTIVITY KINDS */}
+          {activeSubTab === 'activity_kinds' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">Виды деятельности</h3>
+              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!actKindName.trim()) return;
+                  store.addActivityKind(actKindName);
+                  setActKindName('');
+                }}
+                className="flex gap-2 text-xs"
+              >
+                <input
+                  type="text" required value={actKindName} onChange={(e) => setActKindName(e.target.value)}
+                  placeholder="Добавить новый вид деятельности..." className="flex-1 bg-[#0d1117] border border-[#30363d] rounded px-3 py-1.5 text-white focus:outline-none"
+                />
+                <button type="submit" className="flex items-center gap-1 px-3 py-1.5 bg-[#238636] hover:bg-[#2ea043] text-white rounded">
+                  <Plus size={14} /> Добавить
+                </button>
+              </form>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                {store.activityKinds.map((ak: ActivityKind) => (
+                  <div key={ak.id} className="p-2 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between">
+                    <span className="text-white">{ak.name}</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEditingItem({ subtab: 'activity_kinds', data: { ...ak } })}
+                        className="text-[#8b949e] hover:text-white"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                      <button onClick={() => store.deleteActivityKind(ak.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* CLIENTS */}
+          {activeSubTab === 'clients' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">Справочник клиентов</h3>
+              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!clientName.trim() || !clientActivityId) return;
+                  store.addClient(clientName, clientActivityId);
+                  setClientName(''); setClientActivityId('');
+                }}
+                className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Наименование клиента:</label>
+                  <input
+                    type="text" required value={clientName} onChange={(e) => setClientName(e.target.value)}
+                    placeholder="ПАО Сбербанк" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Вид деятельности:</label>
+                  <select
+                    required value={clientActivityId} onChange={(e) => setClientActivityId(e.target.value)}
+                    className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                  >
+                    <option value="">-- Выберите вид --</option>
+                    {store.activityKinds.map((ak: ActivityKind) => (
+                      <option key={ak.id} value={ak.id}>{ak.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="md:col-span-2 flex justify-end">
+                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white">
+                    <Plus size={14} /> Добавить клиента
+                  </button>
+                </div>
+              </form>
+              <div className="space-y-2">
+                {store.clients.map((c: Client) => {
+                  const ak = store.activityKinds.find((a: ActivityKind) => a.id === c.activityKindId);
+                  return (
+                    <div key={c.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between text-xs">
+                      <div>
+                        <strong className="text-white">{c.name}</strong>
+                        <span className="text-[10px] text-[#8b949e] block">Деятельность: {ak ? ak.name : 'Unknown'}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setEditingItem({ subtab: 'clients', data: { ...c } })}
+                          className="text-[#8b949e] hover:text-white"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <button onClick={() => store.deleteClient(c.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* USERS (No import button) */}
+          {activeSubTab === 'users' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+                <h3 className="text-sm font-semibold text-white">Пользователи</h3>
+              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!usrFullName.trim() || !usrEmail.trim() || !usrGitlab.trim()) return;
+                  store.addUser({
+                    fullName: usrFullName.trim(),
+                    isEnabled: usrEnabled,
+                    email: usrEmail.trim(),
+                    gitlabUser: usrGitlab.trim(),
+                    role: 'Администратор'
+                  });
+                  setUsrFullName(''); setUsrEmail(''); setUsrGitlab(''); setUsrEnabled(true);
+                }}
+                className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">ФИО пользователя:</label>
+                  <input
+                    type="text" required value={usrFullName} onChange={(e) => setUsrFullName(e.target.value)}
+                    placeholder="Иван Иванов" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Email:</label>
+                  <input
+                    type="email" required value={usrEmail} onChange={(e) => setUsrEmail(e.target.value)}
+                    placeholder="ivanov@corp.ru" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Пользователь Gitlab:</label>
+                  <input
+                    type="text" required value={usrGitlab} onChange={(e) => setUsrGitlab(e.target.value)}
+                    placeholder="ivanov_git" className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                  />
+                </div>
+                <div className="flex items-center gap-2 pt-5">
+                  <input
+                    type="checkbox" checked={usrEnabled} onChange={(e) => setUsrEnabled(e.target.checked)}
+                    className="rounded bg-[#161b22] border-[#30363d] text-blue-600 focus:ring-0 focus:ring-offset-0"
+                  />
+                  <label className="text-white">Вход разрешен</label>
+                </div>
+                <div className="md:col-span-2 flex justify-end">
+                  <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white">
+                    <Plus size={14} /> Добавить пользователя
+                  </button>
+                </div>
+              </form>
+              <div className="space-y-2">
+                {store.users.map((u: User) => (
+                  <div key={u.id} className="p-3 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between text-xs">
+                    <div>
+                      <strong className="text-white">{u.fullName}</strong>
+                      <span className="text-[10px] text-[#8b949e] block">Email: {u.email} | GitLab: {u.gitlabUser} | Роль: {u.role}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`px-1.5 py-0.2 rounded text-[10px] ${u.isEnabled ? 'bg-green-900/30 text-green-400 border border-green-800' : 'bg-red-900/30 text-red-400 border border-red-800'}`}>
+                        {u.isEnabled ? 'Активен' : 'Заблокирован'}
+                      </span>
+                      <button
+                        onClick={() => setEditingItem({ subtab: 'users', data: { ...u } })}
+                        className="text-[#8b949e] hover:text-white"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                      <button onClick={() => store.deleteUser(u.id)} className="text-[#8b949e] hover:text-red-400"><Trash2 size={13} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ROLES (READ ONLY) */}
+          {activeSubTab === 'roles' && (
+            <div className="space-y-6">
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-white">Роли в системе</h3>
+                <p className="text-xs text-[#8b949e]">Статический список ролей (перечисление без возможности добавления).</p>
+              </div>
+              <div className="p-4 bg-[#0d1117] border border-[#30363d] rounded-lg">
+                <div className="flex items-center justify-between text-xs p-2 bg-[#161b22] rounded border border-[#30363d]">
+                  <span className="font-mono text-[#58a6ff] font-bold">Администратор</span>
+                  <span className="text-[10px] text-yellow-500 bg-yellow-500/10 px-1.5 py-0.2 rounded border border-yellow-500/20">Системная роль</span>
+                </div>
+              </div>
             </div>
           )}
 
@@ -1036,7 +1142,7 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                 </div>
               </form>
 
-              {/* 2. RELEASE EFFORT DICTIONARY (Сложность переноса в релиз) */}
+              {/* 2. RELEASE EFFORT DICTIONARY */}
               <div className="space-y-4">
                 <div className="border-b border-[#30363d]/50 pb-2">
                   <span className="font-semibold text-white text-xs block">2. Справочник: Степень сложности переноса (ReleaseEffort)</span>
@@ -1099,6 +1205,555 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
 
         </div>
       </div>
+
+      {/* ========================================================================================= */}
+      {/* MODAL 1: EDIT ELEMENT DIALOG FOR ALL SUBTABS */}
+      {/* ========================================================================================= */}
+      {editItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs">
+          <div className="bg-[#161b22] border border-[#30363d] rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center justify-between border-b border-[#30363d] pb-2">
+              <h3 className="text-sm font-semibold text-white">Редактирование элемента</h3>
+              <button onClick={() => setEditingItem(null)} className="text-[#8b949e] hover:text-white">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* EDIT FORM BY SUBTAB */}
+            {editItem.subtab === 'epics' && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  store.updateEpic(editItem.data);
+                  setEditingItem(null);
+                }}
+                className="space-y-3"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Наименование Эпика:</label>
+                  <input
+                    type="text" required value={editItem.data.title}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, title: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setEditingItem(null)} className="px-3 py-1.5 bg-[#21262d] text-white rounded">Отмена</button>
+                  <button type="submit" className="px-3 py-1.5 bg-[#238636] text-white rounded">Сохранить</button>
+                </div>
+              </form>
+            )}
+
+            {editItem.subtab === 'products' && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  store.updateProduct(editItem.data);
+                  setEditingItem(null);
+                }}
+                className="space-y-3"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Наименование продукта:</label>
+                  <input
+                    type="text" required value={editItem.data.name}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, name: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setEditingItem(null)} className="px-3 py-1.5 bg-[#21262d] text-white rounded">Отмена</button>
+                  <button type="submit" className="px-3 py-1.5 bg-[#238636] text-white rounded">Сохранить</button>
+                </div>
+              </form>
+            )}
+
+            {editItem.subtab === 'modules' && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  store.updateModule(editItem.data);
+                  setEditingItem(null);
+                }}
+                className="space-y-3"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Наименование модуля:</label>
+                  <input
+                    type="text" required value={editItem.data.name}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, name: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">GitLab Label:</label>
+                  {store.gitLabLabels && store.gitLabLabels.length > 0 ? (
+                    <select
+                      required value={editItem.data.gitlabLabel}
+                      onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, gitlabLabel: e.target.value } })}
+                      className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                    >
+                      <option value="">-- Выберите Лейбл --</option>
+                      {store.gitLabLabels.map((l: any) => (
+                        <option key={l.id} value={l.name}>{l.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text" required value={editItem.data.gitlabLabel}
+                      onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, gitlabLabel: e.target.value } })}
+                      className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                    />
+                  )}
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setEditingItem(null)} className="px-3 py-1.5 bg-[#21262d] text-white rounded">Отмена</button>
+                  <button type="submit" className="px-3 py-1.5 bg-[#238636] text-white rounded">Сохранить</button>
+                </div>
+              </form>
+            )}
+
+            {editItem.subtab === 'project_groups' && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  store.updateProjectGroup(editItem.data);
+                  setEditingItem(null);
+                }}
+                className="space-y-3"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Наименование группы:</label>
+                  <input
+                    type="text" required value={editItem.data.name}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, name: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">GitLab URL группы:</label>
+                  <input
+                    type="text" required value={editItem.data.gitlabUrl}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, gitlabUrl: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setEditingItem(null)} className="px-3 py-1.5 bg-[#21262d] text-white rounded">Отмена</button>
+                  <button type="submit" className="px-3 py-1.5 bg-[#238636] text-white rounded">Сохранить</button>
+                </div>
+              </form>
+            )}
+
+            {editItem.subtab === 'projects' && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  store.updateProject(editItem.data);
+                  setEditingItem(null);
+                }}
+                className="space-y-3"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Наименование (необязательно, если пусто то "Клиент"):</label>
+                  <input
+                    type="text" value={editItem.data.name}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, name: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Ссылка Gitlab:</label>
+                  <input
+                    type="text" required value={editItem.data.gitlabUrl}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, gitlabUrl: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Группа проектов:</label>
+                  <select
+                    required value={editItem.data.projectGroupId}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, projectGroupId: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  >
+                    {store.projectGroups.map((g: any) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Клиент:</label>
+                  <select
+                    required value={editItem.data.clientId}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, clientId: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  >
+                    {store.clients.map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Продукт:</label>
+                  <select
+                    required value={editItem.data.productId}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, productId: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  >
+                    {store.products.map((p: any) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setEditingItem(null)} className="px-3 py-1.5 bg-[#21262d] text-white rounded">Отмена</button>
+                  <button type="submit" className="px-3 py-1.5 bg-[#238636] text-white rounded">Сохранить</button>
+                </div>
+              </form>
+            )}
+
+            {editItem.subtab === 'kinds' && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  store.updateTaskKind(editItem.data);
+                  setEditingItem(null);
+                }}
+                className="space-y-3"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Наименование:</label>
+                  <input
+                    type="text" required value={editItem.data.name}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, name: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">GitLab Label:</label>
+                  {store.gitLabLabels && store.gitLabLabels.length > 0 ? (
+                    <select
+                      required value={editItem.data.gitlabLabel}
+                      onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, gitlabLabel: e.target.value } })}
+                      className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                    >
+                      <option value="">-- Выберите Лейбл --</option>
+                      {store.gitLabLabels.map((l: any) => (
+                        <option key={l.id} value={l.name}>{l.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text" required value={editItem.data.gitlabLabel}
+                      onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, gitlabLabel: e.target.value } })}
+                      className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Баллы приоритета (1-5):</label>
+                  <input
+                    type="number" required min={1} max={5} value={editItem.data.priorityPoints || 3}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, priorityPoints: Number(e.target.value) } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setEditingItem(null)} className="px-3 py-1.5 bg-[#21262d] text-white rounded">Отмена</button>
+                  <button type="submit" className="px-3 py-1.5 bg-[#238636] text-white rounded">Сохранить</button>
+                </div>
+              </form>
+            )}
+
+            {editItem.subtab === 'stages' && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  store.updateProjectStage(editItem.data);
+                  setEditingItem(null);
+                }}
+                className="space-y-3"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Наименование этапа:</label>
+                  <input
+                    type="text" required value={editItem.data.name}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, name: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">GitLab Label:</label>
+                  {store.gitLabLabels && store.gitLabLabels.length > 0 ? (
+                    <select
+                      required value={editItem.data.gitlabLabel}
+                      onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, gitlabLabel: e.target.value } })}
+                      className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                    >
+                      <option value="">-- Выберите Лейбл --</option>
+                      {store.gitLabLabels.map((l: any) => (
+                        <option key={l.id} value={l.name}>{l.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text" required value={editItem.data.gitlabLabel}
+                      onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, gitlabLabel: e.target.value } })}
+                      className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                    />
+                  )}
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setEditingItem(null)} className="px-3 py-1.5 bg-[#21262d] text-white rounded">Отмена</button>
+                  <button type="submit" className="px-3 py-1.5 bg-[#238636] text-white rounded">Сохранить</button>
+                </div>
+              </form>
+            )}
+
+            {editItem.subtab === 'sources' && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  store.updateSource(editItem.data);
+                  setEditingItem(null);
+                }}
+                className="space-y-3"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Наименование источника:</label>
+                  <input
+                    type="text" required value={editItem.data.name}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, name: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setEditingItem(null)} className="px-3 py-1.5 bg-[#21262d] text-white rounded">Отмена</button>
+                  <button type="submit" className="px-3 py-1.5 bg-[#238636] text-white rounded">Сохранить</button>
+                </div>
+              </form>
+            )}
+
+            {editItem.subtab === 'activity_kinds' && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  store.updateActivityKind(editItem.data);
+                  setEditingItem(null);
+                }}
+                className="space-y-3"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Наименование вида деятельности:</label>
+                  <input
+                    type="text" required value={editItem.data.name}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, name: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setEditingItem(null)} className="px-3 py-1.5 bg-[#21262d] text-white rounded">Отмена</button>
+                  <button type="submit" className="px-3 py-1.5 bg-[#238636] text-white rounded">Сохранить</button>
+                </div>
+              </form>
+            )}
+
+            {editItem.subtab === 'clients' && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  store.updateClient(editItem.data);
+                  setEditingItem(null);
+                }}
+                className="space-y-3"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Наименование клиента:</label>
+                  <input
+                    type="text" required value={editItem.data.name}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, name: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Вид деятельности:</label>
+                  <select
+                    required value={editItem.data.activityKindId}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, activityKindId: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  >
+                    {store.activityKinds.map((ak: any) => (
+                      <option key={ak.id} value={ak.id}>{ak.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setEditingItem(null)} className="px-3 py-1.5 bg-[#21262d] text-white rounded">Отмена</button>
+                  <button type="submit" className="px-3 py-1.5 bg-[#238636] text-white rounded">Сохранить</button>
+                </div>
+              </form>
+            )}
+
+            {editItem.subtab === 'users' && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  store.updateUser(editItem.data);
+                  setEditingItem(null);
+                }}
+                className="space-y-3"
+              >
+                <div>
+                  <label className="block text-[#8b949e] mb-1">ФИО пользователя:</label>
+                  <input
+                    type="text" required value={editItem.data.fullName}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, fullName: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Email:</label>
+                  <input
+                    type="email" required value={editItem.data.email}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, email: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1">Пользователь GitLab:</label>
+                  <input
+                    type="text" required value={editItem.data.gitlabUser}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, gitlabUser: e.target.value } })}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white"
+                  />
+                </div>
+                <div className="flex items-center gap-2 pt-2">
+                  <input
+                    type="checkbox" checked={editItem.data.isEnabled}
+                    onChange={(e) => setEditingItem({ ...editItem, data: { ...editItem.data, isEnabled: e.target.checked } })}
+                    className="rounded bg-[#0d1117] border-[#30363d] text-blue-600 focus:ring-0"
+                  />
+                  <label className="text-white">Вход разрешен</label>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setEditingItem(null)} className="px-3 py-1.5 bg-[#21262d] text-white rounded">Отмена</button>
+                  <button type="submit" className="px-3 py-1.5 bg-[#238636] text-white rounded">Сохранить</button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================================= */}
+      {/* MODAL 2: IMPORT PROJECTS FROM GITLAB (Requirement 5) */}
+      {/* ========================================================================================= */}
+      {isProjectImportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-[#161b22] border border-[#30363d] rounded-xl max-w-3xl w-full p-6 space-y-4 shadow-2xl my-8 text-xs">
+            <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+              <div>
+                <h3 className="text-sm font-semibold text-white">Дозаполнение импортированных проектов из GitLab</h3>
+                <p className="text-[#8b949e] text-[11px] mt-0.5">
+                  Укажите обязательные атрибуты (Группа проектов, Клиент, Продукт) для каждого нового проекта.
+                </p>
+              </div>
+              <button onClick={() => setIsProjectImportModalOpen(false)} className="text-[#8b949e] hover:text-white">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-4 max-h-[450px] overflow-y-auto pr-1">
+              {importedProjectCandidates.map((p, idx) => (
+                <div key={idx} className="p-3 bg-[#0d1117] border border-[#30363d] rounded-lg space-y-2">
+                  <div className="flex items-center justify-between">
+                    <strong className="text-white text-xs">{p.name}</strong>
+                    <span className="text-[10px] font-mono text-[#58a6ff]">{p.gitlabUrl}</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[#8b949e] mb-1 font-mono text-[10px]">Группа проектов:</label>
+                      <select
+                        value={p.suggestedGroupId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setImportedProjectCandidates(prev => prev.map((item, i) => i === idx ? { ...item, suggestedGroupId: val } : item));
+                        }}
+                        className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                      >
+                        {store.projectGroups.map((g: any) => (
+                          <option key={g.id} value={g.id}>{g.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[#8b949e] mb-1 font-mono text-[10px]">Клиент:</label>
+                      <select
+                        value={p.suggestedClientId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setImportedProjectCandidates(prev => prev.map((item, i) => i === idx ? { ...item, suggestedClientId: val } : item));
+                        }}
+                        className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                      >
+                        {store.clients.map((c: any) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[#8b949e] mb-1 font-mono text-[10px]">Продукт:</label>
+                      <select
+                        value={p.suggestedProductId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setImportedProjectCandidates(prev => prev.map((item, i) => i === idx ? { ...item, suggestedProductId: val } : item));
+                        }}
+                        className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
+                      >
+                        {store.products.map((prod: any) => (
+                          <option key={prod.id} value={prod.id}>{prod.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-[#30363d]">
+              <button
+                type="button"
+                onClick={() => setIsProjectImportModalOpen(false)}
+                className="px-3.5 py-1.5 bg-[#21262d] text-white rounded hover:bg-[#30363d]"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const finalPayload = importedProjectCandidates.map(c => ({
+                    name: c.name,
+                    projectGroupId: c.suggestedGroupId,
+                    clientId: c.suggestedClientId,
+                    productId: c.suggestedProductId,
+                    gitlabUrl: c.gitlabUrl
+                  }));
+                  await store.addImportedProjects(finalPayload);
+                  alert(`Успешно импортировано и сохранено проектов: ${finalPayload.length} шт.`);
+                  setIsProjectImportModalOpen(false);
+                }}
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-[#238636] hover:bg-[#2ea043] text-white font-semibold rounded"
+              >
+                <Check size={14} /> Сохранить импортированные проекты
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

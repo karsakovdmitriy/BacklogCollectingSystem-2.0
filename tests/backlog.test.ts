@@ -54,7 +54,7 @@ test('Verify Backlog Dashboard View, Grouping, and 3-Stage Release Planner Funne
 
   // 2. Select tab "Бэклог и Приоритизация"
   console.log('Clicking Backlog tab...');
-  await page.locator('aside button').filter({ hasText: 'Бэклог' }).click();
+  await page.locator('aside button').filter({ hasText: 'Бэклог и Приоритизация' }).click();
   await page.waitForTimeout(1000);
   console.log('Current URL / state after click. Checking for button...');
   const btnVisible = await page.isVisible('button:has-text("Создать Фичу")');

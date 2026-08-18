@@ -356,18 +356,18 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                 Входящие сигналы (Inbox)
               </h3>
               <span className="bg-[#30363d] text-[#c9d1d9] text-[10px] px-2 py-0.5 rounded-full font-mono font-bold">
-                {store.requests.filter((r: any) => !r.associatedFeatureId && r.status !== 'Отклонен').length}
+                {store.requests.filter((r: any) => !r.associatedFeatureId && r.status === 'Принят').length}
               </span>
             </div>
             <p className="text-[10px] text-[#8b949e] leading-snug">
-              Перетащите сигнал на колонку Эпика для смены Эпика, или на карточку Фичи для моментальной привязки (примет запрос).
+              Перетащите сигнал на колонку Эпика для смены Эпика, или на карточку Фичи для моментальной привязки.
             </p>
           </div>
 
           {/* List */}
           <div className="p-3 space-y-3 overflow-y-auto flex-1 bg-[#0d1117]/20 scrollbar-thin">
             {(() => {
-              const pendingReqs = store.requests.filter((r: any) => !r.associatedFeatureId && r.status !== 'Отклонен');
+              const pendingReqs = store.requests.filter((r: any) => !r.associatedFeatureId && r.status === 'Принят');
               if (pendingReqs.length === 0) {
                 return (
                   <div className="py-12 text-center text-[#8b949e] text-xs italic">

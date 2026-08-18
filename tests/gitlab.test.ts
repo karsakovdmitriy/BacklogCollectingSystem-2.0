@@ -94,8 +94,8 @@ test('Verify GitLab Integration Settings, Test Connection, GitLab Labels, and en
   await page.click('button[title="Настройки"]');
   await page.waitForTimeout(500);
 
-  // 3. Select "Настройки GitLab" subtab
-  await page.click('button:has-text("Настройки GitLab")');
+  // 3. Select "Настройки интеграции" subtab
+  await page.click('button:has-text("Настройки интеграции")');
   await page.waitForTimeout(500);
 
   await page.screenshot({ path: '/home/jules/verification/screenshots/settings_gitlab_panel.png', fullPage: true });
@@ -121,14 +121,14 @@ test('Verify GitLab Integration Settings, Test Connection, GitLab Labels, and en
   await page.waitForTimeout(500);
 
   // 5. Test importing GitLab Labels subtab
-  await page.click('button:has-text("Лейблы GitLab")');
+  await page.click('button:has-text("Лейблы")');
   await page.waitForTimeout(500);
 
   await page.click('button:has-text("Импортировать все лейблы из GitLab")');
   await page.waitForTimeout(500);
 
   // 6. Test importing Projects from GitLab
-  await page.click('button:has-text("Проекты")');
+  await page.locator('button').filter({ hasText: /^Проекты$/ }).click();
   await page.waitForTimeout(500);
 
   await page.click('button:has-text("Импортировать из GitLab")');

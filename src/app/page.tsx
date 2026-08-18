@@ -5,15 +5,15 @@ import { useProductState } from '@/store/useProductState';
 import BacklogPanel from '@/components/BacklogPanel';
 import IncomingAnalysis from '@/components/IncomingAnalysis';
 import ReleasePlanner from '@/components/ReleasePlanner';
-import Telemetry from '@/components/Telemetry';
-import PnLDashboard from '@/components/PnLDashboard';
+import BacklogFunnel from '@/components/BacklogFunnel';
+import ProductStatus from '@/components/ProductStatus';
 import SettingsPanel from '@/components/SettingsPanel';
 
 import {
   Layers,
   CalendarRange,
-  Gauge,
-  TrendingUp,
+  BarChart3,
+  Package,
   Database,
   Cpu,
   Search,
@@ -26,7 +26,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function Home() {
   const store = useProductState();
-  const [activeTab, setActiveTab] = useState<'backlog' | 'incoming' | 'release' | 'telemetry' | 'pnl' | 'settings'>('incoming');
+  const [activeTab, setActiveTab] = useState<'backlog' | 'incoming' | 'release' | 'funnel' | 'product_status' | 'settings'>('incoming');
   const [showLogs, setShowLogs] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
@@ -151,41 +151,36 @@ export default function Home() {
             </button>
 
             <button
-              onClick={() => setActiveTab('telemetry')}
-              title="Телеметрия & Adoption"
+              onClick={() => setActiveTab('funnel')}
+              title="Анализ воронки бэклога"
               className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-medium transition-all ${
-                activeTab === 'telemetry'
+                activeTab === 'funnel'
                   ? 'bg-[#1f6feb] text-white'
                   : 'text-[#c9d1d9] hover:bg-[#21262d] hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <Gauge size={18} />
-                {!isSidebarCollapsed && <span>Телеметрия & Adoption</span>}
+                <BarChart3 size={18} />
+                {!isSidebarCollapsed && <span>Анализ воронки бэклога</span>}
               </div>
-              {!isSidebarCollapsed && (
-                <span className="text-[11px] bg-[#30363d] px-1.5 py-0.5 rounded text-[#8b949e]">
-                  {approvedFeaturesCount}
-                </span>
-              )}
             </button>
 
             <button
-              onClick={() => setActiveTab('pnl')}
-              title="Executive ROI и P&L"
+              onClick={() => setActiveTab('product_status')}
+              title="Статус продуктов"
               className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-medium transition-all ${
-                activeTab === 'pnl'
+                activeTab === 'product_status'
                   ? 'bg-[#1f6feb] text-white'
                   : 'text-[#c9d1d9] hover:bg-[#21262d] hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <TrendingUp size={18} />
-                {!isSidebarCollapsed && <span>Executive ROI и P&L</span>}
+                <Package size={18} />
+                {!isSidebarCollapsed && <span>Статус продуктов</span>}
               </div>
               {!isSidebarCollapsed && (
-                <span className="text-[11px] bg-green-900/60 text-green-400 px-1.5 py-0.5 rounded border border-green-800 font-mono font-bold">
-                  ROI
+                <span className="text-[11px] bg-[#30363d] px-1.5 py-0.5 rounded text-[#8b949e]">
+                  {store.products.length}
                 </span>
               )}
             </button>
@@ -305,8 +300,8 @@ export default function Home() {
               {activeTab === 'backlog' && 'Сквозной Бэклог и Управление Приоритизацией'}
               {activeTab === 'incoming' && 'Анализ входящих задач (Product Signals & Inbox)'}
               {activeTab === 'release' && 'Конструктор и Утверждение Релиза (Release Planner)'}
-              {activeTab === 'telemetry' && 'Каталог Фич и Телеметрия (Feature Adoption)'}
-              {activeTab === 'pnl' && 'Executive P&L и ROI Дашборд'}
+              {activeTab === 'funnel' && 'Сквозной Анализ Воронки Бэклога'}
+              {activeTab === 'product_status' && 'Статус Продуктов и Проектов Развития'}
               {activeTab === 'settings' && 'Системные Настройки Справочников'}
             </span>
           </div>
@@ -344,11 +339,11 @@ export default function Home() {
           {activeTab === 'release' && (
             <ReleasePlanner store={store} searchQuery={searchQuery} />
           )}
-          {activeTab === 'telemetry' && (
-            <Telemetry store={store} searchQuery={searchQuery} />
+          {activeTab === 'funnel' && (
+            <BacklogFunnel store={store} />
           )}
-          {activeTab === 'pnl' && (
-            <PnLDashboard store={store} />
+          {activeTab === 'product_status' && (
+            <ProductStatus store={store} />
           )}
           {activeTab === 'settings' && (
             <SettingsPanel store={store} />

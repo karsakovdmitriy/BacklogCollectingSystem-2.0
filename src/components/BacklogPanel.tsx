@@ -3,9 +3,7 @@
 import React, { useState } from 'react';
 import {
   Epic,
-  Initiative,
   Feature,
-  Task,
   DictionaryItem,
 } from '@/store/index';
 import {
@@ -43,22 +41,16 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
   // Modals & form state
   const [isFeatureModalOpen, setIsFeatureModalOpen] = useState(false);
   const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
   // Override Form State
   const [selectedFeatureForOverride, setSelectedFeatureForOverride] = useState<Feature | null>(null);
   const [overrideScoreValue, setOverrideScoreValue] = useState<string>('');
   const [overrideReasonValue, setOverrideReasonValue] = useState<string>('');
 
-  // Add Task Form State
-  const [selectedFeatureForTask, setSelectedFeatureForTask] = useState<Feature | null>(null);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskDeveloper, setNewTaskDeveloper] = useState('');
-
   // Manual Feature Creation Form State
   const [newFeatTitle, setNewFeatTitle] = useState('');
   const [newFeatDesc, setNewFeatDesc] = useState('');
-  const [newFeatInitId, setNewFeatInitId] = useState('');
+  const [newFeatEpicId, setNewFeatEpicId] = useState('');
   const [newFeatHours, setNewFeatHours] = useState(40);
   const [newFeatSubsystem, setNewFeatSubsystem] = useState('');
   const [newFeatTaskKind, setNewFeatTaskKind] = useState('');
@@ -80,34 +72,13 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
     setIsOverrideModalOpen(false);
   };
 
-  // Submit Add Task
-  const handleTaskSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedFeatureForTask) return;
-    if (!newTaskTitle.trim()) return;
-
-    store.addTask({
-      featureId: selectedFeatureForTask.id,
-      title: newTaskTitle,
-      status: 'To Do',
-      developer: newTaskDeveloper || 'Не назначен',
-
-    });
-
-    setNewTaskTitle('');
-    setNewTaskDeveloper('');
-
-    setSelectedFeatureForTask(null);
-    setIsTaskModalOpen(false);
-  };
-
   // Submit Add Feature
   const handleFeatureSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newFeatTitle.trim() || !newFeatInitId) return;
+    if (!newFeatTitle.trim()) return;
 
     store.addFeature({
-      initiativeId: newFeatInitId,
+      epicId: newFeatEpicId || undefined,
       title: newFeatTitle,
       description: newFeatDesc,
       effortHours: Number(newFeatHours),
@@ -198,11 +169,7 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
   // 3. Helper to determine which group a Feature belongs to
   const getFeatureGroup = (feat: Feature): string => {
     if (groupBy === 'epic') {
-      const initiative = store.initiatives.find((i: Initiative) => i.id === feat.initiativeId);
-      if (initiative && initiative.epicId) {
-        return initiative.epicId;
-      }
-      return 'unassigned-epic';
+      return feat.epicId ? feat.epicId : 'unassigned-epic';
     } else if (groupBy === 'subsystem') {
       return feat.subsystem ? `subsystem-${feat.subsystem}` : 'unassigned-subsystem';
     } else {
@@ -259,8 +226,8 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
           <div className="flex items-center gap-2">
             <button
               onClick={() => {
-                if (store.initiatives.length > 0) {
-                  setNewFeatInitId(store.initiatives[0].id);
+                if (store.epics.length > 0) {
+                  setNewFeatEpicId(store.epics[0].id);
                 }
                 if (store.subsystems.length > 0) {
                   setNewFeatSubsystem(store.subsystems[0].name);
@@ -584,15 +551,6 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                             >
                               PM вес
                             </button>
-                            <button
-                              onClick={() => {
-                                setSelectedFeatureForTask(feat);
-                                setIsTaskModalOpen(true);
-                              }}
-                              className="px-1.5 py-0.5 bg-[#238636]/20 hover:bg-[#238636]/40 text-[#2ea043] rounded border border-[#238636]/30 text-[10px]"
-                            >
-                              + Таск
-                            </button>
                           </div>
                         </div>
                       </div>
@@ -673,76 +631,22 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
         </div>
       )}
 
-      {/* 2. MODAL: ADD TASK TO FEATURE */}
-      {isTaskModalOpen && selectedFeatureForTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs">
-          <div className="bg-[#161b22] border border-[#30363d] rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="text-lg font-semibold text-white">Добавить задачу декомпозиции</h3>
-            <div className="text-xs text-[#8b949e]">
-              Фича: <strong className="text-white">[{selectedFeatureForTask.code}] {selectedFeatureForTask.title}</strong>
-            </div>
-
-            <form onSubmit={handleTaskSubmit} className="space-y-4 text-xs font-sans">
-              <div>
-                <label className="block text-[#8b949e] mb-1 font-medium">Название задачи:</label>
-                <input
-                  type="text"
-                  required
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  placeholder="Например: Разработать схему таблицы в БД"
-                  className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff]"
-                />
-              </div>
-
-              <div className="grid grid-cols-1">
-                <div>
-                  <label className="block text-[#8b949e] mb-1 font-medium">Разработчик:</label>
-                  <input
-                    type="text"
-                    value={newTaskDeveloper}
-                    onChange={(e) => setNewTaskDeveloper(e.target.value)}
-                    placeholder="Напр: Сергей Белов"
-                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsTaskModalOpen(false)}
-                  className="px-4 py-2 rounded bg-[#21262d] text-white border border-[#30363d] hover:bg-[#30363d]"
-                >
-                  Отмена
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded bg-[#238636] text-white hover:bg-[#2ea043]"
-                >
-                  Добавить
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 3. MODAL: MANUAL FEATURE CREATION (WITH SUBSYSTEM & TASK KIND SELECTION) */}
+      {/* 2. MODAL: MANUAL FEATURE CREATION (WITH SUBSYSTEM & TASK KIND SELECTION) */}
       {isFeatureModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs overflow-y-auto">
           <div className="bg-[#161b22] border border-[#30363d] rounded-xl max-w-lg w-full p-6 space-y-4 my-8 shadow-2xl">
             <h3 className="text-lg font-semibold text-white">Добавить новую Фичу в Бэклог</h3>
             <form onSubmit={handleFeatureSubmit} className="space-y-4 text-xs font-sans">
               <div>
-                <label className="block text-[#8b949e] mb-1 font-medium">Инициатива (для структуры):</label>
+                <label className="block text-[#8b949e] mb-1 font-medium">Эпик (Стратегическое направление):</label>
                 <select
-                  value={newFeatInitId}
-                  onChange={(e) => setNewFeatInitId(e.target.value)}
+                  value={newFeatEpicId}
+                  onChange={(e) => setNewFeatEpicId(e.target.value)}
                   className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff]"
                 >
-                  {store.initiatives.map((i: Initiative) => (
-                    <option key={i.id} value={i.id}>{i.code} - {i.title}</option>
+                  <option value="">-- Выберите Эпик --</option>
+                  {store.epics.map((ep: Epic) => (
+                    <option key={ep.id} value={ep.id}>{ep.code} - {ep.title}</option>
                   ))}
                 </select>
               </div>

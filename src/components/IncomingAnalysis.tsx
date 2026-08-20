@@ -23,6 +23,14 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditingReqId, setIsEditingReqId] = useState<string | null>(null);
 
+  // GitLab Import Modal and Filter States
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importSelectedLabels, setImportSelectedLabels] = useState<string[]>([]);
+  const [importCreatedAfter, setImportCreatedAfter] = useState('');
+  const [importCreatedBefore, setImportCreatedBefore] = useState('');
+  const [importProjectId, setImportProjectId] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+
   // Form Fields for Manual Request Creation / Editing
   const [title, setTitle] = useState('');
   const [source, setSource] = useState('');
@@ -117,9 +125,27 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
     resetForm();
   };
 
-  const handleGitlabBulkImport = async () => {
+  const handleOpenImportModal = () => {
+    setImportSelectedLabels([]);
+    setImportCreatedAfter('');
+    setImportCreatedBefore('');
+    setImportProjectId('');
+    setIsImportModalOpen(true);
+  };
+
+  const executeGitlabImport = async () => {
+    setIsImporting(true);
     try {
-      const result = await store.importGitLabIssues();
+      const filters = {
+        labelNames: importSelectedLabels.length > 0 ? importSelectedLabels : undefined,
+        createdAfter: importCreatedAfter || undefined,
+        createdBefore: importCreatedBefore || undefined,
+        projectId: importProjectId || undefined,
+      };
+
+      const result = await store.importGitLabIssues(filters);
+      setIsImportModalOpen(false);
+
       if (result.success) {
         let issueDetails = '';
         if (result.issues.length > 0) {
@@ -127,7 +153,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
             `• ${i.gitlabId}: ${i.title.slice(0, 45)}...\n  [Маппинг]: Вид: "${i.kind || 'Не сопоставлен'}"`
           ).join('\n\n');
         } else {
-          issueDetails = 'Задачи не найдены в указанной группе репозиториев.';
+          issueDetails = 'Задачи не найдены по указанным критериям фильтрации.';
         }
 
         alert(
@@ -144,7 +170,15 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
     } catch (err: any) {
       console.error(err);
       alert(err.message || 'Произошла ошибка при импорте задач из GitLab.');
+    } finally {
+      setIsImporting(false);
     }
+  };
+
+  const toggleImportLabel = (labelName: string) => {
+    setImportSelectedLabels((prev) =>
+      prev.includes(labelName) ? prev.filter((l) => l !== labelName) : [...prev, labelName]
+    );
   };
 
   const matchesSearch = (req: Request) => {
@@ -197,7 +231,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
             Внести вручную
           </button>
           <button
-            onClick={handleGitlabBulkImport}
+            onClick={handleOpenImportModal}
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#1f6feb] hover:bg-[#388bfd] text-white font-medium transition-all text-xs"
           >
             <GitBranch size={16} />
@@ -370,6 +404,124 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
           </div>
         </div>
       </div>
+
+      {/* MODAL: GITLAB IMPORT OPTIONAL FILTERS */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-[#161b22] border border-[#30363d] rounded-xl max-w-lg w-full p-6 space-y-4 my-8 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+              <div>
+                <h3 className="text-base font-semibold text-white">Опции импорта задач из GitLab</h3>
+                <p className="text-xs text-[#8b949e]">Задайте опциональные фильтры для ограничения объема импорта</p>
+              </div>
+              <button onClick={() => setIsImportModalOpen(false)} className="text-[#8b949e] hover:text-white">✕</button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* Filter by Project */}
+              <div>
+                <label className="block text-[#8b949e] mb-1 font-medium">Фильтр по проекту (опционально):</label>
+                <select
+                  value={importProjectId}
+                  onChange={(e) => setImportProjectId(e.target.value)}
+                  className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff]"
+                >
+                  <option value="">-- Все проекты группы --</option>
+                  {store.projects.map((p: Project) => (
+                    <option key={p.id} value={p.id}>{store.getProjectName(p)}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filter by Creation Period */}
+              <div>
+                <label className="block text-[#8b949e] mb-1 font-medium">Период создания (опционально):</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[10px] text-[#8b949e] block mb-0.5">С даты:</span>
+                    <input
+                      type="date"
+                      value={importCreatedAfter}
+                      onChange={(e) => setImportCreatedAfter(e.target.value)}
+                      className="w-full bg-[#0d1117] border border-[#30363d] rounded p-1.5 text-white focus:outline-none focus:border-[#58a6ff]"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[#8b949e] block mb-0.5">По дату:</span>
+                    <input
+                      type="date"
+                      value={importCreatedBefore}
+                      onChange={(e) => setImportCreatedBefore(e.target.value)}
+                      className="w-full bg-[#0d1117] border border-[#30363d] rounded p-1.5 text-white focus:outline-none focus:border-[#58a6ff]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Filter by Labels (Multiselect) */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[#8b949e] font-medium">Фильтр по ярлыкам / Labels (множественный выбор):</label>
+                  {importSelectedLabels.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setImportSelectedLabels([])}
+                      className="text-[10px] text-red-400 hover:underline"
+                    >
+                      Сбросить ({importSelectedLabels.length})
+                    </button>
+                  )}
+                </div>
+                {store.gitLabLabels && store.gitLabLabels.length > 0 ? (
+                  <div className="max-h-36 overflow-y-auto p-2 bg-[#0d1117] border border-[#30363d] rounded flex flex-wrap gap-1.5">
+                    {store.gitLabLabels.map((lbl: any) => {
+                      const isSelected = importSelectedLabels.includes(lbl.name);
+                      return (
+                        <button
+                          key={lbl.id || lbl.name}
+                          type="button"
+                          onClick={() => toggleImportLabel(lbl.name)}
+                          className={`px-2 py-1 rounded text-[11px] font-mono border transition-all flex items-center gap-1 ${
+                            isSelected
+                              ? 'bg-[#1f6feb] text-white border-[#388bfd]'
+                              : 'bg-[#161b22] text-[#8b949e] border-[#30363d] hover:text-white'
+                          }`}
+                        >
+                          <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: lbl.color || '#8b949e' }} />
+                          {lbl.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-3 bg-[#0d1117] border border-[#30363d] rounded text-[#8b949e] italic text-center">
+                    Ярлыки GitLab не предзагружены. Использоваться будут все задачи.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#30363d]">
+              <button
+                type="button"
+                onClick={() => setIsImportModalOpen(false)}
+                disabled={isImporting}
+                className="px-4 py-2 rounded bg-[#21262d] text-white border border-[#30363d] hover:bg-[#30363d]"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={executeGitlabImport}
+                disabled={isImporting}
+                className="px-4 py-2 rounded bg-[#1f6feb] text-white hover:bg-[#388bfd] font-medium flex items-center gap-1.5"
+              >
+                {isImporting ? 'Импорт...' : 'Начать импорт'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: ADD / EDIT DIALOG WITH 8 MANDATORY PARAMETERS */}
       {isAddModalOpen && (

@@ -248,6 +248,22 @@ export function useProductState() {
     return initialReleaseEffortOptions;
   });
 
+  const [internalRate, setInternalRate] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('internal_rate');
+      return saved ? Number(saved) : 2000;
+    }
+    return 2000;
+  });
+
+  const [externalRate, setExternalRate] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('external_rate');
+      return saved ? Number(saved) : 3500;
+    }
+    return 3500;
+  });
+
   // --- SUPABASE HYDRATION LAYER ON MOUNT ---
   useEffect(() => {
     const client = supabase;
@@ -552,6 +568,20 @@ export function useProductState() {
     localStorage.setItem('dict_release_effort', JSON.stringify(releaseEffortOptions));
   }, [releaseEffortOptions]);
 
+  useEffect(() => {
+    localStorage.setItem('internal_rate', String(internalRate));
+  }, [internalRate]);
+
+  useEffect(() => {
+    localStorage.setItem('external_rate', String(externalRate));
+  }, [externalRate]);
+
+  const updateGlobalRates = (internal: number, external: number) => {
+    setInternalRate(internal);
+    setExternalRate(external);
+    logAction('UPDATE_GLOBAL_RATES', `Обновлены финансовые ставки: Внутренняя=${internal} ₽/ч, Внешняя=${external} ₽/ч`);
+  };
+
   const setPriorityWeights = (weights: PriorityWeights) => {
     setPriorityWeightsState(weights);
     logAction('UPDATE_PRIORITY_WEIGHTS', `Обновлены весовые коэффициенты формулы приоритетов`);
@@ -568,9 +598,56 @@ export function useProductState() {
     logAction('DELETE_DICTIONARY', `Справочник: Удален вариант сложности переноса ${id}`);
   };
 
-  // Recalculate autoScore for a Feature
+  // Calculate Development Cost for a Feature (Item 8)
+  const calculateDevCost = (feat: Feature): number => {
+    const boundReqs = requests.filter(r => r.associatedFeatureId === feat.id);
+    const totalSpentHours = boundReqs.reduce((sum, r) => sum + (r.spent || r.estimate || 0), 0);
+    if (totalSpentHours > 0) {
+      return totalSpentHours * internalRate;
+    }
+    return (feat.effortHours || 0) * internalRate;
+  };
+
+  // Recalculate autoScore for a Feature (1.0 to 5.0 scale) (Item 6)
   const recalculateAutoScore = (feat: Feature): number => {
-    return feat.repeatabilityCount * 10;
+    // 1. Type (Task Kind)
+    const matchedKind = taskKinds.find((k) => k.name === feat.taskKind);
+    const typeScore = matchedKind?.priorityPoints ? Math.min(5, Math.max(1, matchedKind.priorityPoints)) : 3;
+
+    // 2. Demand (Repeatability / Signals)
+    const demandScore = Math.min(5, Math.max(1, feat.repeatabilityCount || 1));
+
+    // 3. Applicability
+    let applicabilityScore = 3;
+    if (priorityWeights.applicabilityEntity === 'module') {
+      const matchCount = features.filter((f) => f.subsystem && f.subsystem === feat.subsystem).length;
+      applicabilityScore = Math.min(5, Math.max(1, matchCount || 1));
+    } else {
+      const matchCount = features.filter((f) => f.epicId && f.epicId === feat.epicId).length;
+      applicabilityScore = Math.min(5, Math.max(1, matchCount || 1));
+    }
+
+    // 4. Spent Cost
+    const boundReqs = requests.filter((r) => r.associatedFeatureId === feat.id);
+    const totalSpent = boundReqs.reduce((sum, r) => sum + (r.spent || r.estimate || 0), 0) || feat.effortHours || 0;
+    const spentCostScore = Math.min(5, Math.max(1, Math.ceil(totalSpent / 20) || 1));
+
+    // 5. Release Effort
+    const releaseEffortOpt = releaseEffortOptions.find((opt) => opt.id === feat.releaseEffortId);
+    const releaseEffortScore = releaseEffortOpt ? Math.min(5, Math.max(1, releaseEffortOpt.points)) : 3;
+
+    const w = priorityWeights;
+    const totalWeight = (w.weightType + w.weightDemand + w.weightApplicability + w.weightSpentCost + w.weightReleaseEffort) || 1;
+
+    const weightedSum = (
+      typeScore * w.weightType +
+      demandScore * w.weightDemand +
+      applicabilityScore * w.weightApplicability +
+      spentCostScore * w.weightSpentCost +
+      releaseEffortScore * w.weightReleaseEffort
+    ) / totalWeight;
+
+    return Math.min(5.0, Math.max(1.0, Math.round(weightedSum * 10) / 10));
   };
 
   // Log Audit Action
@@ -1164,22 +1241,29 @@ export function useProductState() {
   // Add Feature
   const addFeature = (feat: Omit<Feature, 'id' | 'code' | 'autoScore' | 'adoptionRate' | 'mau' | 'retentionRate' | 'segmentAdoption' | 'revenueGenerated' | 'developmentCost'>) => {
     const code = `FEAT-${100 + features.length + 1}`;
+    const hours = typeof feat.effortHours === 'number' ? feat.effortHours : 0;
     const baseFeat: Omit<Feature, 'id' | 'code' | 'autoScore'> = {
       ...feat,
+      effortHours: hours,
       status: feat.status || 'Backlog',
       adoptionRate: 0,
       mau: 0,
       retentionRate: 0,
       segmentAdoption: { enterprise: 0, sme: 0, retail: 0 },
       revenueGenerated: 0,
-      developmentCost: feat.effortHours * 2000,
+      developmentCost: hours * internalRate,
     };
-    const autoScore = feat.repeatabilityCount * 10;
-    const newFeat: Feature = {
+    const newFeatTemp: Feature = {
       ...baseFeat,
       id: `fe-${Date.now()}`,
       code,
+      autoScore: 0,
+    };
+    const autoScore = recalculateAutoScore(newFeatTemp);
+    const newFeat: Feature = {
+      ...newFeatTemp,
       autoScore,
+      developmentCost: calculateDevCost(newFeatTemp),
     };
     setFeatures((prev) => [...prev, newFeat]);
     logAction('CREATE_FEATURE', `Создана фича ${code}: ${feat.title} (AutoScore: ${autoScore})`);
@@ -1221,7 +1305,7 @@ export function useProductState() {
   // Update Feature
   const updateFeature = async (updatedFeat: Feature) => {
     const autoScore = recalculateAutoScore(updatedFeat);
-    const cost = updatedFeat.effortHours * 2000;
+    const cost = calculateDevCost(updatedFeat);
     const finalFeat = { ...updatedFeat, autoScore, developmentCost: cost };
     setFeatures((prev) => prev.map((f) => (f.id === updatedFeat.id ? finalFeat : f)));
 
@@ -1563,7 +1647,7 @@ export function useProductState() {
       epicId: req.epicId || defaultEpicId,
       title: req.title,
       description: req.description || 'Создано автоматически из сигнала ' + req.code,
-      effortHours: 40,
+      effortHours: 0,
       repeatabilityCount: 1,
       releaseId: null,
       subsystem: req.subsystem,
@@ -2040,6 +2124,10 @@ export function useProductState() {
 
       const issueLabels: string[] = Array.isArray(issue.labels) ? issue.labels : [];
 
+      const matchedModule = modules.find((m) =>
+        m.gitlabLabel && issueLabels.some((l) => l.toLowerCase() === m.gitlabLabel.toLowerCase())
+      );
+
       const matchedKind = taskKinds.find((k) =>
         k.gitlabLabel && issueLabels.some((l) => l.toLowerCase() === k.gitlabLabel.toLowerCase())
       );
@@ -2049,14 +2137,22 @@ export function useProductState() {
       );
 
       const issueAuthorUsername = issue.author?.username;
-      const matchedAuthor = users.find((u) =>
-        u.gitlabUser && issueAuthorUsername && u.gitlabUser.toLowerCase() === issueAuthorUsername.toLowerCase()
-      );
+      const issueAuthorName = issue.author?.name;
+      const matchedAuthor = users.find((u) => {
+        if (u.gitlabUser && issueAuthorUsername && u.gitlabUser.toLowerCase() === issueAuthorUsername.toLowerCase()) return true;
+        if (issueAuthorName && u.fullName.toLowerCase() === issueAuthorName.toLowerCase()) return true;
+        if (issueAuthorUsername && u.fullName.toLowerCase().includes(issueAuthorUsername.toLowerCase())) return true;
+        return false;
+      });
 
       const issueAssigneeUsername = issue.assignee?.username || issue.assignees?.[0]?.username;
-      const matchedExecutor = users.find((u) =>
-        u.gitlabUser && issueAssigneeUsername && u.gitlabUser.toLowerCase() === issueAssigneeUsername.toLowerCase()
-      );
+      const issueAssigneeName = issue.assignee?.name || issue.assignees?.[0]?.name;
+      const matchedExecutor = users.find((u) => {
+        if (u.gitlabUser && issueAssigneeUsername && u.gitlabUser.toLowerCase() === issueAssigneeUsername.toLowerCase()) return true;
+        if (issueAssigneeName && u.fullName.toLowerCase() === issueAssigneeName.toLowerCase()) return true;
+        if (issueAssigneeUsername && u.fullName.toLowerCase().includes(issueAssigneeUsername.toLowerCase())) return true;
+        return false;
+      });
 
       const code = `REQ-GL-${Date.now().toString().slice(-4)}-${idx + 1}`;
 
@@ -2072,6 +2168,7 @@ export function useProductState() {
 
         projectId: matchedProj?.id,
         productId: matchedProj?.productId,
+        moduleId: matchedModule?.id,
         taskKindId: matchedKind?.id,
         projectStageId: matchedStage?.id,
         authorId: matchedAuthor?.id,
@@ -2079,6 +2176,7 @@ export function useProductState() {
 
         client: matchedProj ? clients.find(c => c.id === matchedProj.clientId)?.name : undefined,
         project: matchedProj ? getProjectName(matchedProj) : undefined,
+        subsystem: matchedModule?.name,
         taskKind: matchedKind?.name,
 
         estimate: typeof issue.time_stats?.time_estimate === 'number' ? Math.round(issue.time_stats.time_estimate / 3600) : 0,
@@ -2358,6 +2456,9 @@ export function useProductState() {
     moveFeatureToEstimation,
     fillFeatureEffort,
     batchFillFeatureEfforts,
+    internalRate,
+    externalRate,
+    updateGlobalRates,
     gitLabSettings,
     gitLabLabels,
     updateGitLabSettings,

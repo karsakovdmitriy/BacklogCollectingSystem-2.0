@@ -40,6 +40,7 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
 
   // Modals & form state
   const [isFeatureModalOpen, setIsFeatureModalOpen] = useState(false);
+  const [isEditFeatureModalOpen, setIsEditFeatureModalOpen] = useState(false);
   const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
 
   // Override Form State
@@ -47,11 +48,22 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
   const [overrideScoreValue, setOverrideScoreValue] = useState<string>('');
   const [overrideReasonValue, setOverrideReasonValue] = useState<string>('');
 
+  // Edit Feature State
+  const [editingFeature, setEditingFeature] = useState<Feature | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editEpicId, setEditEpicId] = useState('');
+  const [editHours, setEditHours] = useState(0);
+  const [editReleaseEffortId, setEditReleaseEffortId] = useState('');
+  const [editSubsystem, setEditSubsystem] = useState('');
+  const [editTaskKind, setEditTaskKind] = useState('');
+
   // Manual Feature Creation Form State
   const [newFeatTitle, setNewFeatTitle] = useState('');
   const [newFeatDesc, setNewFeatDesc] = useState('');
   const [newFeatEpicId, setNewFeatEpicId] = useState('');
-  const [newFeatHours, setNewFeatHours] = useState(40);
+  const [newFeatHours, setNewFeatHours] = useState(0);
+  const [newFeatReleaseEffortId, setNewFeatReleaseEffortId] = useState('');
   const [newFeatSubsystem, setNewFeatSubsystem] = useState('');
   const [newFeatTaskKind, setNewFeatTaskKind] = useState('');
 
@@ -81,8 +93,8 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
       epicId: newFeatEpicId || undefined,
       title: newFeatTitle,
       description: newFeatDesc,
-      effortHours: Number(newFeatHours),
-
+      effortHours: Number(newFeatHours) || 0,
+      releaseEffortId: newFeatReleaseEffortId || undefined,
       repeatabilityCount: 1,
       releaseId: null,
       subsystem: newFeatSubsystem || undefined,
@@ -91,9 +103,30 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
 
     setNewFeatTitle('');
     setNewFeatDesc('');
+    setNewFeatHours(0);
+    setNewFeatReleaseEffortId('');
     setNewFeatSubsystem('');
     setNewFeatTaskKind('');
     setIsFeatureModalOpen(false);
+  };
+
+  const handleEditFeatureSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingFeature || !editTitle.trim()) return;
+
+    store.updateFeature({
+      ...editingFeature,
+      title: editTitle,
+      description: editDesc,
+      epicId: editEpicId || undefined,
+      effortHours: Number(editHours) || 0,
+      releaseEffortId: editReleaseEffortId || undefined,
+      subsystem: editSubsystem || undefined,
+      taskKind: editTaskKind || undefined,
+    });
+
+    setIsEditFeatureModalOpen(false);
+    setEditingFeature(null);
   };
 
   // ----------------------------------------------------
@@ -491,8 +524,8 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                           <p className="text-[11px] text-[#8b949e] leading-snug line-clamp-2">{feat.description}</p>
                         </div>
 
-                        {/* Quick sub-labels */}
-                        <div className="flex flex-wrap gap-1.5 text-[9px]">
+                        {/* Quick sub-labels & Release Effort Dropdown */}
+                        <div className="flex flex-wrap items-center gap-1.5 text-[9px]">
                           {feat.subsystem && (
                             <span className="bg-[#21262d] px-1 rounded text-[#c9d1d9] border border-[#30363d]">
                               {feat.subsystem}
@@ -503,6 +536,28 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                               {feat.taskKind}
                             </span>
                           )}
+                        </div>
+
+                        {/* Direct Release Effort Selector */}
+                        <div className="flex items-center gap-1 text-[9px] pt-1 border-t border-[#30363d]/30">
+                          <span className="text-[#8b949e]">Сложность релиза:</span>
+                          <select
+                            value={feat.releaseEffortId || ''}
+                            onChange={(e) => {
+                              store.updateFeature({
+                                ...feat,
+                                releaseEffortId: e.target.value || undefined,
+                              });
+                            }}
+                            className="bg-[#0d1117] border border-[#30363d] text-white rounded px-1 py-0.5 text-[9px] w-full truncate focus:outline-none"
+                          >
+                            <option value="">-- Не указана --</option>
+                            {store.releaseEffortOptions?.map((opt: any) => (
+                              <option key={opt.id} value={opt.id}>
+                                {opt.name} ({opt.points} б.)
+                              </option>
+                            ))}
+                          </select>
                         </div>
 
                         {/* Small metrics */}
@@ -540,6 +595,23 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                         {/* Actions Inside card */}
                         <div className="flex items-center justify-end pt-1 border-t border-[#30363d]/40">
                           <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                setEditingFeature(feat);
+                                setEditTitle(feat.title);
+                                setEditDesc(feat.description || '');
+                                setEditEpicId(feat.epicId || '');
+                                setEditHours(feat.effortHours || 0);
+                                setEditReleaseEffortId(feat.releaseEffortId || '');
+                                setEditSubsystem(feat.subsystem || '');
+                                setEditTaskKind(feat.taskKind || '');
+                                setIsEditFeatureModalOpen(true);
+                              }}
+                              className="px-1.5 py-0.5 bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] hover:text-white rounded border border-[#30363d] text-[10px] flex items-center gap-1"
+                            >
+                              <Edit2 size={10} />
+                              Изменить
+                            </button>
                             <button
                               onClick={() => {
                                 setSelectedFeatureForOverride(feat);
@@ -704,7 +776,7 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                 </div>
               </div>
 
-              <div className="grid grid-cols-1">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[#8b949e] mb-1 font-medium">Оценка в часах (Hours):</label>
                   <input
@@ -714,7 +786,19 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                     className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff] font-mono"
                   />
                 </div>
-
+                <div>
+                  <label className="block text-[#8b949e] mb-1 font-medium">Сложность переноса в релиз:</label>
+                  <select
+                    value={newFeatReleaseEffortId}
+                    onChange={(e) => setNewFeatReleaseEffortId(e.target.value)}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none"
+                  >
+                    <option value="">-- Не выбрана --</option>
+                    {store.releaseEffortOptions?.map((opt: any) => (
+                      <option key={opt.id} value={opt.id}>{opt.name} ({opt.points} б.)</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
 
@@ -731,6 +815,124 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                   className="px-4 py-2 rounded bg-[#238636] text-white hover:bg-[#2ea043]"
                 >
                   Сохранить в Бэклог
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 3. MODAL: EDIT FEATURE */}
+      {isEditFeatureModalOpen && editingFeature && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-[#161b22] border border-[#30363d] rounded-xl max-w-lg w-full p-6 space-y-4 my-8 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
+              <h3 className="text-lg font-semibold text-white">Редактировать Фичу [{editingFeature.code}]</h3>
+              <button onClick={() => setIsEditFeatureModalOpen(false)} className="text-[#8b949e] hover:text-white">✕</button>
+            </div>
+            <form onSubmit={handleEditFeatureSubmit} className="space-y-4 text-xs font-sans">
+              <div>
+                <label className="block text-[#8b949e] mb-1 font-medium">Эпик (Стратегическое направление):</label>
+                <select
+                  value={editEpicId}
+                  onChange={(e) => setEditEpicId(e.target.value)}
+                  className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff]"
+                >
+                  <option value="">-- Без Эпика --</option>
+                  {store.epics.map((ep: Epic) => (
+                    <option key={ep.id} value={ep.id}>{ep.code} - {ep.title}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[#8b949e] mb-1 font-medium">Название фичи:</label>
+                <input
+                  type="text"
+                  required
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#8b949e] mb-1 font-medium">Краткое описание / Спецификация:</label>
+                <textarea
+                  rows={2}
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[#8b949e] mb-1 font-medium">Подсистема (Subsystem):</label>
+                  <select
+                    value={editSubsystem}
+                    onChange={(e) => setEditSubsystem(e.target.value)}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none"
+                  >
+                    <option value="">-- Не выбрана --</option>
+                    {store.subsystems.map((s: DictionaryItem) => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1 font-medium">Вид задачи (Task Kind):</label>
+                  <select
+                    value={editTaskKind}
+                    onChange={(e) => setEditTaskKind(e.target.value)}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none"
+                  >
+                    <option value="">-- Не выбран --</option>
+                    {store.taskKinds.map((k: DictionaryItem) => (
+                      <option key={k.id} value={k.name}>{k.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[#8b949e] mb-1 font-medium">Оценка в часах (Hours):</label>
+                  <input
+                    type="number"
+                    value={editHours}
+                    onChange={(e) => setEditHours(Number(e.target.value))}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none focus:border-[#58a6ff] font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#8b949e] mb-1 font-medium">Сложность переноса в релиз:</label>
+                  <select
+                    value={editReleaseEffortId}
+                    onChange={(e) => setEditReleaseEffortId(e.target.value)}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded p-2 text-white focus:outline-none"
+                  >
+                    <option value="">-- Не выбрана --</option>
+                    {store.releaseEffortOptions?.map((opt: any) => (
+                      <option key={opt.id} value={opt.id}>{opt.name} ({opt.points} б.)</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-[#30363d]">
+                <button
+                  type="button"
+                  onClick={() => setIsEditFeatureModalOpen(false)}
+                  className="px-4 py-2 rounded bg-[#21262d] text-white border border-[#30363d] hover:bg-[#30363d]"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded bg-[#238636] text-white hover:bg-[#2ea043]"
+                >
+                  Сохранить изменения
                 </button>
               </div>
             </form>

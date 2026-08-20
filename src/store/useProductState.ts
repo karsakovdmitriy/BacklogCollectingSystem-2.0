@@ -1649,18 +1649,38 @@ export function useProductState() {
   };
 
   const updateDraftCapacity = async (capacity: number) => {
-    setReleases((prev) =>
-      prev.map((r) => {
-        if (r.id === 'rel-draft') {
-          const client = supabase;
-          if (isSupabaseConfigured && client) {
-            client.from('releases').update({ capacity_hours: capacity }).eq('id', 'rel-draft').then();
-          }
-          return { ...r, capacityHours: capacity };
-        }
-        return r;
-      })
-    );
+    setReleases((prev) => {
+      const exists = prev.some((r) => r.id === 'rel-draft');
+      if (exists) {
+        return prev.map((r) => (r.id === 'rel-draft' ? { ...r, capacityHours: capacity } : r));
+      } else {
+        return [
+          ...prev,
+          {
+            id: 'rel-draft',
+            code: `RELEASE-PLAN-${new Date().getFullYear() + 1}`,
+            title: `План релиза: Следующая Итерация`,
+            capacityHours: capacity,
+            status: 'Draft',
+          },
+        ];
+      }
+    });
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      try {
+        await client.from('releases').upsert({
+          id: 'rel-draft',
+          code: `RELEASE-PLAN-${new Date().getFullYear() + 1}`,
+          title: `План релиза: Следующая Итерация`,
+          capacity_hours: capacity,
+          status: 'Draft',
+        });
+      } catch (err) {
+        console.error('Error updating draft capacity in Supabase:', err);
+      }
+    }
   };
 
   const toggleFeatureInRelease = async (featureId: string, releaseId: string | null) => {
@@ -1942,12 +1962,28 @@ export function useProductState() {
     return newItems.map(i => i.name);
   };
 
-  const importGitLabIssues = async () => {
+  const importGitLabIssues = async (filters?: { labelNames?: string[]; createdAfter?: string; createdBefore?: string; projectId?: string }) => {
     checkGitLabConfig();
 
     const { serverUrl, personalAccessToken, projectGroup } = gitLabSettings;
 
-    const res = await fetch(`${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/issues`, {
+    const queryParams = new URLSearchParams();
+    if (filters?.labelNames && filters.labelNames.length > 0) {
+      queryParams.set('labels', filters.labelNames.join(','));
+    }
+    if (filters?.createdAfter) {
+      queryParams.set('created_after', new Date(filters.createdAfter).toISOString());
+    }
+    if (filters?.createdBefore) {
+      const toDate = new Date(filters.createdBefore);
+      toDate.setHours(23, 59, 59, 999);
+      queryParams.set('created_before', toDate.toISOString());
+    }
+
+    const queryString = queryParams.toString();
+    const url = `${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/issues${queryString ? '?' + queryString : ''}`;
+
+    const res = await fetch(url, {
       headers: { 'Private-Token': personalAccessToken }
     });
 
@@ -1955,9 +1991,21 @@ export function useProductState() {
       throw new Error(`Не удалось загрузить задачи из GitLab API (Статус: ${res.status} ${res.statusText})`);
     }
 
-    const issuesData = await res.json();
+    let issuesData = await res.json();
     if (!Array.isArray(issuesData)) {
       throw new Error('Получен некорректный ответ от GitLab API (ожидался массив задач).');
+    }
+
+    if (filters?.projectId) {
+      const selectedProj = projects.find(p => p.id === filters.projectId);
+      if (selectedProj && selectedProj.gitlabUrl) {
+        const pUrl = selectedProj.gitlabUrl.toLowerCase().replace(/\/$/, '');
+        issuesData = issuesData.filter((issue: any) => {
+          if (!issue.web_url) return false;
+          const iUrl = issue.web_url.toLowerCase();
+          return iUrl.startsWith(pUrl) || iUrl.includes(pUrl);
+        });
+      }
     }
 
     const importedRequests: Request[] = [];

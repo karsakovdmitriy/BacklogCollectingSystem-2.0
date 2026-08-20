@@ -229,9 +229,9 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
             </div>
             <input
               type="range"
-              min={40}
-              max={400}
-              step={8}
+              min={100}
+              max={500}
+              step={10}
               value={capacityLimit}
               onChange={(e) => store.updateDraftCapacity(Number(e.target.value))}
               className="w-full accent-[#1f6feb] h-1.5 bg-[#0d1117] rounded-lg appearance-none cursor-pointer border border-[#30363d]"

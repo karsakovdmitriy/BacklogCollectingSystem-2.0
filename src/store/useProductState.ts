@@ -2009,6 +2009,7 @@ export function useProductState() {
     }
 
     const importedRequests: Request[] = [];
+    let skippedCount = 0;
 
     issuesData.forEach((issue: any, idx: number) => {
       const gitlabId = `#${issue.iid || issue.id}`;
@@ -2021,6 +2022,20 @@ export function useProductState() {
           const iUrl = issue.web_url.toLowerCase();
           return iUrl.startsWith(pUrl) || iUrl.includes(pUrl);
         });
+      }
+
+      // Check for duplicates against existing requests
+      const isAlreadyImported = requests.some((r) => {
+        if (r.gitlabIssueId && r.gitlabIssueId.toString() === gitlabId.toString()) {
+          if (!matchedProj || !r.projectId) return true;
+          return r.projectId === matchedProj.id;
+        }
+        return false;
+      });
+
+      if (isAlreadyImported) {
+        skippedCount++;
+        return;
       }
 
       const issueLabels: string[] = Array.isArray(issue.labels) ? issue.labels : [];
@@ -2118,6 +2133,7 @@ export function useProductState() {
     return {
       success: true,
       count: importedRequests.length,
+      skippedCount,
       projectPath: projectGroup,
       projectName: importedRequests.length > 0 && importedRequests[0].projectId
         ? getProjectName(projects.find(p => p.id === importedRequests[0].projectId)!)

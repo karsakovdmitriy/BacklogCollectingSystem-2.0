@@ -87,6 +87,10 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
   const [wReleaseEffort, setWReleaseEffort] = useState(store.priorityWeights?.weightReleaseEffort || 0.15);
   const [appEntity, setAppEntity] = useState<'module' | 'product'>(store.priorityWeights?.applicabilityEntity || 'module');
 
+  // Global Rates states
+  const [internalRateInput, setInternalRateInput] = useState(store.internalRate || 2000);
+  const [externalRateInput, setExternalRateInput] = useState(store.externalRate || 3500);
+
   // Release Effort states
   const [effName, setEffName] = useState('');
   const [effPoints, setEffPoints] = useState(3);
@@ -1081,6 +1085,51 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
                   Настройте веса критериев и связанные сущности для автоматического расчета приоритета (Auto Score). Сумма весов должна быть равна 1.0 для корректной нормировки.
                 </p>
               </div>
+
+              {/* 0. FINANCIAL RATES FORM */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  store.updateGlobalRates(Number(internalRateInput), Number(externalRateInput));
+                  alert('Финансовые ставки успешно сохранены!');
+                }}
+                className="p-4 bg-[#0d1117] border border-[#30363d] rounded-lg text-xs space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-white text-xs block">Финансовые ставки (Глобальные параметры расчетов)</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[#8b949e] mb-1 font-medium">Внутренняя ставка для расчетов (₽ / час):</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      value={internalRateInput}
+                      onChange={(e) => setInternalRateInput(Number(e.target.value))}
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-2 text-white font-mono font-bold"
+                    />
+                    <span className="text-[10px] text-[#8b949e] block mt-1">Используется для калькуляции Затрат Dev по фичам и синонимам.</span>
+                  </div>
+                  <div>
+                    <label className="block text-[#8b949e] mb-1 font-medium">Внешняя ставка для расчетов (₽ / час):</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      value={externalRateInput}
+                      onChange={(e) => setExternalRateInput(Number(e.target.value))}
+                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-2 text-white font-mono font-bold"
+                    />
+                    <span className="text-[10px] text-[#8b949e] block mt-1">Используется для внешней оценки стоимости разработки для заказчиков.</span>
+                  </div>
+                </div>
+                <div className="flex justify-end pt-1">
+                  <button type="submit" className="flex items-center gap-1.5 px-4 py-2 bg-[#238636] hover:bg-[#2ea043] text-white font-bold rounded shadow transition-all">
+                    <Save size={14} /> Сохранить финансовые ставки
+                  </button>
+                </div>
+              </form>
 
               {/* 1. WEIGHTS FORM */}
               <form

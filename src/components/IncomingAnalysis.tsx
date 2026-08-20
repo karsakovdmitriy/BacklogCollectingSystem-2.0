@@ -153,14 +153,16 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
             `• ${i.gitlabId}: ${i.title.slice(0, 45)}...\n  [Маппинг]: Вид: "${i.kind || 'Не сопоставлен'}"`
           ).join('\n\n');
         } else {
-          issueDetails = 'Задачи не найдены по указанным критериям фильтрации.';
+          issueDetails = 'Новые задачи не найдены по указанным критериям фильтрации.';
         }
+
+        const skippedText = typeof result.skippedCount === 'number' ? `\nПропущено ранее загруженных дубликатов: ${result.skippedCount} шт.` : '';
 
         alert(
           `Успешный импорт из GitLab!\n\n` +
           `Путь к репозиторию: "${result.projectPath}"\n` +
           `Сопоставлен с проектом: "${result.projectName}"\n` +
-          `Импортировано сигналов: ${result.count} шт.\n\n` +
+          `Импортировано новых сигналов: ${result.count} шт.${skippedText}\n\n` +
           `Результаты сопоставления ярлыков (Labels Mapping):\n\n${issueDetails}\n\n` +
           `Все сигналы импортированы в статусе "Неразобранные" и добавлены в таблицу.`
         );

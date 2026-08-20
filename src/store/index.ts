@@ -4,18 +4,10 @@ export interface Epic {
   title: string;
 }
 
-export interface Initiative {
-  id: string;
-  epicId: string;
-  code: string;
-  title: string;
-  description: string;
-  status: 'In Progress' | 'Backlog' | 'Completed';
-}
-
 export interface Feature {
   id: string;
-  initiativeId: string;
+  epicId?: string;
+  initiativeId?: string;
   code: string;
   title: string;
   description: string;
@@ -51,16 +43,6 @@ export interface Feature {
   };
   revenueGenerated: number; // USD/RUB
   developmentCost: number; // Calculated or expert estimated hours * constant or raw
-}
-
-export interface Task {
-  id: string;
-  featureId: string;
-  code: string;
-  title: string;
-  status: 'To Do' | 'In Progress' | 'Review' | 'Done';
-  developer: string;
-  gitlabUrl?: string;
 }
 
 // --- NEW/UPDATED ENTITIES ---
@@ -116,13 +98,6 @@ export interface TaskKind {
   priorityPoints?: number; // Новое поле для настройки приоритетов (1 to 5)
 }
 
-// 8. Типы задач (Refactored to support new structure)
-export interface TaskType {
-  id: string;
-  name: string;
-  gitlabLabel: string; // Ссылка на label gitlab
-}
-
 // 9. Этапы проектов
 export interface ProjectStage {
   id: string;
@@ -155,7 +130,6 @@ export interface Request {
   project?: string;
   subsystem?: string;
   taskKind?: string;
-  taskType?: string;
 
   // New strict relations:
   authorId?: string; // Автор (ссылка Пользователи)
@@ -164,7 +138,6 @@ export interface Request {
   productId?: string; // Продукт (ссылка)
   moduleId?: string; // Модуль (ссылка)
   taskKindId?: string; // Вид задачи (ссылка)
-  taskTypeId?: string; // Тип задачи (ссылка)
   projectStageId?: string; // Этап проекта (ссылка)
   estimate?: number; // Оценка (число)
   spent?: number; // Затрачено (число)
@@ -230,10 +203,8 @@ export interface GitLabLabel {
 
 // Initial Mock Data
 export const initialEpics: Epic[] = [];
-export const initialInitiatives: Initiative[] = [];
 export const initialFeatures: Feature[] = [];
 export const initialGitLabLabels: GitLabLabel[] = [];
-export const initialTasks: Task[] = [];
 export const initialRequests: Request[] = [];
 
 export const initialReleases: Release[] = [
@@ -317,13 +288,6 @@ export const initialTaskKinds: TaskKind[] = [
   { id: 'kind-6', name: 'Доработка UX', gitlabLabel: 'ux-refinement', priorityPoints: 3 },
   { id: 'kind-7', name: 'Доработка UI', gitlabLabel: 'ui-refinement', priorityPoints: 2 },
   { id: 'kind-8', name: 'Интеграция', gitlabLabel: 'integration', priorityPoints: 1 }
-];
-
-export const initialTaskTypes: TaskType[] = [
-  { id: 'type-1', name: 'Интеграционный сбой', gitlabLabel: 'type::integration' },
-  { id: 'type-2', name: 'Новый метод оплаты', gitlabLabel: 'type::payment' },
-  { id: 'type-3', name: 'Оптимизация БП', gitlabLabel: 'type::optimization' },
-  { id: 'type-4', name: 'Доработка UI', gitlabLabel: 'type::ui' }
 ];
 
 export const initialProjectStages: ProjectStage[] = [

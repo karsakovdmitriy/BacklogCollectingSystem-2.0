@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 import {
   Epic,
-  Initiative,
   Feature,
   Request,
   Release,
@@ -19,8 +18,11 @@ import {
   ProjectStage,
   User,
   GitLabLabel,
+  PriorityWeights,
+  ReleaseEffortOption,
+  defaultPriorityWeights,
+  initialReleaseEffortOptions,
   initialEpics,
-  initialInitiatives,
   initialFeatures,
   initialGitLabLabels,
   initialRequests,
@@ -46,14 +48,6 @@ export function useProductState() {
       return saved ? JSON.parse(saved) : initialEpics;
     }
     return initialEpics;
-  });
-
-  const [initiatives, setInitiatives] = useState<Initiative[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('init_data');
-      return saved ? JSON.parse(saved) : initialInitiatives;
-    }
-    return initialInitiatives;
   });
 
   const [features, setFeatures] = useState<Feature[]>(() => {
@@ -238,6 +232,22 @@ export function useProductState() {
     return initialGitLabSettings;
   });
 
+  const [priorityWeights, setPriorityWeightsState] = useState<PriorityWeights>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('priority_weights');
+      return saved ? JSON.parse(saved) : defaultPriorityWeights;
+    }
+    return defaultPriorityWeights;
+  });
+
+  const [releaseEffortOptions, setReleaseEffortOptions] = useState<ReleaseEffortOption[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dict_release_effort');
+      return saved ? JSON.parse(saved) : initialReleaseEffortOptions;
+    }
+    return initialReleaseEffortOptions;
+  });
+
   // --- SUPABASE HYDRATION LAYER ON MOUNT ---
   useEffect(() => {
     const client = supabase;
@@ -247,7 +257,6 @@ export function useProductState() {
       try {
         const [
           { data: epDb },
-          { data: initDb },
           { data: featDb },
           { data: reqDb },
           { data: relDb },
@@ -264,7 +273,6 @@ export function useProductState() {
           { data: srcDb }
         ] = await Promise.all([
           client.from('epics').select('*'),
-          client.from('initiatives').select('*'),
           client.from('features').select('*'),
           client.from('requests').select('*'),
           client.from('releases').select('*'),
@@ -288,12 +296,11 @@ export function useProductState() {
             title: e.title,
           })));
         }
-        if (initDb) setInitiatives(initDb as Initiative[]);
         if (featDb) {
           setFeatures(
             (featDb as any[]).map((f) => ({
               id: f.id,
-              initiativeId: f.initiative_id,
+              epicId: f.epic_id || f.initiative_id,
               code: f.code,
               title: f.title,
               description: f.description || '',
@@ -329,14 +336,12 @@ export function useProductState() {
               project: r.project || undefined,
               subsystem: r.subsystem || undefined,
               taskKind: r.task_kind || undefined,
-              taskType: r.task_type || undefined,
               authorId: r.author_id || undefined,
               executorId: r.executor_id || undefined,
               projectId: r.project_id || undefined,
               productId: r.product_id || undefined,
               moduleId: r.module_id || undefined,
               taskKindId: r.task_kind_id || undefined,
-              taskTypeId: r.task_type_id || undefined,
               projectStageId: r.project_stage_id || undefined,
               estimate: r.estimate,
               spent: r.spent,
@@ -463,10 +468,6 @@ export function useProductState() {
   }, [epics]);
 
   useEffect(() => {
-    localStorage.setItem('init_data', JSON.stringify(initiatives));
-  }, [initiatives]);
-
-  useEffect(() => {
     localStorage.setItem('feat_data', JSON.stringify(features));
   }, [features]);
 
@@ -530,6 +531,30 @@ export function useProductState() {
   useEffect(() => {
     localStorage.setItem('gitlab_settings', JSON.stringify(gitLabSettings));
   }, [gitLabSettings]);
+
+  useEffect(() => {
+    localStorage.setItem('priority_weights', JSON.stringify(priorityWeights));
+  }, [priorityWeights]);
+
+  useEffect(() => {
+    localStorage.setItem('dict_release_effort', JSON.stringify(releaseEffortOptions));
+  }, [releaseEffortOptions]);
+
+  const setPriorityWeights = (weights: PriorityWeights) => {
+    setPriorityWeightsState(weights);
+    logAction('UPDATE_PRIORITY_WEIGHTS', `Обновлены весовые коэффициенты формулы приоритетов`);
+  };
+
+  const addReleaseEffortOption = async (name: string, points: number) => {
+    const newItem: ReleaseEffortOption = { id: `re-${Date.now()}`, name, points };
+    setReleaseEffortOptions((prev) => [...prev, newItem]);
+    logAction('ADD_DICTIONARY', `Справочник: Добавлен вариант сложности переноса ${name} (${points} б.)`);
+  };
+
+  const deleteReleaseEffortOption = async (id: string) => {
+    setReleaseEffortOptions((prev) => prev.filter((i) => i.id !== id));
+    logAction('DELETE_DICTIONARY', `Справочник: Удален вариант сложности переноса ${id}`);
+  };
 
   // Recalculate autoScore for a Feature
   const recalculateAutoScore = (feat: Feature): number => {
@@ -1055,26 +1080,6 @@ export function useProductState() {
     }
   };
 
-  // Add / Edit Initiative
-  const addInitiative = async (init: Omit<Initiative, 'id' | 'code'>) => {
-    const code = `INIT-${100 + initiatives.length + 1}`;
-    const newInit: Initiative = { ...init, id: `in-${Date.now()}`, code };
-    setInitiatives((prev) => [...prev, newInit]);
-    logAction('CREATE_INITIATIVE', `Создана инициатива ${code}: ${init.title}`);
-
-    const client = supabase;
-    if (isSupabaseConfigured && client) {
-      await client.from('initiatives').insert({
-        id: newInit.id,
-        epic_id: newInit.epicId,
-        code: newInit.code,
-        title: newInit.title,
-        description: newInit.description,
-        status: newInit.status,
-      });
-    }
-  };
-
   // Transition feature status
   const moveFeatureToEstimation = async (featureId: string) => {
     setFeatures((prev) =>
@@ -1172,7 +1177,7 @@ export function useProductState() {
       try {
         client.from('features').insert({
           id: newFeat.id,
-          initiative_id: newFeat.initiativeId,
+          epic_id: newFeat.epicId,
           code: newFeat.code,
           title: newFeat.title,
           description: newFeat.description,
@@ -1318,7 +1323,6 @@ export function useProductState() {
       req.productId &&
       req.moduleId &&
       req.taskKindId &&
-      req.taskTypeId &&
       req.projectStageId &&
       req.authorId &&
       req.executorId
@@ -1389,14 +1393,12 @@ export function useProductState() {
           project: newReq.project,
           subsystem: newReq.subsystem,
           task_kind: newReq.taskKind,
-          task_type: newReq.taskType,
           author_id: newReq.authorId,
           executor_id: newReq.executorId,
           project_id: newReq.projectId,
           product_id: newReq.productId,
           module_id: newReq.moduleId,
           task_kind_id: newReq.taskKindId,
-          task_type_id: newReq.taskTypeId,
           project_stage_id: newReq.projectStageId,
           estimate: newReq.estimate,
           spent: newReq.spent,
@@ -1463,14 +1465,12 @@ export function useProductState() {
           project: payload.project,
           subsystem: payload.subsystem,
           task_kind: payload.taskKind,
-          task_type: payload.taskType,
           author_id: payload.authorId,
           executor_id: payload.executorId,
           project_id: payload.projectId,
           product_id: payload.productId,
           module_id: payload.moduleId,
           task_kind_id: payload.taskKindId,
-          task_type_id: payload.taskTypeId,
           project_stage_id: payload.projectStageId,
           estimate: payload.estimate,
           spent: payload.spent,
@@ -1505,10 +1505,7 @@ export function useProductState() {
 
     const feat = features.find((f) => f.id === featureId);
     if (feat) {
-      const init = initiatives.find((i) => i.id === feat.initiativeId);
-      if (init) {
-        targetEpicId = init.epicId;
-      }
+      targetEpicId = feat.epicId;
     }
 
     setRequests((prev) =>
@@ -1548,10 +1545,10 @@ export function useProductState() {
     const req = requests.find(r => r.id === requestId);
     if (!req) return;
 
-    const defaultInitiativeId = initiatives[0]?.id || 'in-1';
+    const defaultEpicId = epics[0]?.id;
 
     const newFeatureId = addFeature({
-      initiativeId: defaultInitiativeId,
+      epicId: req.epicId || defaultEpicId,
       title: req.title,
       description: req.description || 'Создано автоматически из сигнала ' + req.code,
       effortHours: 40,
@@ -2024,14 +2021,12 @@ export function useProductState() {
             project: newReq.project,
             subsystem: newReq.subsystem,
             task_kind: newReq.taskKind,
-            task_type: newReq.taskType,
             author_id: newReq.authorId,
             executor_id: newReq.executorId,
             project_id: newReq.projectId,
             product_id: newReq.productId,
             module_id: newReq.moduleId,
             task_kind_id: newReq.taskKindId,
-            task_type_id: newReq.taskTypeId,
             project_stage_id: newReq.projectStageId,
             estimate: newReq.estimate,
             spent: newReq.spent,
@@ -2198,7 +2193,6 @@ export function useProductState() {
 
   return {
     epics,
-    initiatives,
     features,
     requests,
     releases,
@@ -2214,6 +2208,11 @@ export function useProductState() {
     users,
     sources,
     subsystems,
+    priorityWeights,
+    releaseEffortOptions,
+    setPriorityWeights,
+    addReleaseEffortOption,
+    deleteReleaseEffortOption,
     addEpic,
     updateEpic,
     deleteEpic,
@@ -2248,7 +2247,6 @@ export function useProductState() {
     addSource,
     updateSource,
     deleteSource,
-    addInitiative,
     addFeature,
     updateFeature,
     overrideFeatureScore,

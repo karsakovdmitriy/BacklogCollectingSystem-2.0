@@ -270,7 +270,8 @@ export function useProductState() {
           { data: kindDb },
           { data: stageDb },
           { data: userDb },
-          { data: srcDb }
+          { data: srcDb },
+          { data: glLabelsDb }
         ] = await Promise.all([
           client.from('epics').select('*'),
           client.from('features').select('*'),
@@ -286,7 +287,8 @@ export function useProductState() {
           client.from('task_kinds').select('*'),
           client.from('project_stages').select('*'),
           client.from('users').select('*'),
-          client.from('sources').select('*')
+          client.from('sources').select('*'),
+          client.from('gitlab_labels').select('*')
         ]);
 
         if (epDb) {
@@ -453,6 +455,16 @@ export function useProductState() {
             loadedSrcs.unshift({ id: 'src-gl', name: 'GitLab' });
           }
           setSources(loadedSrcs);
+        }
+        if (glLabelsDb && glLabelsDb.length > 0) {
+          setGitLabLabels(
+            (glLabelsDb as any[]).map((l) => ({
+              id: l.id,
+              name: l.name,
+              color: l.color,
+              description: l.description || '',
+            }))
+          );
         }
       } catch (err) {
         console.error('Supabase Hydration error:', err);
@@ -1910,6 +1922,23 @@ export function useProductState() {
 
     setGitLabLabels(newItems);
     logAction('IMPORT_GITLAB_LABELS', `Импортировано ${newItems.length} ярлыков из группы проектов ${projectGroup}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      for (const item of newItems) {
+        try {
+          await client.from('gitlab_labels').upsert({
+            id: item.id,
+            name: item.name,
+            color: item.color,
+            description: item.description,
+          });
+        } catch (err) {
+          console.error('Error saving gitlab_label to Supabase:', err);
+        }
+      }
+    }
+
     return newItems.map(i => i.name);
   };
 

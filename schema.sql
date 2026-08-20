@@ -106,6 +106,15 @@ CREATE TABLE gitlab_settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
+-- 2.12. Лейблы GitLab (GitLab Labels)
+CREATE TABLE gitlab_labels (
+    id VARCHAR(100) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    color VARCHAR(50),
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
 -- ============================================================================
 -- 3. ТАБЛИЦЫ ОСНОВНОГО ПРОЦЕССА (Бэклог, Сигналы, Релизы)
 -- ============================================================================
@@ -248,9 +257,10 @@ CREATE INDEX idx_requests_assoc_feat ON requests(associated_feature_id);
 CREATE INDEX idx_pm_audits_feature ON pm_audits(feature_id);
 
 -- ============================================================================
--- 5. БЕЗОПАСНОСТЬ И ПОЛИТИКИ ROW LEVEL SECURITY (RLS)
+-- 5. БЕЗОПАСНОСТЬ, ПРАВА И ПОЛИТИКИ ROW LEVEL SECURITY (RLS)
 -- ============================================================================
 
+-- Включаем RLS для всех созданных таблиц
 ALTER TABLE activity_kinds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_groups ENABLE ROW LEVEL SECURITY;
@@ -262,6 +272,7 @@ ALTER TABLE project_stages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE gitlab_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gitlab_labels ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE epics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE release_effort_options ENABLE ROW LEVEL SECURITY;
@@ -270,53 +281,32 @@ ALTER TABLE features ENABLE ROW LEVEL SECURITY;
 ALTER TABLE requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pm_audits ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow public read access" ON activity_kinds FOR SELECT USING (true);
-CREATE POLICY "Allow public modifications" ON activity_kinds FOR ALL USING (true);
+-- Создаем полные публичные RLS-политики с поддержкой SELECT, INSERT, UPDATE, DELETE (WITH CHECK)
+CREATE POLICY "Allow public full access" ON activity_kinds FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON clients FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON project_groups FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON products FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON modules FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON projects FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON task_kinds FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON project_stages FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON users FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON sources FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON gitlab_settings FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON gitlab_labels FOR ALL TO public USING (true) WITH CHECK (true);
 
-CREATE POLICY "Allow public read access" ON clients FOR SELECT USING (true);
-CREATE POLICY "Allow public modifications" ON clients FOR ALL USING (true);
+CREATE POLICY "Allow public full access" ON epics FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON release_effort_options FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON releases FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON features FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON requests FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON pm_audits FOR ALL TO public USING (true) WITH CHECK (true);
 
-CREATE POLICY "Allow public read access" ON project_groups FOR SELECT USING (true);
-CREATE POLICY "Allow public modifications" ON project_groups FOR ALL USING (true);
+-- Предоставляем полные права ролям anon, authenticated, postgres, service_role (исправление ошибки 42501 permission denied)
+GRANT USAGE ON SCHEMA public TO anon, authenticated, postgres, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, postgres, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, postgres, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, postgres, service_role;
 
-CREATE POLICY "Allow public read access" ON products FOR SELECT USING (true);
-CREATE POLICY "Allow public modifications" ON products FOR ALL USING (true);
-
-CREATE POLICY "Allow public read access" ON modules FOR SELECT USING (true);
-CREATE POLICY "Allow public modifications" ON modules FOR ALL USING (true);
-
-CREATE POLICY "Allow public read access" ON projects FOR SELECT USING (true);
-CREATE POLICY "Allow public modifications" ON projects FOR ALL USING (true);
-
-CREATE POLICY "Allow public read access" ON task_kinds FOR SELECT USING (true);
-CREATE POLICY "Allow public modifications" ON task_kinds FOR ALL USING (true);
-
-CREATE POLICY "Allow public read access" ON project_stages FOR SELECT USING (true);
-CREATE POLICY "Allow public modifications" ON project_stages FOR ALL USING (true);
-
-CREATE POLICY "Allow public read access" ON users FOR SELECT USING (true);
-CREATE POLICY "Allow public modifications" ON users FOR ALL USING (true);
-
-CREATE POLICY "Allow public read access" ON sources FOR SELECT USING (true);
-CREATE POLICY "Allow public modifications" ON sources FOR ALL USING (true);
-
-CREATE POLICY "Allow public read access" ON gitlab_settings FOR SELECT USING (true);
-CREATE POLICY "Allow public modifications" ON gitlab_settings FOR ALL USING (true);
-
-CREATE POLICY "Allow public read access" ON epics FOR SELECT USING (true);
-CREATE POLICY "Allow public modifications" ON epics FOR ALL USING (true);
-
-CREATE POLICY "Allow public read access" ON release_effort_options FOR SELECT USING (true);
-CREATE POLICY "Allow public modifications" ON release_effort_options FOR ALL USING (true);
-
-CREATE POLICY "Allow public read access" ON releases FOR SELECT USING (true);
-CREATE POLICY "Allow public modifications" ON releases FOR ALL USING (true);
-
-CREATE POLICY "Allow public read access" ON features FOR SELECT USING (true);
-CREATE POLICY "Allow public modifications" ON features FOR ALL USING (true);
-
-CREATE POLICY "Allow public read access" ON requests FOR SELECT USING (true);
-CREATE POLICY "Allow public modifications" ON requests FOR ALL USING (true);
-
-CREATE POLICY "Allow public read access" ON pm_audits FOR SELECT USING (true);
-CREATE POLICY "Allow public modifications" ON pm_audits FOR ALL USING (true);
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, postgres, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, postgres, service_role;

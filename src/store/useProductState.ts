@@ -1580,6 +1580,22 @@ export function useProductState() {
     }
   };
 
+  const deleteRequest = async (id: string) => {
+    const target = requests.find(r => r.id === id);
+    setRequests((prev) => prev.filter((r) => r.id !== id));
+    logAction('DELETE_REQUEST', `Удален запрос ${target?.code || id}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      try {
+        const { error } = await client.from('requests').delete().eq('id', id);
+        if (error) console.error('Error deleting Request from Supabase:', error);
+      } catch (err) {
+        console.error('Exception deleting Request from Supabase:', err);
+      }
+    }
+  };
+
   const updateRequestEpic = async (requestId: string, epicId: string) => {
     setRequests((prev) =>
       prev.map((r) => {
@@ -1993,6 +2009,90 @@ export function useProductState() {
   };
 
   // Requirement 12: Load all GitLab labels using pagination
+  const importGitLabUsers = async () => {
+    checkGitLabConfig();
+    const { serverUrl, personalAccessToken, projectGroup } = gitLabSettings;
+
+    let page = 1;
+    let allMembers: any[] = [];
+    while (true) {
+      const res = await fetch(`${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/members/all?per_page=100&page=${page}`, {
+        headers: { 'Private-Token': personalAccessToken }
+      });
+
+      if (!res.ok) {
+        if (page === 1) throw new Error(`Не удалось загрузить пользователей из GitLab (Статус: ${res.status} ${res.statusText})`);
+        break;
+      }
+
+      const membersData = await res.json();
+      if (!Array.isArray(membersData) || membersData.length === 0) break;
+      allMembers = [...allMembers, ...membersData];
+      const nextPage = res.headers.get('x-next-page');
+      if (!nextPage || !nextPage.trim()) break;
+      page++;
+    }
+
+    const importedUsers: User[] = [];
+    let skippedCount = 0;
+
+    for (const member of allMembers) {
+      const username = member.username;
+      const name = member.name || username;
+      const email = member.email || `${username}@corp.ru`;
+
+      const exists = users.some(u =>
+        (u.gitlabUser && u.gitlabUser.toLowerCase() === username.toLowerCase()) ||
+        (u.fullName && u.fullName.toLowerCase() === name.toLowerCase())
+      );
+
+      if (exists) {
+        skippedCount++;
+        continue;
+      }
+
+      const newUser: User = {
+        id: `usr-gl-${member.id || Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        fullName: name,
+        isEnabled: true,
+        email: email,
+        gitlabUser: username,
+        role: 'Администратор'
+      };
+
+      importedUsers.push(newUser);
+    }
+
+    if (importedUsers.length > 0) {
+      setUsers((prev) => [...prev, ...importedUsers]);
+      logAction('IMPORT_GITLAB_USERS', `Импортировано ${importedUsers.length} пользователей из GitLab группы ${projectGroup}`);
+
+      const client = supabase;
+      if (isSupabaseConfigured && client) {
+        for (const u of importedUsers) {
+          try {
+            await client.from('users').insert({
+              id: u.id,
+              full_name: u.fullName,
+              is_enabled: u.isEnabled,
+              email: u.email,
+              gitlab_user: u.gitlabUser,
+              role: u.role,
+            });
+          } catch (err) {
+            console.error('Error saving imported user to Supabase:', err);
+          }
+        }
+      }
+    }
+
+    return {
+      count: importedUsers.length,
+      skippedCount,
+      users: importedUsers
+    };
+  };
+
   const importGitLabLabels = async () => {
     checkGitLabConfig();
     const { serverUrl, personalAccessToken, projectGroup } = gitLabSettings;
@@ -2444,6 +2544,7 @@ export function useProductState() {
     resetFeatureOverride,
     addRequest,
     updateRequestDetails,
+    deleteRequest,
     classifyRequest,
     updateRequestEpic,
     associateRequestWithFeature,
@@ -2467,6 +2568,7 @@ export function useProductState() {
     importGitLabIssues,
     importProjectGroupsFromGitLab,
     importProjectsFromGitLab,
-    addImportedProjects
+    addImportedProjects,
+    importGitLabUsers
   };
 }

@@ -10,7 +10,8 @@ import {
   Search,
   Check,
   AlertTriangle,
-  Info
+  Info,
+  Trash2
 } from 'lucide-react';
 
 interface IncomingAnalysisProps {
@@ -356,6 +357,17 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                               className="px-2 py-1 bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] border border-[#30363d] rounded text-[11px]"
                             >
                               Изменить
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm(`Вы уверены, что хотите удалить запрос ${req.code}?`)) {
+                                  store.deleteRequest(req.id);
+                                }
+                              }}
+                              title="Удалить запрос"
+                              className="p-1.5 bg-[#21262d] hover:bg-red-950/60 hover:text-red-400 text-[#8b949e] border border-[#30363d] hover:border-red-800 rounded text-[11px] transition-all"
+                            >
+                              <Trash2 size={13} />
                             </button>
                             {req.status !== 'В проработку' && (
                               <button

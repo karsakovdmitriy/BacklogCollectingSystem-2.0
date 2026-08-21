@@ -980,11 +980,25 @@ export default function SettingsPanel({ store }: SettingsPanelProps) {
             </div>
           )}
 
-          {/* USERS (No import button) */}
+          {/* USERS (With import from GitLab) */}
           {activeSubTab === 'users' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-[#30363d] pb-3">
                 <h3 className="text-sm font-semibold text-white">Пользователи</h3>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await store.importGitLabUsers();
+                      alert(`Импорт пользователей из GitLab завершен!\nНовых импортировано: ${res.count} чел.\nПропущено существующих: ${res.skippedCount} чел.`);
+                    } catch (err: any) {
+                      alert(err.message || err);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded transition-all"
+                >
+                  <GitBranch size={13} /> Импортировать из GitLab
+                </button>
               </div>
               <form
                 onSubmit={(e) => {

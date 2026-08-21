@@ -2008,38 +2008,72 @@ export function useProductState() {
     };
   };
 
-  // Requirement 12: Load all GitLab labels using pagination
+  // Requirement 12: Load users who are authors or assignees in issues in this project group
   const importGitLabUsers = async () => {
     checkGitLabConfig();
     const { serverUrl, personalAccessToken, projectGroup } = gitLabSettings;
 
     let page = 1;
-    let allMembers: any[] = [];
+    let allIssues: any[] = [];
     while (true) {
-      const res = await fetch(`${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/members/all?per_page=100&page=${page}`, {
+      const res = await fetch(`${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/issues?per_page=100&page=${page}`, {
         headers: { 'Private-Token': personalAccessToken }
       });
 
       if (!res.ok) {
-        if (page === 1) throw new Error(`Не удалось загрузить пользователей из GitLab (Статус: ${res.status} ${res.statusText})`);
+        if (page === 1) throw new Error(`Не удалось загрузить задачи из GitLab API для импорта пользователей (Статус: ${res.status} ${res.statusText})`);
         break;
       }
 
-      const membersData = await res.json();
-      if (!Array.isArray(membersData) || membersData.length === 0) break;
-      allMembers = [...allMembers, ...membersData];
+      const issuesData = await res.json();
+      if (!Array.isArray(issuesData) || issuesData.length === 0) break;
+      allIssues = [...allIssues, ...issuesData];
       const nextPage = res.headers.get('x-next-page');
       if (!nextPage || !nextPage.trim()) break;
       page++;
     }
 
+    const userMap = new Map<string, { id: number; username: string; name: string; email?: string }>();
+
+    for (const issue of allIssues) {
+      if (issue.author && issue.author.username) {
+        const key = issue.author.username.toLowerCase();
+        if (!userMap.has(key)) {
+          userMap.set(key, {
+            id: issue.author.id,
+            username: issue.author.username,
+            name: issue.author.name || issue.author.username,
+            email: issue.author.email
+          });
+        }
+      }
+
+      const assignees = Array.isArray(issue.assignees) && issue.assignees.length > 0
+        ? issue.assignees
+        : (issue.assignee ? [issue.assignee] : []);
+
+      for (const assignee of assignees) {
+        if (assignee && assignee.username) {
+          const key = assignee.username.toLowerCase();
+          if (!userMap.has(key)) {
+            userMap.set(key, {
+              id: assignee.id,
+              username: assignee.username,
+              name: assignee.name || assignee.username,
+              email: assignee.email
+            });
+          }
+        }
+      }
+    }
+
     const importedUsers: User[] = [];
     let skippedCount = 0;
 
-    for (const member of allMembers) {
-      const username = member.username;
-      const name = member.name || username;
-      const email = member.email || `${username}@corp.ru`;
+    for (const candidate of Array.from(userMap.values())) {
+      const username = candidate.username;
+      const name = candidate.name || username;
+      const email = candidate.email || `${username}@corp.ru`;
 
       const exists = users.some(u =>
         (u.gitlabUser && u.gitlabUser.toLowerCase() === username.toLowerCase()) ||
@@ -2052,7 +2086,7 @@ export function useProductState() {
       }
 
       const newUser: User = {
-        id: `usr-gl-${member.id || Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        id: `usr-gl-${candidate.id || Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         fullName: name,
         isEnabled: true,
         email: email,

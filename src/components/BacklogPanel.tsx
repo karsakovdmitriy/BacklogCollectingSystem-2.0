@@ -13,6 +13,7 @@ import {
   GitBranch,
   ShieldAlert,
   Edit2,
+  Trash2,
   Settings,
   LayoutGrid,
   Network,
@@ -622,6 +623,17 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                               className="px-1.5 py-0.5 bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] hover:text-white rounded border border-[#30363d] text-[10px]"
                             >
                               PM вес
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Вы действительно хотите удалить фичу [${feat.code}] "${feat.title}"?`)) {
+                                  store.deleteFeature(feat.id);
+                                }
+                              }}
+                              title="Удалить фичу"
+                              className="p-1 bg-[#21262d] hover:bg-red-950/50 text-[#8b949e] hover:text-red-400 rounded border border-[#30363d] hover:border-red-800 transition-colors text-[10px]"
+                            >
+                              <Trash2 size={12} />
                             </button>
                           </div>
                         </div>

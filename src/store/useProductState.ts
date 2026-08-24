@@ -684,6 +684,30 @@ export function useProductState() {
     }
   };
 
+  // Delete Feature
+  const deleteFeature = async (id: string) => {
+    const feat = features.find(f => f.id === id);
+    setFeatures((prev) => prev.filter((f) => f.id !== id));
+
+    // Unbind requests linked to this feature
+    setRequests((prev) =>
+      prev.map((r) => (r.associatedFeatureId === id ? { ...r, associatedFeatureId: undefined } : r))
+    );
+
+    logAction('DELETE_FEATURE', `Удалена фича ${feat?.code || id}: ${feat?.title || ''}`);
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      try {
+        await client.from('requests').update({ associated_feature_id: null }).eq('associated_feature_id', id);
+        const { error } = await client.from('features').delete().eq('id', id);
+        if (error) console.error('Error deleting Feature from Supabase:', error);
+      } catch (err) {
+        console.error('Exception deleting Feature from Supabase:', err);
+      }
+    }
+  };
+
   const updateEpic = async (updated: Epic) => {
     setEpics((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
     logAction('UPDATE_EPIC', `Обновлен эпик ${updated.code}: ${updated.title}`);
@@ -1420,8 +1444,7 @@ export function useProductState() {
       req.moduleId &&
       req.taskKindId &&
       req.projectStageId &&
-      req.authorId &&
-      req.executorId
+      req.authorId
     );
   };
 
@@ -2574,6 +2597,7 @@ export function useProductState() {
     deleteSource,
     addFeature,
     updateFeature,
+    deleteFeature,
     overrideFeatureScore,
     resetFeatureOverride,
     addRequest,

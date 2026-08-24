@@ -20,7 +20,7 @@ interface IncomingAnalysisProps {
 
 export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('Все');
+  const [filterStatus, setFilterStatus] = useState<string>('Неразобранные');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditingReqId, setIsEditingReqId] = useState<string | null>(null);
 

@@ -73,30 +73,44 @@ export default function BacklogFunnel({ store }: BacklogFunnelProps) {
     return true;
   });
 
-  // Calculate Funnel Stages Metrics
+  const isConfigured = (r: Request) => {
+    return !!(r.gitlabIssueId && r.projectId && r.productId && r.moduleId && r.taskKindId && r.projectStageId && r.authorId);
+  };
+
+  // Calculate Cumulative Funnel Stages Metrics
   // 1. All Signals (Total Requests)
   const stage1_allSignals = filteredRequests.length;
 
-  // 2. In Discovery (В проработку)
-  const stage2_inDiscovery = filteredRequests.filter(r => r.status === 'В проработку').length;
+  // 2. In Discovery (Заполнены реквизиты или статус "В проработке" и далее)
+  const stage2_inDiscovery = filteredRequests.filter(
+    r => isConfigured(r) || r.status === 'В проработку' || r.status === 'Принят' || r.status === 'Отклонен' || Boolean(r.associatedFeatureId)
+  ).length;
 
-  // 3. Approved Signals (Приняты)
-  const stage3_approvedSignals = filteredRequests.filter(r => r.status === 'Принят').length;
+  // 3. Approved Signals (Приняты или привязаны к фиче и далее)
+  const stage3_approvedSignals = filteredRequests.filter(
+    r => r.status === 'Принят' || Boolean(r.associatedFeatureId)
+  ).length;
 
-  // 4. Backlog Features (Фичи в бэклоге)
+  // 4. Backlog Features (Все фичи)
   const stage4_backlogFeatures = filteredFeatures.length;
 
-  // 5. Features In Estimation (На оценке)
-  const stage5_inEstimation = filteredFeatures.filter(f => f.status === 'На оценке').length;
+  // 5. Features In Estimation (На оценке или уже оценено / в релизе)
+  const stage5_inEstimation = filteredFeatures.filter(
+    f => f.status === 'На оценке' || f.status === 'Оценено' || Boolean(f.releaseId)
+  ).length;
 
-  // 6. Estimated Features (Оценено)
-  const stage6_estimatedFeatures = filteredFeatures.filter(f => f.status === 'Оценено').length;
+  // 6. Estimated Features (Оценено или в релизе)
+  const stage6_estimatedFeatures = filteredFeatures.filter(
+    f => f.status === 'Оценено' || Boolean(f.releaseId)
+  ).length;
 
-  // 7. Draft Release (В черновике релиза)
-  const stage7_draftRelease = filteredFeatures.filter(f => f.releaseId === 'rel-draft').length;
+  // 7. Draft Release (В черновике или утвержденном релизе)
+  const stage7_draftRelease = filteredFeatures.filter(f => Boolean(f.releaseId)).length;
 
   // 8. Approved Release (В утвержденном релизе)
-  const stage8_approvedRelease = filteredFeatures.filter(f => f.releaseId && f.releaseId !== 'rel-draft').length;
+  const stage8_approvedRelease = filteredFeatures.filter(
+    f => f.releaseId && f.releaseId !== 'rel-draft'
+  ).length;
 
   // Expert Hours & Dev Costs for Features
   const totalBacklogHours = filteredFeatures.reduce((sum, f) => sum + f.effortHours, 0);
@@ -133,7 +147,7 @@ export default function BacklogFunnel({ store }: BacklogFunnelProps) {
       color: 'from-yellow-600 to-amber-600',
       badgeColor: 'bg-yellow-900/40 text-yellow-400 border-yellow-800',
       prevCount: stage1_allSignals,
-      desc: 'Запросы с зафиксированными 8 обязательными реквизитами',
+      desc: 'Запросы с зафиксированными 7 обязательными реквизитами',
       hours: null
     },
     {

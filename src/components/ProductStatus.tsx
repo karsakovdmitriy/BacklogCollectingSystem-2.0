@@ -29,31 +29,54 @@ export default function ProductStatus({ store }: ProductStatusProps) {
     setExpandedProducts(prev => ({ ...prev, [prodId]: !prev[prodId] }));
   };
 
-  // Compute metrics per product
+  // Compute metrics per product based on projects with requests that occurred
   const getProductMetrics = (prod: Product) => {
-    const associatedProjects = store.projects.filter((p: Project) => p.productId === prod.id);
-    const associatedProjectIds = associatedProjects.map((p: Project) => p.id);
+    // 1. All requests associated with this product (directly or via project/module)
+    const productRequests = store.requests.filter((r: Request) => {
+      if (r.productId === prod.id) return true;
+      if (r.projectId) {
+        const proj = store.projects.find((p: Project) => p.id === r.projectId);
+        if (proj && proj.productId === prod.id) return true;
+      }
+      return false;
+    });
 
-    // Associated Requests
-    const associatedRequests = store.requests.filter((r: Request) =>
-      r.productId === prod.id || (r.projectId && associatedProjectIds.includes(r.projectId))
+    // 2. Projects belonging to this product where at least one request occurred
+    const activeProjectIds = Array.from(new Set(productRequests.map((r: Request) => r.projectId).filter(Boolean)));
+    const activeProjects = store.projects.filter((p: Project) =>
+      p.productId === prod.id && activeProjectIds.includes(p.id)
     );
 
-    // Associated Features (via subsystem/module match or project matching)
-    const associatedFeatures = store.features; // All features in product backlog
+    // 3. Features associated with those requests/projects/product
+    const associatedFeatureIds = Array.from(
+      new Set(productRequests.map((r: Request) => r.associatedFeatureId).filter(Boolean))
+    );
 
-    const featureCount = associatedFeatures.length;
-    const totalHours = associatedFeatures.reduce((sum: number, f: Feature) => sum + f.effortHours, 0);
-    const totalDevCost = totalHours * 2000;
+    const associatedFeatures = store.features.filter((f: Feature) => {
+      if (associatedFeatureIds.includes(f.id)) return true;
+      // Match by module / subsystem
+      if (f.subsystem) {
+        const prodModules = store.modules.filter((m: any) => m.productId === prod.id);
+        if (prodModules.some((m: any) => m.name === f.subsystem)) return true;
+      }
+      return false;
+    });
 
-    const backlogCount = associatedFeatures.filter((f: Feature) => f.status === 'Backlog' || !f.status).length;
-    const inEstCount = associatedFeatures.filter((f: Feature) => f.status === 'На оценке').length;
-    const estimatedCount = associatedFeatures.filter((f: Feature) => f.status === 'Оценено').length;
-    const releaseCount = associatedFeatures.filter((f: Feature) => f.releaseId).length;
+    // Fallback if no specific feature binding exists yet but product requests occurred
+    const targetFeatures = associatedFeatures.length > 0 ? associatedFeatures : (productRequests.length > 0 ? store.features : []);
+
+    const featureCount = targetFeatures.length;
+    const totalHours = targetFeatures.reduce((sum: number, f: Feature) => sum + (f.effortHours || 0), 0);
+    const totalDevCost = totalHours * (store.internalRate || 2000);
+
+    const backlogCount = targetFeatures.filter((f: Feature) => f.status === 'Backlog' || !f.status).length;
+    const inEstCount = targetFeatures.filter((f: Feature) => f.status === 'На оценке').length;
+    const estimatedCount = targetFeatures.filter((f: Feature) => f.status === 'Оценено').length;
+    const releaseCount = targetFeatures.filter((f: Feature) => Boolean(f.releaseId)).length;
 
     return {
-      projects: associatedProjects,
-      requestsCount: associatedRequests.length,
+      projects: activeProjects,
+      requestsCount: productRequests.length,
       featureCount,
       totalHours,
       totalDevCost,

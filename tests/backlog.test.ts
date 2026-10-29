@@ -91,6 +91,24 @@ test('Verify Backlog Dashboard View, Grouping, and 3-Stage Release Planner Funne
   await page.click('button:has-text("Отмена")');
   await page.waitForTimeout(200);
 
+  // Test clicking on Priority (ИТОГ) score to view priority details modal
+  console.log('Testing click on Priority score...');
+  await page.click('button:has-text("ИТОГ:")');
+  await page.waitForTimeout(500);
+
+  // Verify Priority Details modal content
+  const priorityModalTitle = page.locator('text=Параметры расчета приоритета');
+  await expect(priorityModalTitle).toBeVisible();
+
+  const formulaComponent1 = page.locator('text=1. Вид задачи (Task Kind)');
+  await expect(formulaComponent1).toBeVisible();
+
+  await page.screenshot({ path: '/home/jules/verification/screenshots/priority_details_modal.png', fullPage: true });
+
+  // Close Priority Details modal
+  await page.click('button:has-text("Закрыть")');
+  await page.waitForTimeout(200);
+
   // 3. Move to Constructor Reliza panel to test 3-Stage Funnel
   await page.locator('aside button').filter({ hasText: 'Релиза' }).click();
   await page.waitForSelector('button:has-text("Заполнить трудоемкость")');

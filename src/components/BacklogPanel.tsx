@@ -6,6 +6,7 @@ import {
   Feature,
   DictionaryItem,
 } from '@/store/index';
+import PriorityDetailsModal from './PriorityDetailsModal';
 import {
   ChevronDown,
   ChevronRight,
@@ -43,6 +44,7 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
   const [isFeatureModalOpen, setIsFeatureModalOpen] = useState(false);
   const [isEditFeatureModalOpen, setIsEditFeatureModalOpen] = useState(false);
   const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
+  const [selectedFeatureForPriorityDetails, setSelectedFeatureForPriorityDetails] = useState<Feature | null>(null);
 
   // Override Form State
   const [selectedFeatureForOverride, setSelectedFeatureForOverride] = useState<Feature | null>(null);
@@ -516,10 +518,14 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
                             <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[#238636]/20 text-[#2ea043] border border-[#238636]/30 font-bold">
                               {feat.code}
                             </span>
-                            <div className="flex items-center gap-1 bg-[#0d1117] px-1.5 py-0.5 rounded border border-[#30363d]">
+                            <button
+                              onClick={() => setSelectedFeatureForPriorityDetails(feat)}
+                              className="flex items-center gap-1 bg-[#0d1117] hover:bg-[#21262d] px-1.5 py-0.5 rounded border border-[#30363d] cursor-pointer transition-colors"
+                              title="Нажмите, чтобы просмотреть параметры расчета приоритета"
+                            >
                               <span className="text-[9px] text-[#8b949e] font-sans">ИТОГ:</span>
                               <strong className="text-[11px] text-green-400 font-mono">{currentScore}</strong>
-                            </div>
+                            </button>
                           </div>
                           <h4 className="font-bold text-xs text-white leading-snug">{feat.title}</h4>
                           <p className="text-[11px] text-[#8b949e] leading-snug line-clamp-2">{feat.description}</p>
@@ -656,6 +662,15 @@ export default function BacklogPanel({ store, searchQuery }: BacklogPanelProps) 
       {/* ========================================================================================= */}
       {/* MODALS */}
       {/* ========================================================================================= */}
+
+      {/* 0. MODAL: PRIORITY DETAILS BREAKDOWN */}
+      {selectedFeatureForPriorityDetails && (
+        <PriorityDetailsModal
+          feature={selectedFeatureForPriorityDetails}
+          store={store}
+          onClose={() => setSelectedFeatureForPriorityDetails(null)}
+        />
+      )}
 
       {/* 1. MODAL: MANUAL PRIORITY OVERRIDE */}
       {isOverrideModalOpen && selectedFeatureForOverride && (

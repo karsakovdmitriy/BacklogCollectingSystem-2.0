@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Feature, Release } from '@/store/index';
+import PriorityDetailsModal from './PriorityDetailsModal';
 import {
   CalendarRange,
   Zap,
@@ -31,6 +32,7 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
   // Modal toggles
   const [selectedLogsRelease, setSelectedLogsRelease] = useState<Release | null>(null);
   const [isBulkEstimateOpen, setIsBulkEstimateOpen] = useState(false);
+  const [selectedFeatureForPriorityDetails, setSelectedFeatureForPriorityDetails] = useState<Feature | null>(null);
 
   // Bulk estimation form state
   const [bulkInputs, setBulkInputs] = useState<Record<string, { hours: string }>>({});
@@ -331,7 +333,13 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-[#30363d]/50 font-mono">
-                      <span className="text-[#8b949e]">Приоритет: <strong className="text-green-400">{currentScore}</strong></span>
+                      <button
+                        onClick={() => setSelectedFeatureForPriorityDetails(f)}
+                        className="text-[#8b949e] hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+                        title="Нажмите, чтобы просмотреть параметры расчета приоритета"
+                      >
+                        <span>Приоритет: <strong className="text-green-400">{currentScore}</strong></span>
+                      </button>
                       <span className="bg-[#21262d] text-[#8b949e] px-1.5 py-0.2 rounded">Не оценена (в часах)</span>
                     </div>
                   </div>
@@ -421,7 +429,13 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
                     </div>
 
                     <div className="text-[10px] text-[#8b949e] font-mono pt-1 flex justify-between">
-                      <span>Приоритет: <strong className="text-green-400">{currentScore}</strong></span>
+                      <button
+                        onClick={() => setSelectedFeatureForPriorityDetails(f)}
+                        className="text-[#8b949e] hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+                        title="Нажмите, чтобы просмотреть параметры расчета приоритета"
+                      >
+                        <span>Приоритет: <strong className="text-green-400">{currentScore}</strong></span>
+                      </button>
                       <span className="text-amber-500 font-semibold animate-pulse">ОЖИДАЕТ ОЦЕНКИ</span>
                     </div>
                   </div>
@@ -467,12 +481,21 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
                         onDragStart={(e) => handleDragStart(e, f.id, 'estimated')}
                         className="p-2.5 bg-[#161b22] border border-[#30363d] hover:border-[#8b949e]/40 rounded-lg cursor-grab active:cursor-grabbing transition-all flex items-center justify-between gap-2"
                       >
-                        <div className="truncate pr-2">
+                        <div className="truncate pr-2 space-y-0.5">
                           <div className="flex items-center gap-1.5">
                             <span className="text-[9px] font-mono text-[#58a6ff]">{f.code}</span>
                             <span className="text-white font-medium text-xs truncate max-w-[120px]">{f.title}</span>
                           </div>
-                          <span className="text-[10px] text-[#8b949e] font-mono">{f.effortHours}ч.</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setSelectedFeatureForPriorityDetails(f)}
+                              className="text-[10px] text-[#8b949e] hover:text-white transition-colors font-mono cursor-pointer"
+                              title="Нажмите, чтобы просмотреть параметры расчета приоритета"
+                            >
+                              Приоритет: <span className="text-green-400 font-bold">{currentScore}</span>
+                            </button>
+                            <span className="text-[10px] text-[#8b949e] font-mono">{f.effortHours}ч.</span>
+                          </div>
                         </div>
                         <button
                           onClick={() => moveToRelease(f.id)}
@@ -592,6 +615,15 @@ export default function ReleasePlanner({ store, searchQuery }: ReleasePlannerPro
           ))}
         </div>
       </div>
+
+      {/* MODAL: PRIORITY DETAILS BREAKDOWN */}
+      {selectedFeatureForPriorityDetails && (
+        <PriorityDetailsModal
+          feature={selectedFeatureForPriorityDetails}
+          store={store}
+          onClose={() => setSelectedFeatureForPriorityDetails(null)}
+        />
+      )}
 
       {/* MODAL: BATCH ESTIMATION */}
       {isBulkEstimateOpen && (

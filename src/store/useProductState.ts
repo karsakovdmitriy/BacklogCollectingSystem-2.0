@@ -2208,34 +2208,56 @@ export function useProductState() {
 
     const { serverUrl, personalAccessToken, projectGroup } = gitLabSettings;
 
-    const queryParams = new URLSearchParams();
+    const baseQueryParams = new URLSearchParams();
     if (filters?.labelNames && filters.labelNames.length > 0) {
-      queryParams.set('labels', filters.labelNames.join(','));
+      baseQueryParams.set('labels', filters.labelNames.join(','));
     }
     if (filters?.createdAfter) {
-      queryParams.set('created_after', new Date(filters.createdAfter).toISOString());
+      baseQueryParams.set('created_after', new Date(filters.createdAfter).toISOString());
     }
     if (filters?.createdBefore) {
       const toDate = new Date(filters.createdBefore);
       toDate.setHours(23, 59, 59, 999);
-      queryParams.set('created_before', toDate.toISOString());
+      baseQueryParams.set('created_before', toDate.toISOString());
     }
 
-    const queryString = queryParams.toString();
-    const url = `${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/issues${queryString ? '?' + queryString : ''}`;
+    let page = 1;
+    let allIssuesData: any[] = [];
 
-    const res = await fetch(url, {
-      headers: { 'Private-Token': personalAccessToken }
-    });
+    while (true) {
+      const queryParams = new URLSearchParams(baseQueryParams);
+      queryParams.set('per_page', '100');
+      queryParams.set('page', String(page));
 
-    if (!res.ok) {
-      throw new Error(`Не удалось загрузить задачи из GitLab API (Статус: ${res.status} ${res.statusText})`);
+      const queryString = queryParams.toString();
+      const url = `${serverUrl}/api/v4/groups/${encodeURIComponent(projectGroup)}/issues${queryString ? '?' + queryString : ''}`;
+
+      const res = await fetch(url, {
+        headers: { 'Private-Token': personalAccessToken }
+      });
+
+      if (!res.ok) {
+        if (page === 1) {
+          throw new Error(`Не удалось загрузить задачи из GitLab API (Статус: ${res.status} ${res.statusText})`);
+        }
+        break;
+      }
+
+      const issuesPage = await res.json();
+      if (!Array.isArray(issuesPage) || issuesPage.length === 0) {
+        break;
+      }
+
+      allIssuesData = [...allIssuesData, ...issuesPage];
+
+      const nextPage = res.headers.get('x-next-page');
+      if (!nextPage || !nextPage.trim()) {
+        break;
+      }
+      page++;
     }
 
-    let issuesData = await res.json();
-    if (!Array.isArray(issuesData)) {
-      throw new Error('Получен некорректный ответ от GitLab API (ожидался массив задач).');
-    }
+    let issuesData = allIssuesData;
 
     if (filters?.projectId) {
       const selectedProj = projects.find(p => p.id === filters.projectId);

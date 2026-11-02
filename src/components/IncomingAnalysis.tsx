@@ -11,7 +11,10 @@ import {
   Check,
   AlertTriangle,
   Info,
-  Trash2
+  Trash2,
+  Tag,
+  Filter,
+  RotateCcw
 } from 'lucide-react';
 
 interface IncomingAnalysisProps {
@@ -21,6 +24,13 @@ interface IncomingAnalysisProps {
 export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('Неразобранные');
+  const [filterProject, setFilterProject] = useState('');
+  const [filterProduct, setFilterProduct] = useState('');
+  const [filterModule, setFilterModule] = useState('');
+  const [filterTaskKind, setFilterTaskKind] = useState('');
+  const [filterStage, setFilterStage] = useState('');
+  const [filterSource, setFilterSource] = useState('');
+  const [filterLabel, setFilterLabel] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditingReqId, setIsEditingReqId] = useState<string | null>(null);
 
@@ -184,21 +194,92 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
     );
   };
 
+  const getRequestLabels = (req: Request): string[] => {
+    if (req.labels && req.labels.length > 0) {
+      return req.labels;
+    }
+    const derived: string[] = [];
+    if (req.moduleId) {
+      const m = store.modules.find((mod: Module) => mod.id === req.moduleId);
+      if (m?.gitlabLabel) derived.push(m.gitlabLabel);
+    }
+    if (req.taskKindId) {
+      const k = store.taskKinds.find((kind: TaskKind) => kind.id === req.taskKindId);
+      if (k?.gitlabLabel) derived.push(k.gitlabLabel);
+    }
+    if (req.projectStageId) {
+      const s = store.projectStages.find((stg: ProjectStage) => stg.id === req.projectStageId);
+      if (s?.gitlabLabel) derived.push(s.gitlabLabel);
+    }
+    return Array.from(new Set(derived));
+  };
+
+  const getLabelColor = (labelName: string): { bg: string; text: string; border: string; dot: string } => {
+    const found = store.gitLabLabels?.find((l: any) => l.name.toLowerCase() === labelName.toLowerCase());
+    if (found?.color) {
+      return {
+        bg: `${found.color}25`,
+        text: found.color,
+        border: `${found.color}60`,
+        dot: found.color
+      };
+    }
+    return {
+      bg: '#21262d',
+      text: '#58a6ff',
+      border: '#388bfd40',
+      dot: '#58a6ff'
+    };
+  };
+
   const matchesSearch = (req: Request) => {
     const query = searchQuery.toLowerCase();
     const proj = store.projects.find((p: Project) => p.id === req.projectId);
     const projName = proj ? store.getProjectName(proj) : '';
+    const reqLabels = getRequestLabels(req);
 
     return (
       req.title.toLowerCase().includes(query) ||
       req.code.toLowerCase().includes(query) ||
       (req.description && req.description.toLowerCase().includes(query)) ||
-      projName.toLowerCase().includes(query)
+      projName.toLowerCase().includes(query) ||
+      reqLabels.some(l => l.toLowerCase().includes(query))
     );
+  };
+
+  const activeFiltersCount =
+    (filterProject ? 1 : 0) +
+    (filterProduct ? 1 : 0) +
+    (filterModule ? 1 : 0) +
+    (filterTaskKind ? 1 : 0) +
+    (filterStage ? 1 : 0) +
+    (filterSource ? 1 : 0) +
+    (filterLabel ? 1 : 0);
+
+  const resetAllFilters = () => {
+    setSearchQuery('');
+    setFilterStatus('Все');
+    setFilterProject('');
+    setFilterProduct('');
+    setFilterModule('');
+    setFilterTaskKind('');
+    setFilterStage('');
+    setFilterSource('');
+    setFilterLabel('');
   };
 
   const filteredRequests = store.requests.filter((r: Request) => {
     if (filterStatus !== 'Все' && r.status !== filterStatus) return false;
+    if (filterProject && r.projectId !== filterProject) return false;
+    if (filterProduct && r.productId !== filterProduct) return false;
+    if (filterModule && r.moduleId !== filterModule) return false;
+    if (filterTaskKind && r.taskKindId !== filterTaskKind) return false;
+    if (filterStage && r.projectStageId !== filterStage) return false;
+    if (filterSource && r.source !== filterSource) return false;
+    if (filterLabel) {
+      const labels = getRequestLabels(r);
+      if (!labels.some(l => l.toLowerCase() === filterLabel.toLowerCase())) return false;
+    }
     return matchesSearch(r);
   });
 
@@ -246,34 +327,162 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
       {/* FILTER & CONTAINER GRID */}
       <div className="grid grid-cols-1 gap-4">
         <div className="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden p-4">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-            {/* Search Input */}
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-2.5 top-2.5 text-[#8b949e]" size={15} />
-              <input
-                type="text"
-                placeholder="Поиск по проекту, названию, коду..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 w-full rounded bg-[#0d1117] border border-[#30363d] focus:outline-none focus:border-[#58a6ff] text-xs text-white"
-              />
+          <div className="space-y-3 mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              {/* Search Input */}
+              <div className="relative w-full sm:w-80">
+                <Search className="absolute left-2.5 top-2.5 text-[#8b949e]" size={15} />
+                <input
+                  type="text"
+                  placeholder="Поиск по проекту, названию, лейблу, коду..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-4 py-2 w-full rounded bg-[#0d1117] border border-[#30363d] focus:outline-none focus:border-[#58a6ff] text-xs text-white"
+                />
+              </div>
+
+              {/* Status Filter Tabs */}
+              <div className="flex items-center gap-1.5 bg-[#0d1117] p-1 rounded-lg border border-[#30363d]">
+                {['Все', 'Неразобранные', 'В проработку', 'Принят', 'Отклонен'].map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setFilterStatus(status)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                      filterStatus === status
+                        ? 'bg-[#21262d] text-white border border-[#30363d]'
+                        : 'text-[#8b949e] hover:text-white'
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Status Filter Tabs */}
-            <div className="flex items-center gap-1.5 bg-[#0d1117] p-1 rounded-lg border border-[#30363d]">
-              {['Все', 'Неразобранные', 'В проработку', 'Принят', 'Отклонен'].map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setFilterStatus(status)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                    filterStatus === status
-                      ? 'bg-[#21262d] text-white border border-[#30363d]'
-                      : 'text-[#8b949e] hover:text-white'
-                  }`}
-                >
-                  {status}
-                </button>
-              ))}
+            {/* EXTENDED LIST FILTERS BAR */}
+            <div className="p-3 bg-[#0d1117] rounded-lg border border-[#30363d] space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[#8b949e] font-semibold flex items-center gap-1.5 text-[11px]">
+                  <Filter size={13} className="text-[#58a6ff]" />
+                  Фильтры списка задач:
+                </span>
+                {activeFiltersCount > 0 && (
+                  <button
+                    onClick={resetAllFilters}
+                    className="text-[11px] text-red-400 hover:text-red-300 flex items-center gap-1 hover:underline cursor-pointer"
+                  >
+                    <RotateCcw size={11} />
+                    Сбросить все фильтры ({activeFiltersCount})
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
+                {/* Project */}
+                <div>
+                  <label className="text-[10px] text-[#8b949e] block mb-0.5 font-medium">Проект:</label>
+                  <select
+                    value={filterProject}
+                    onChange={(e) => setFilterProject(e.target.value)}
+                    className="w-full bg-[#161b22] border border-[#30363d] text-white rounded p-1 text-[11px] focus:outline-none focus:border-[#58a6ff]"
+                  >
+                    <option value="">Все проекты</option>
+                    {store.projects.map((p: Project) => (
+                      <option key={p.id} value={p.id}>{store.getProjectName(p)}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Product */}
+                <div>
+                  <label className="text-[10px] text-[#8b949e] block mb-0.5 font-medium">Продукт:</label>
+                  <select
+                    value={filterProduct}
+                    onChange={(e) => setFilterProduct(e.target.value)}
+                    className="w-full bg-[#161b22] border border-[#30363d] text-white rounded p-1 text-[11px] focus:outline-none focus:border-[#58a6ff]"
+                  >
+                    <option value="">Все продукты</option>
+                    {store.products.map((p: Product) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Module */}
+                <div>
+                  <label className="text-[10px] text-[#8b949e] block mb-0.5 font-medium">Модуль:</label>
+                  <select
+                    value={filterModule}
+                    onChange={(e) => setFilterModule(e.target.value)}
+                    className="w-full bg-[#161b22] border border-[#30363d] text-white rounded p-1 text-[11px] focus:outline-none focus:border-[#58a6ff]"
+                  >
+                    <option value="">Все модули</option>
+                    {store.modules.map((m: Module) => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Task Kind */}
+                <div>
+                  <label className="text-[10px] text-[#8b949e] block mb-0.5 font-medium">Вид задачи:</label>
+                  <select
+                    value={filterTaskKind}
+                    onChange={(e) => setFilterTaskKind(e.target.value)}
+                    className="w-full bg-[#161b22] border border-[#30363d] text-white rounded p-1 text-[11px] focus:outline-none focus:border-[#58a6ff]"
+                  >
+                    <option value="">Все виды</option>
+                    {store.taskKinds.map((k: TaskKind) => (
+                      <option key={k.id} value={k.id}>{k.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Stage */}
+                <div>
+                  <label className="text-[10px] text-[#8b949e] block mb-0.5 font-medium">Этап:</label>
+                  <select
+                    value={filterStage}
+                    onChange={(e) => setFilterStage(e.target.value)}
+                    className="w-full bg-[#161b22] border border-[#30363d] text-white rounded p-1 text-[11px] focus:outline-none focus:border-[#58a6ff]"
+                  >
+                    <option value="">Все этапы</option>
+                    {store.projectStages.map((s: ProjectStage) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Source */}
+                <div>
+                  <label className="text-[10px] text-[#8b949e] block mb-0.5 font-medium">Источник:</label>
+                  <select
+                    value={filterSource}
+                    onChange={(e) => setFilterSource(e.target.value)}
+                    className="w-full bg-[#161b22] border border-[#30363d] text-white rounded p-1 text-[11px] focus:outline-none focus:border-[#58a6ff]"
+                  >
+                    <option value="">Все источники</option>
+                    {store.sources.map((s: any) => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* GitLab Label Filter */}
+                <div>
+                  <label className="text-[10px] text-[#8b949e] block mb-0.5 font-medium">Лейбл (GitLab):</label>
+                  <select
+                    value={filterLabel}
+                    onChange={(e) => setFilterLabel(e.target.value)}
+                    className="w-full bg-[#161b22] border border-[#30363d] text-white rounded p-1 text-[11px] focus:outline-none focus:border-[#58a6ff]"
+                  >
+                    <option value="">Все лейблы</option>
+                    {store.gitLabLabels?.map((l: any) => (
+                      <option key={l.id || l.name} value={l.name}>{l.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -284,6 +493,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                 <tr className="border-b border-[#30363d] text-[#8b949e] text-xs">
                   <th className="py-2 px-3 font-medium">Код / Источник</th>
                   <th className="py-2 px-3 font-medium">Название и описание</th>
+                  <th className="py-2 px-3 font-medium">Лейблы (GitLab)</th>
                   <th className="py-2 px-3 font-medium">Валидация</th>
                   <th className="py-2 px-3 font-medium">Статус</th>
                   <th className="py-2 px-3 font-medium text-right">Действия</th>
@@ -292,7 +502,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
               <tbody className="divide-y divide-[#30363d]/40">
                 {filteredRequests.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-[#8b949e] italic">
+                    <td colSpan={6} className="py-8 text-center text-[#8b949e] italic">
                       Нет подходящих сигналов в данном сегменте.
                     </td>
                   </tr>
@@ -300,6 +510,7 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                   filteredRequests.map((req: Request) => {
                     const missingParams = getMissingParameters(req);
                     const isFullyConfigured = missingParams.length === 0;
+                    const reqLabels = getRequestLabels(req);
 
                     return (
                       <tr key={req.id} className="hover:bg-[#161b22]/50 text-xs transition-colors">
@@ -317,6 +528,35 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                           <p className="text-[#8b949e] leading-snug truncate hover:whitespace-normal">
                             {req.description}
                           </p>
+                        </td>
+
+                        {/* Visual GitLab Labels */}
+                        <td className="py-3 px-3 align-top">
+                          <div className="flex flex-wrap gap-1 max-w-[200px]">
+                            {reqLabels.length === 0 ? (
+                              <span className="text-[#8b949e] italic text-[10px]">—</span>
+                            ) : (
+                              reqLabels.map((lbl, idx) => {
+                                const colorStyle = getLabelColor(lbl);
+                                return (
+                                  <span
+                                    key={idx}
+                                    onClick={() => setFilterLabel(filterLabel === lbl ? '' : lbl)}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono cursor-pointer border hover:opacity-80 transition-opacity"
+                                    style={{
+                                      backgroundColor: colorStyle.bg,
+                                      color: colorStyle.text,
+                                      borderColor: colorStyle.border
+                                    }}
+                                    title={`Кликните для фильтрации по лейблу "${lbl}"`}
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full inline-block shrink-0" style={{ backgroundColor: colorStyle.dot }} />
+                                    <span className="truncate max-w-[120px]">{lbl}</span>
+                                  </span>
+                                );
+                              })
+                            )}
+                          </div>
                         </td>
 
                         {/* Validation Status badge */}

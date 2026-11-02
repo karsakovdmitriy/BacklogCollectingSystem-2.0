@@ -144,6 +144,7 @@ export interface Request {
 
   epicId?: string; // Опциональный параметр (Епик)
   associatedFeatureId?: string | null;
+  labels?: string[]; // Ярлыки / Лейблы GitLab
   createdAt: string;
 }
 

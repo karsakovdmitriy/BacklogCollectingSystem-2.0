@@ -215,6 +215,7 @@ CREATE TABLE requests (
 
     epic_id VARCHAR(50) REFERENCES epics(id) ON DELETE SET NULL, -- Ссылка на Эпик
     associated_feature_id VARCHAR(50) REFERENCES features(id) ON DELETE SET NULL, -- Связанная фича
+    labels TEXT[] DEFAULT '{}'::TEXT[], -- Массив лейблов из GitLab
 
     created_at VARCHAR(10) NOT NULL -- Формат 'YYYY-MM-DD'
 );

@@ -365,6 +365,7 @@ export function useProductState() {
               spent: r.spent,
               epicId: r.epic_id || undefined,
               associatedFeatureId: r.associated_feature_id || undefined,
+              labels: Array.isArray(r.labels) ? r.labels : undefined,
               createdAt: r.created_at,
             }))
           );
@@ -2358,6 +2359,7 @@ export function useProductState() {
         subsystem: matchedModule?.name,
         taskKind: matchedKind?.name,
 
+        labels: issueLabels,
         estimate: typeof issue.time_stats?.time_estimate === 'number' ? Math.round(issue.time_stats.time_estimate / 3600) : 0,
         spent: typeof issue.time_stats?.total_time_spent === 'number' ? Math.round(issue.time_stats.total_time_spent / 3600) : 0,
 

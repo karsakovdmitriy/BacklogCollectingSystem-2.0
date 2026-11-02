@@ -292,7 +292,6 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
     if (!req.taskKindId) missing.push('Вид задачи');
     if (!req.projectStageId) missing.push('Этап проекта');
     if (!req.authorId) missing.push('Автор');
-    if (!req.executorId) missing.push('Исполнитель');
     return missing;
   };
 
@@ -827,11 +826,11 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
                 </div>
               </div>
 
-              {/* 8 OBLIGATORY ENTERPRISE DICTIONARY FIELDS SECTION */}
+              {/* 7 OBLIGATORY ENTERPRISE DICTIONARY FIELDS SECTION */}
               <div className="p-4 bg-[#0d1117] border border-[#30363d] rounded-lg space-y-3">
                 <div className="flex items-center gap-1.5 text-yellow-500 font-semibold mb-1">
                   <Info size={14} />
-                  <span>Продуктовая классификация (Обязательные 8 параметров)</span>
+                  <span>Продуктовая классификация (Обязательные 7 параметров, исполнитель опционален)</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -939,13 +938,13 @@ export default function IncomingAnalysis({ store }: IncomingAnalysisProps) {
 
                   {/* 8. Executor */}
                   <div>
-                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">8. ИСПОЛНИТЕЛЬ:</label>
+                    <label className="block text-[#8b949e] mb-0.5 font-mono text-[10px]">8. ИСПОЛНИТЕЛЬ (НЕОБЯЗАТЕЛЬНО):</label>
                     <select
                       value={executorId}
                       onChange={(e) => setExecutorId(e.target.value)}
                       className="w-full bg-[#161b22] border border-[#30363d] rounded p-1.5 text-white"
                     >
-                      <option value="">-- Выберите исполнителя --</option>
+                      <option value="">-- Не назначен --</option>
                       {store.users.map((u: User) => (
                         <option key={u.id} value={u.id}>{u.fullName}</option>
                       ))}

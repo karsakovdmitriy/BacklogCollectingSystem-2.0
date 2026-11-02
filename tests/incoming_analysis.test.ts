@@ -92,7 +92,23 @@ test('Verify Incoming Tasks Analysis filters and visual labels rendering', async
   await expect(page.locator('text=REQ-101')).toBeVisible();
   await expect(page.locator('text=REQ-102')).toBeVisible();
 
-  // 5. Take screenshot of Incoming Analysis with filters and visual labels
+  // 5. Verify executor is optional: create request with only 7 mandatory parameters (no executor)
+  await page.click('button:has-text("Внести вручную")');
+  await page.waitForTimeout(300);
+
+  // Fill 7 mandatory parameters
+  await page.locator('input[placeholder*="Сбой выгрузки"]').fill('Тестовая задача без исполнителя');
+  await page.locator('input[placeholder="#999"]').fill('#777');
+  await page.locator('select').filter({ hasText: 'Выберите проект' }).selectOption({ label: 'Платежный шлюз B2B' });
+  await page.locator('select').filter({ hasText: 'Выберите продукт' }).selectOption({ label: 'Платежи B2B' });
+  await page.locator('select').filter({ hasText: 'Выберите модуль' }).selectOption({ label: 'Модуль Клиент-Банк' });
+  await page.locator('select').filter({ hasText: 'Выберите вид задачи' }).selectOption({ label: 'Ошибка (Bug)' });
+
+  // Add author and stage to dictionary if needed, then submit
+  await page.click('button:has-text("Внести в бэклог")');
+  await page.waitForTimeout(500);
+
+  // 6. Take screenshot of Incoming Analysis with filters and visual labels
   await page.screenshot({ path: '/home/jules/verification/screenshots/incoming_analysis_filters_and_labels.png', fullPage: true });
 
   console.log('SUCCESS: Incoming Tasks Analysis filters and visual labels verified!');

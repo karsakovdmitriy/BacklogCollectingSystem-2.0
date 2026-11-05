@@ -8,6 +8,7 @@ import ReleasePlanner from '@/components/ReleasePlanner';
 import BacklogFunnel from '@/components/BacklogFunnel';
 import ProductStatus from '@/components/ProductStatus';
 import SettingsPanel from '@/components/SettingsPanel';
+import BCSinder from '@/components/BCSinder';
 
 import {
   Layers,
@@ -19,14 +20,15 @@ import {
   Search,
   User,
   Inbox,
-  Settings
+  Settings,
+  Flame
 } from 'lucide-react';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function Home() {
   const store = useProductState();
-  const [activeTab, setActiveTab] = useState<'backlog' | 'incoming' | 'release' | 'funnel' | 'product_status' | 'settings'>('incoming');
+  const [activeTab, setActiveTab] = useState<'backlog' | 'incoming' | 'bcsinder' | 'release' | 'funnel' | 'product_status' | 'settings'>('incoming');
   const [showLogs, setShowLogs] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
@@ -118,6 +120,27 @@ export default function Home() {
               {!isSidebarCollapsed && (
                 <span className="text-[11px] bg-red-900/60 border border-red-800 px-1.5 py-0.5 rounded text-white font-mono animate-pulse">
                   {store.requests.filter((r: any) => r.status === 'В проработку').length}
+                </span>
+              )}
+            </button>
+
+            {/* NEW TAB: BCSINDER */}
+            <button
+              onClick={() => setActiveTab('bcsinder')}
+              title="BCSinder (Tinder для входящих задач)"
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-medium transition-all ${
+                activeTab === 'bcsinder'
+                  ? 'bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-md'
+                  : 'text-[#c9d1d9] hover:bg-[#21262d] hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Flame size={18} className={activeTab === 'bcsinder' ? 'animate-bounce' : 'text-rose-400'} />
+                {!isSidebarCollapsed && <span>BCSinder</span>}
+              </div>
+              {!isSidebarCollapsed && (
+                <span className="text-[10px] font-bold bg-rose-950/60 border border-rose-800 text-rose-300 px-1.5 py-0.2 rounded font-mono">
+                  SWIPE
                 </span>
               )}
             </button>
@@ -261,6 +284,7 @@ export default function Home() {
             <span className="text-white font-medium">
               {activeTab === 'backlog' && 'Сквозной Бэклог и Управление Приоритизацией'}
               {activeTab === 'incoming' && 'Анализ входящих задач (Product Signals & Inbox)'}
+              {activeTab === 'bcsinder' && 'BCSinder — Tinder для входящих задач (Swipe & Classify)'}
               {activeTab === 'release' && 'Конструктор и Утверждение Релиза (Release Planner)'}
               {activeTab === 'funnel' && 'Сквозной Анализ Воронки Бэклога'}
               {activeTab === 'product_status' && 'Статус Продуктов и Проектов Развития'}
@@ -297,6 +321,9 @@ export default function Home() {
           )}
           {activeTab === 'incoming' && (
             <IncomingAnalysis store={store} />
+          )}
+          {activeTab === 'bcsinder' && (
+            <BCSinder store={store} onNavigateToBacklog={() => setActiveTab('backlog')} />
           )}
           {activeTab === 'release' && (
             <ReleasePlanner store={store} searchQuery={searchQuery} />
